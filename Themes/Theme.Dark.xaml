@@ -1,0 +1,110 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Thème sombre — palette reprise de Scanalyse (direction C « Atelier »).
+         Règles : vert (Brand/Accent) = identité, sélection, focus ;
+         orange (Action) = action principale uniquement, une fois par écran ;
+         Warn = jaune (jamais l'orange de marque). Les deux thèmes ont exactement les mêmes clés. -->
+
+    <!-- Couleurs brutes (utiles pour les effets : DropShadowEffect, animations) -->
+    <Color x:Key="C.Bg">#101314</Color>
+    <Color x:Key="C.Surface">#181C1E</Color>
+    <Color x:Key="C.Surface2">#1F2427</Color>
+    <Color x:Key="C.Line">#2A3033</Color>
+    <Color x:Key="C.Ink">#E9ECEE</Color>
+    <Color x:Key="C.Muted">#9AA3A9</Color>
+    <Color x:Key="C.Brand">#1F7454</Color>
+    <Color x:Key="C.BrandText">#5FD3A1</Color>
+    <Color x:Key="C.BrandSoft">#173A2D</Color>
+    <Color x:Key="C.OnBrand">#FFFFFF</Color>
+    <Color x:Key="C.Accent">#5FD3A1</Color>
+    <Color x:Key="C.OnAccent">#0A2219</Color>
+    <Color x:Key="C.Focus">#5FD3A1</Color>
+    <Color x:Key="C.Action">#FF9A2E</Color>
+    <Color x:Key="C.ActionHover">#FFAA4F</Color>
+    <Color x:Key="C.OnAction">#1B0F02</Color>
+    <Color x:Key="C.TitleBg">#071E17</Color>
+    <Color x:Key="C.TitleInk">#DCEBE3</Color>
+    <Color x:Key="C.TitleMuted">#86A897</Color>
+    <Color x:Key="C.TitleHover">#123527</Color>
+    <Color x:Key="C.ToolbarBg">#14181A</Color>
+    <Color x:Key="C.SideBg">#0B2A20</Color>
+    <Color x:Key="C.SideInk">#DCEBE3</Color>
+    <Color x:Key="C.SideMuted">#8FB0A2</Color>
+    <Color x:Key="C.SideHoverBg">#113A2C</Color>
+    <Color x:Key="C.SideActiveBg">#185440</Color>
+    <Color x:Key="C.SideActiveInk">#FFFFFF</Color>
+    <Color x:Key="C.OkBg">#123326</Color>
+    <Color x:Key="C.OkFg">#73D9A9</Color>
+    <Color x:Key="C.InfoBg">#15263B</Color>
+    <Color x:Key="C.InfoFg">#9CC3F0</Color>
+    <Color x:Key="C.WarnBg">#3A2E0C</Color>
+    <Color x:Key="C.WarnFg">#F5D57E</Color>
+    <Color x:Key="C.BadBg">#3A1714</Color>
+    <Color x:Key="C.BadFg">#FF8A80</Color>
+    <Color x:Key="C.ConsoleBg">#0C0F10</Color>
+    <Color x:Key="C.ConsoleInk">#C5CDD2</Color>
+    <Color x:Key="C.ConsoleMuted">#7A848A</Color>
+    <Color x:Key="C.Check">#24292C</Color>
+    <Color x:Key="C.ScrollThumb">#3A4246</Color>
+
+    <!-- Pinceaux de la charte -->
+    <SolidColorBrush x:Key="Bg" Color="#101314"/>
+    <SolidColorBrush x:Key="Surface" Color="#181C1E"/>
+    <SolidColorBrush x:Key="Surface2" Color="#1F2427"/>
+    <SolidColorBrush x:Key="Line" Color="#2A3033"/>
+    <SolidColorBrush x:Key="Ink" Color="#E9ECEE"/>
+    <SolidColorBrush x:Key="Muted" Color="#9AA3A9"/>
+    <SolidColorBrush x:Key="Brand" Color="#1F7454"/>
+    <SolidColorBrush x:Key="BrandText" Color="#5FD3A1"/>
+    <SolidColorBrush x:Key="BrandSoft" Color="#173A2D"/>
+    <SolidColorBrush x:Key="OnBrand" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Accent" Color="#5FD3A1"/>
+    <SolidColorBrush x:Key="OnAccent" Color="#0A2219"/>
+    <SolidColorBrush x:Key="Focus" Color="#5FD3A1"/>
+    <SolidColorBrush x:Key="Action" Color="#FF9A2E"/>
+    <SolidColorBrush x:Key="ActionHover" Color="#FFAA4F"/>
+    <SolidColorBrush x:Key="OnAction" Color="#1B0F02"/>
+    <SolidColorBrush x:Key="TitleBg" Color="#071E17"/>
+    <SolidColorBrush x:Key="TitleInk" Color="#DCEBE3"/>
+    <SolidColorBrush x:Key="TitleMuted" Color="#86A897"/>
+    <SolidColorBrush x:Key="TitleHover" Color="#123527"/>
+    <SolidColorBrush x:Key="ToolbarBg" Color="#14181A"/>
+    <SolidColorBrush x:Key="SideBg" Color="#0B2A20"/>
+    <SolidColorBrush x:Key="SideInk" Color="#DCEBE3"/>
+    <SolidColorBrush x:Key="SideMuted" Color="#8FB0A2"/>
+    <SolidColorBrush x:Key="SideHoverBg" Color="#113A2C"/>
+    <SolidColorBrush x:Key="SideActiveBg" Color="#185440"/>
+    <SolidColorBrush x:Key="SideActiveInk" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OkBg" Color="#123326"/>
+    <SolidColorBrush x:Key="OkFg" Color="#73D9A9"/>
+    <SolidColorBrush x:Key="InfoBg" Color="#15263B"/>
+    <SolidColorBrush x:Key="InfoFg" Color="#9CC3F0"/>
+    <SolidColorBrush x:Key="WarnBg" Color="#3A2E0C"/>
+    <SolidColorBrush x:Key="WarnFg" Color="#F5D57E"/>
+    <SolidColorBrush x:Key="BadBg" Color="#3A1714"/>
+    <SolidColorBrush x:Key="BadFg" Color="#FF8A80"/>
+    <SolidColorBrush x:Key="ConsoleBg" Color="#0C0F10"/>
+    <SolidColorBrush x:Key="ConsoleInk" Color="#C5CDD2"/>
+    <SolidColorBrush x:Key="ConsoleMuted" Color="#7A848A"/>
+    <SolidColorBrush x:Key="Check" Color="#24292C"/>
+    <SolidColorBrush x:Key="ScrollThumb" Color="#3A4246"/>
+
+    <!-- Anciennes clés conservées pour compatibilité avec le XAML et le code existants -->
+    <SolidColorBrush x:Key="BgPrimary" Color="#101314"/>
+    <SolidColorBrush x:Key="BgCard" Color="#181C1E"/>
+    <SolidColorBrush x:Key="BorderColor" Color="#2A3033"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#5FD3A1"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#9AA3A9"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#E9ECEE"/>
+    <SolidColorBrush x:Key="DangerColor" Color="#FF8A80"/>
+    <SolidColorBrush x:Key="StatusSuccess" Color="#73D9A9"/>
+    <SolidColorBrush x:Key="StatusWarning" Color="#F5D57E"/>
+    <SolidColorBrush x:Key="StatusInfo" Color="#9CC3F0"/>
+    <Color x:Key="AccentOrangeColor">#FF9A2E</Color>
+    <Color x:Key="DangerRedColor">#FF8A80</Color>
+
+    <!-- Polices -->
+    <FontFamily x:Key="FontUi">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="FontDisplay">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="FontMono">Cascadia Mono, Consolas</FontFamily>
+</ResourceDictionary>

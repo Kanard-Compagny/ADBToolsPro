@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests automatiques des services Core d'ADBTools (lecture des sorties ADB, calculs, rapports).
+    Lancement : Visual Studio > Test > Exécuter tous les tests (ou "dotnet test" dans ce dossier).
+    Ces tests n'ont besoin d'aucun terminal branché : ils utilisent des sorties ADB d'exemple.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Ne pas recopier adb, scrcpy, ffmpeg (~200 Mo) du projet principal dans le dossier de sortie des tests. -->
+    <MSBuildCopyContentTransitively>false</MSBuildCopyContentTransitively>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ADBToolsNew.csproj" />
+  </ItemGroup>
+
+</Project>

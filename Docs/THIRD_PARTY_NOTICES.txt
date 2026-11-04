@@ -1,0 +1,136 @@
+================================================================================
+                    ADB TOOLS PRO - NOTICES TIERCES (THIRD_PARTY_NOTICES)
+================================================================================
+ADB Tools Pro est un logiciel libre distribué sous licence GNU GPL v3 (voir LICENSE.txt).
+Il s'appuie sur les composants tiers ci-dessous. Les outils externes (adb, fastboot,
+scrcpy et ses bibliothèques, FFmpeg) ne sont pas livrés avec le programme : ils sont
+téléchargés à la demande depuis leurs sources officielles dans le dossier Tools
+(Paramètres ▸ Outils tiers). Chacun reste soumis à sa propre licence, rappelée
+ci-dessous à titre informatif.
+
+--------------------------------------------------------------------------------
+1. scrcpy (scrcpy.exe, scrcpy-server)
+--------------------------------------------------------------------------------
+Éditeur    : Genymobile
+Licence    : Apache License, Version 2.0
+Source     : https://github.com/Genymobile/scrcpy
+
+Utilisé pour l'affichage de l'écran du terminal (mirroring), la capture
+d'écran et l'enregistrement vidéo.
+
+Sous licence Apache 2.0, vous pouvez utiliser ce composant conformément aux
+termes de la licence, disponible intégralement à l'adresse :
+https://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+2. Android Debug Bridge / platform-tools (adb.exe, AdbWinApi.dll, AdbWinUsbApi.dll)
+--------------------------------------------------------------------------------
+Éditeur    : The Android Open Source Project (AOSP)
+Licence    : Apache License, Version 2.0
+Source     : https://developer.android.com/tools/releases/platform-tools
+
+Utilisé pour l'ensemble des communications avec les terminaux Android
+(connexion, transferts de fichiers, commandes shell, installation
+d'applications...) — c'est le cœur technique de l'application.
+
+Licence disponible intégralement à l'adresse :
+https://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+3. libusb (embarqué par scrcpy pour la communication USB bas niveau)
+--------------------------------------------------------------------------------
+Éditeur    : libusb project
+Licence    : GNU Lesser General Public License, Version 2.1 (LGPL-2.1)
+Source     : https://libusb.info/
+
+Licence disponible intégralement à l'adresse :
+https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+
+--------------------------------------------------------------------------------
+4. SDL2 (embarqué par scrcpy pour le rendu de la fenêtre de mirroring)
+--------------------------------------------------------------------------------
+Éditeur    : Sam Lantinga / SDL project
+Licence    : zlib License
+
+Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
+
+Cette licence est accordée à toute personne obtenant une copie de ce
+logiciel et des fichiers de documentation associés, sans restriction, y
+compris le droit d'utiliser, copier, modifier, fusionner, publier,
+distribuer, sous-licencier et/ou vendre des copies du logiciel, sous
+réserve des conditions suivantes :
+  1. L'origine de ce logiciel ne doit pas être présentée de manière
+     erronée ; vous ne devez pas prétendre avoir écrit le logiciel
+     original.
+  2. Les versions modifiées doivent être clairement identifiées comme
+     telles et ne doivent pas être présentées comme le logiciel original.
+  3. Cette notice ne doit pas être supprimée des distributions du code
+     source.
+
+--------------------------------------------------------------------------------
+5. FFmpeg (ffmpeg.exe) — LICENCE À CONFIRMER
+--------------------------------------------------------------------------------
+Éditeur    : FFmpeg project
+Licence    : LGPL v2.1+ ou GPL v2+ selon les options de compilation du
+             binaire fourni (voir https://ffmpeg.org/legal.html)
+
+Utilisé pour l'incrustation du filigrane (nom de société, modèle, date) sur
+les vidéos enregistrées.
+
+⚠️ Note interne : la variante exacte de licence (LGPL ou GPL) dépend des
+options de compilation du binaire ffmpeg.exe distribué avec ADB Tools Pro
+(notamment si des bibliothèques encodeurs supplémentaires sous licence GPL
+ont été activées à la compilation). Cette information n'a pas pu être
+vérifiée avec certitude au moment de la rédaction de cette notice — à
+confirmer avant toute redistribution externe du binaire, en consultant la
+sortie de `ffmpeg -version` (section "configuration") sur le binaire
+effectivement fourni.
+
+--------------------------------------------------------------------------------
+6. DocumentFormat.OpenXml (SDK OpenXML, assemblage embarqué dans l'application)
+--------------------------------------------------------------------------------
+Éditeur    : Microsoft
+Licence    : MIT License
+Source     : https://github.com/dotnet/Open-XML-SDK
+
+Utilisé pour générer les rapports Word (Diagnostics SAV, Analyse Wi-Fi) à
+partir de modèles `.docx`, sans dépendre d'une installation de Microsoft
+Word (portabilité de l'application préservée).
+
+Licence disponible intégralement à l'adresse :
+https://github.com/dotnet/Open-XML-SDK/blob/main/LICENSE
+
+--------------------------------------------------------------------------------
+7. LiveCharts / LiveCharts.Wpf (assemblages embarqués dans l'application)
+--------------------------------------------------------------------------------
+Éditeur    : Alberto Rodríguez (projet Live-Charts)
+Licence    : MIT License
+Source     : https://github.com/Live-Charts/Live-Charts
+
+Utilisé pour les graphiques en direct de l'Analyse Wi-Fi (latence et signal).
+
+Licence disponible intégralement à l'adresse :
+https://github.com/Live-Charts/Live-Charts/blob/master/LICENSE.TXT
+
+--------------------------------------------------------------------------------
+8. Bibliothèques .NET (System.Text.Json et dépendances)
+--------------------------------------------------------------------------------
+Éditeur    : Microsoft / .NET Foundation
+Licence    : MIT License
+Source     : https://github.com/dotnet/runtime
+
+Composants : System.Text.Json, System.Text.Encodings.Web, System.IO.Pipelines,
+Microsoft.Bcl.AsyncInterfaces, System.Memory, System.Buffers,
+System.Numerics.Vectors, System.Runtime.CompilerServices.Unsafe,
+System.Threading.Tasks.Extensions, System.ValueTuple.
+
+Utilisés pour la lecture/écriture des fichiers JSON (bibliothèque de
+commandes, export du diagnostic).
+
+Licence disponible intégralement à l'adresse :
+https://github.com/dotnet/runtime/blob/main/LICENSE.TXT
+
+================================================================================
+Pour toute question relative à ces notices, ouvrez un ticket (« issue ») sur
+le dépôt GitHub du projet.
+================================================================================

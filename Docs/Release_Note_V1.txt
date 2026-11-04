@@ -1,0 +1,312 @@
+================================================================================
+                        ADB TOOLS PRO - ÉDITION 2027
+                              RELEASE NOTES V1.0.1
+================================================================================
+Version        : 1.0.1 (version corrective de la 1.0.0)
+Date de sortie : Octobre 2026 (1.0.0 : Septembre 2026)
+Développé par  : Mr.Kanard
+Plateforme     : Windows (.NET Framework / WPF)
+Architecture   : Portable / Standalone (Dépendances intégrées)
+
+================================================================================
+1. PRÉSENTATION GÉNÉRALE
+================================================================================
+ADB Tools Pro est un outil de bureau conçu pour simplifier, accélérer et
+sécuriser le diagnostic des terminaux Android professionnels (Zebra, Honeywell,
+Samsung...). Il encapsule la puissance d'ADB dans une interface graphique
+moderne, asynchrone et sans ralentissement, évitant ainsi aux techniciens
+la saisie manuelle de lignes de commande.
+
+La version 1.0.0 a été la première version stable diffusée en équipe. La
+version 1.0.1 est une version corrective issue d'un audit complet du code :
+ses changements sont détaillés en section 2. Chaque onglet a été testé sur du
+matériel réel ; les limitations connues sont listées en fin de document
+(section 7) pour éviter toute mauvaise surprise sur le terrain.
+
+================================================================================
+2. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
+================================================================================
+Version corrective : aucune fonction retirée, aucune habitude à changer. Elle
+fiabilise les mesures et les rapports remis aux clients, corrige plusieurs
+blocages et rend l'application plus fluide sur les longues sessions.
+
+[Corrections importantes]
+- Bugreport : la génération (2 à 5 min) n'est plus interrompue au bout de
+  30 secondes.
+- Fermeture de la fenêtre : le garde-fou du Sideload est respecté aussi avec
+  le bouton X ; une mise à jour en cours ne peut plus être coupée.
+- Terminaux connectés en ADB Wi-Fi (série du type 192.168.1.20:5555) :
+  captures, vidéos, logs et rapports s'enregistrent correctement.
+- Enregistrement vidéo : l'arrêt vise bien le terminal qui enregistre, même
+  si un autre a été sélectionné entre-temps ; en cas d'annulation de la
+  boîte « Enregistrer sous », la vidéo est conservée dans /Captures.
+- Rapports SAV et Wi-Fi : le numéro de série et le modèle sont ceux du
+  terminal testé, même s'il a été débranché avant l'export.
+- Sideload : le succès n'est plus annoncé quand le transfert a échoué.
+- Package Manager : installation et extraction des applications « Split-APK »
+  (base + parties complémentaires), avec un vrai contrôle du résultat de
+  chaque action (désinstallation, arrêt, vidage du cache...).
+- Bibliothèque ADB : une commande importée sans catégorie ne fait plus
+  planter la recherche.
+- Export JSON du diagnostic : fichier toujours valide, quels que soient les
+  caractères présents dans les résultats ou commentaires.
+- Boîtes de dialogue : deux fenêtres ouvertes coup sur coup ne bloquent plus
+  l'application.
+
+[Mesures et rapports plus justes]
+- Analyse Wi-Fi : les paquets perdus sont désormais comptés (Android ne les
+  signale pas, ils sont déduits des numéros de séquence) ; le roaming n'est
+  compté que lors d'un vrai changement de point d'accès ; la durée du test
+  inclut les heures et s'arrête avec l'analyse.
+- Analyse Wi-Fi : en-tête (SSID, signal, IP...) remis à jour en quelques
+  secondes après un passage en mode avion, et l'historique Logcat antérieur au
+  lancement n'est plus rejoué.
+- Diagnostic thermique : chaque température est rattachée à la bonne zone.
+- Diagnostic Wi-Fi : passerelle et DNS trouvés sur les Android récents, le
+  ping routeur est donc de nouveau réalisé.
+- Batterie : santé « Défaillance » et « Trop froide » correctement affichées.
+- Grille tactile : une case ne passe au vert que si elle a vraiment été
+  touchée (une zone morte n'est plus masquée).
+- Rapport Word SAV : le résumé distingue les tests non réalisés
+  (« 8 conforme(s) ... sur 10 test(s), dont 2 non testé(s) »).
+- Rapports Word : modèle affiché « Marque Modèle » (ex. Zebra TC53) dans les
+  deux rapports ; plus de double espace après les libellés de l'en-tête.
+
+[Outils Avancés et Explorer]
+- Luminosité, mode avion et Bluetooth fonctionnent sur les Android récents
+  (Android 11 compris : confirmation demandée sur le terminal pour le
+  Bluetooth si nécessaire).
+- Densité (DPI) : les boutons +/- repartent de la valeur réelle du terminal.
+- Explorer : liens symboliques (ex. sdcard) et noms contenant plusieurs
+  espaces correctement gérés ; un dossier partiellement illisible affiche
+  quand même ce qui peut être lu.
+- Barre de progression des transferts juste avec une mise à l'échelle
+  Windows à 125 % ou 150 %.
+- Filigrane vidéo : police explicite pour ffmpeg, et plus d'annonce de
+  succès si ffmpeg est absent.
+- Commandes adb natives (install-multiple, forward, pair...) correctement
+  reconnues dans la console.
+
+[Bibliothèque ADB : compatibilité multi-versions]
+- Nouvelle colonne « Android » : plage de versions où chaque commande agit
+  (ex. « 4.4 – 10 »). La confirmation avant exécution la rappelle, car
+  certaines commandes sont ignorées sans message d'erreur par les Android
+  plus récents.
+- Activer / désactiver la localisation : une seule commande qui fonctionne
+  désormais d'Android 4.4 aux versions les plus récentes.
+- « Sources inconnues » (Android 4 à 7) et « Mode immersif » (Android 4.4 à
+  10) sont signalées comme sans effet au-delà.
+- Les bibliothèques déjà enregistrées sont mises à jour automatiquement ;
+  les commandes personnalisées ou modifiées ne sont jamais touchées.
+
+[Performance]
+- Console plus rapide et plafonnée : plus de ralentissement au fil d'une
+  longue session.
+- Dashboard : relevés regroupés en un seul appel ADB et suspendus quand
+  l'onglet n'est pas affiché ; informations système chargées plus vite.
+- Logs et recherches : filtrage fluide même avec 10 000 lignes.
+- Package Manager : liste des applications chargée environ 3 fois plus vite.
+- Brancher un second terminal ne fait plus perdre la sélection en cours.
+- Lancement plus rapide (attente fixe de l'écran de démarrage réduite de
+  2,8 s à moins d'une seconde).
+
+[Technique]
+- Rien ne démarre (adb, surveillance des terminaux) avant l'acceptation des
+  CGU, ni après un refus.
+- Sur les PC très verrouillés (stratégie de groupe, antivirus) où Windows
+  refuse le nettoyage automatique des processus, l'application fonctionne
+  quand même et le signale dans la Console.
+- Ouverture des fichiers et dossiers (explorateur, vidéo, capture) : un
+  échec affiche un message au lieu d'interrompre l'action en cours.
+- Composants .NET (System.Text.Json et dépendances) passés en version stable
+  10.0.12 à la place de préversions.
+- 40 tests automatiques vérifient la lecture des sorties ADB, les calculs du
+  Radar et la génération des rapports, sans terminal branché.
+
+================================================================================
+3. PRÉREQUIS D'UTILISATION
+================================================================================
+- Câble USB Data (transfert de données) de bonne qualité.
+- Terminaux Android avec le "Débogage USB" activé (Options Développeur).
+- Autorisation de la clé RSA sur l'écran du terminal lors de la 1ère connexion.
+- AUCUNE INSTALLATION REQUISE : Le logiciel est 100% portable. Il suffit
+  d'extraire le dossier ZIP sur le bureau et de lancer l'exécutable.
+
+================================================================================
+4. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
+================================================================================
+- Liste déroulante des terminaux détectés, avec indicateur d'état (connecté /
+  non autorisé / hors-ligne) et rafraîchissement automatique toutes les 2 sec.
+- "Connecter" : établit la session avec le terminal sélectionné.
+- "Dev Off" : révoque à distance le débogage USB (avec confirmation).
+- "Redémarrer" et "Recovery Mode" : reboot classique ou vers le mode recovery.
+- "Wi-Fi Pairing" : connexion sans fil (TCP/IP) au terminal, avec les deux
+  méthodes disponibles selon la version d'Android : appairage classique
+  (dès Android 5+) et appairage par code natif (Android 11+).
+
+================================================================================
+5. FONCTIONNALITÉS PAR ONGLET
+================================================================================
+
+[📱 Dashboard]
+- Identité du terminal en un coup d'œil : Modèle, Version OS, Build, SDK API,
+  Numéro de série, Uptime, Résolution/DPI de l'écran.
+- Jauges de performance en temps réel (Batterie, RAM, CPU, Stockage), avec
+  code couleur automatique selon le niveau (vert / orange / rouge) et un
+  panneau de détails au clic sur chaque jauge (tension, température, santé,
+  cœurs, architecture, répartition de la RAM...).
+- Console de commande ADB libre intégrée, avec historique des commandes
+  précédentes (menu déroulant + bouton pour le vider).
+
+[📺 Mirroring]
+- Affichage de l'écran du terminal sur le PC via Scrcpy (ultra-basse latence),
+  avec options : éteindre l'écran physique, empêcher la mise en veille, couper
+  le son, afficher les appuis tactiles.
+- "Mirroring multiple" : ouvre une fenêtre de mirroring simultanément sur
+  plusieurs terminaux connectés en une seule action (sélection des cibles +
+  confirmation avant lancement).
+- Capture d'écran instantanée (PNG) et enregistrement vidéo de l'écran, avec
+  post-traitement automatique (filigrane : nom de société, modèle, date).
+- Indicateur visuel en haut de l'onglet signalant en un coup d'œil si un
+  mirroring et/ou un enregistrement est en cours.
+- Dossier de captures dédié, avec sauvegarde automatique optionnelle et
+  gestion du dossier (ouvrir / vider) directement depuis le menu.
+
+[📦 Package Manager]
+- Liste complète des applications installées, avec filtres (Utilisateur /
+  Système / Désactivées) et recherche par nom de package.
+- Sélection multiple d'applications pour des actions groupées : Lancer,
+  Forcer l'arrêt, Activer/Désactiver, Vider Cache/Données, Extraire l'APK,
+  Désinstaller — chacune confirmée avant exécution.
+- Panneau de détails (version, SDK cible, application d'installation) sur
+  sélection d'un seul paquet.
+- Installation par glisser-déposer d'un fichier .apk ou d'un Split-APK
+  (l'APK de base et ses parties complémentaires sont installés ensemble).
+- "Installer sur plusieurs appareils" : choisit un APK une seule fois et
+  l'installe sur plusieurs terminaux connectés, avec un résultat individuel
+  par terminal (un échec sur l'un n'empêche jamais les autres de continuer).
+- Sniffer d'activité en temps réel (détection de l'application au premier
+  plan sur le terminal).
+
+[📁 Explorer]
+- Navigateur de fichiers intégré pour l'arborescence du terminal, avec
+  raccourcis rapides (sdcard, Download, tmp).
+- Envoi (Push) et récupération (Pull) de fichiers avec sélection multiple,
+  barre de progression et annulation possible en cours de transfert.
+- Création de dossier, renommage et suppression à distance.
+
+[⚡ Outils Avancés]
+- Simulateur de touches physiques (Home, Retour, Volume...).
+- Interrupteurs directs : Wi-Fi, Bluetooth, Mode Avion, NFC, Localisation,
+  Rotation auto, Mode Sombre.
+- Réglages avec curseurs/valeurs : luminosité, densité (DPI), résolution
+  d'écran (avec réinitialisation aux valeurs d'usine), délai de mise en
+  veille, volume par flux audio (média/sonnerie/notification/alarme) avec
+  coupure rapide, mode sonnerie (Son/Vibreur/Silencieux).
+- Extracteur XML de l'interface affichée (UI Automator dump), utile pour le
+  paramétrage des applications de scan (Velocity, ProGlove...).
+- Mode de mise à jour de l'OS par Sideload (.zip) avec garde-fou empêchant
+  toute fermeture accidentelle de l'application en plein flashage.
+- Chaque action affiche un message clair en cas d'échec (terminal débranché,
+  commande refusée...) plutôt qu'un blocage silencieux de l'interface.
+
+[🔧 Diagnostics SAV]
+- Check-up automatique en un clic couvrant 9 points de contrôle : autorisation
+  ADB, privilèges root, interface Wi-Fi, ping réseau, état/santé batterie,
+  stockage interne, capteurs (accéléromètre/gyroscope/proximité/luminosité),
+  diagnostic thermique, historique des plantages/ANR.
+- 4 tests manuels guidés : boutons physiques, dalle tactile, gâchette/optique
+  du scanner, mires de couleur pour détecter pixels morts et brûlure d'écran
+  (Rouge/Vert/Bleu/Blanc/Noir/Gris).
+- Verdict Pass/Fail par point de contrôle avec commentaire libre du
+  technicien.
+- Laboratoire matériel en direct : journal des appuis sur les touches
+  physiques (avec détection de touche bloquée) et grille de test tactile
+  avec coordonnées X/Y.
+- "🔄 Nouveau test" : réinitialise en un clic l'ensemble du diagnostic (statuts,
+  commentaires, grille tactile, journal des touches) pour repartir de zéro sur
+  un nouveau terminal, avec confirmation avant remise à zéro.
+- Export du rapport complet au format JSON, prêt à joindre à un dossier SAV.
+- Export au format Word (.docx), prêt à remettre au client : résumé et verdict
+  automatiques (nombre de tests conformes / à surveiller / non conformes,
+  en précisant ceux non réalisés),
+  tableaux séparés Auto/Manuel avec code couleur par statut, visuel de la
+  grille tactile testée, et avertissement (non bloquant) si des tests n'ont
+  pas encore été réalisés au moment de l'export.
+
+[📡 Analyse Wi-Fi]
+- Surveillance en direct de la connexion : SSID, BSSID, adresse IP, adresse
+  MAC, niveau de signal (RSSI en dBm, avec code couleur), bande et canal,
+  vitesse de liaison, passerelle et DNS — avec mécanismes de secours pour
+  fiabiliser la remontée sur Android 11+ et les terminaux Zebra.
+- Deux graphiques en continu côte à côte : latence (ping glissant) et
+  puissance du signal (RSSI glissant), chacun avec ses statistiques
+  min/moyenne/max et compteurs en direct (paquets envoyés, taux de perte).
+- Sniffer d'itinérance et de déconnexions Wi-Fi en direct via le Logcat.
+- Réinitialisation de la session (avec confirmation) pour enchaîner les
+  contrôles sur plusieurs terminaux.
+- Génération d'un rapport d'expertise réseau texte, exporté automatiquement
+  dans le dossier local /Captures.
+- Export au format Word (.docx), prêt à remettre au client : mêmes
+  statistiques et verdict que le rapport texte, plus les deux graphiques
+  (latence et signal) capturés en image et le journal brut des événements
+  réseau (roaming/déconnexions) en texte intégral.
+
+[📚 Bibliothèque ADB]
+- Dictionnaire de commandes ADB prêtes à l'emploi, organisées par catégorie
+  (Accessibilité, Affichage, Batterie, GPS, Info, Input, Matériel, MDM,
+  Packages, Réseau, Sécurité, Stockage, Système), avec recherche par mot-clé.
+- "▶ Exécuter" : lance la commande sur le terminal connecté (confirmation
+  systématique avant envoi). "📋 Copier" : copie la commande prête à l'emploi
+  pour un script. Ajout et suppression de commandes personnalisées.
+- "▶▶ Multi" (par commande) et "Cmd. Multi." (commande libre) : exécute une
+  commande ADB — enregistrée ou tapée à la volée — sur plusieurs terminaux
+  sélectionnés en une seule fois, avec un résultat individuel par terminal.
+- Export/Import de la bibliothèque au format .json, pour partager ses
+  commandes personnalisées avec le reste de l'équipe.
+
+[📝 Logs]
+- Capture du Logcat en temps réel, sans ralentir l'interface.
+- Filtres par niveau de sévérité (Debug/Info/Warn/Error), recherche
+  dynamique (texte libre ou expression régulière).
+- Ciblage d'une application précise : détection automatique de l'app au
+  premier plan, ou saisie manuelle d'un nom de package.
+- Vue Tableau structurée (avec code couleur) ou Données Brutes ; navigation
+  directe vers la prochaine ligne d'erreur.
+- Copie de la sélection, sauvegarde en .txt, génération du Bugreport complet
+  (.zip) pour les échanges avec le support constructeur.
+
+================================================================================
+6. EXÉCUTION MULTI-APPAREILS (transversale)
+================================================================================
+Trois actions peuvent être lancées sur plusieurs terminaux connectés à la
+fois, via un même sélecteur d'appareils cohérent dans toute l'application :
+  - Bibliothèque ADB : exécution d'une commande (enregistrée ou libre).
+  - Mirroring : ouverture d'une fenêtre de contrôle par terminal.
+  - Package Manager : installation d'un APK.
+Dans les trois cas, aucun terminal n'est présélectionné (sélection volontaire
+uniquement, avec option "Tout sélectionner"), une confirmation récapitule la
+liste exacte des numéros de série ciblés avant tout envoi, et chaque terminal
+reçoit un résultat individuel dans la Console — un échec sur l'un n'interrompt
+jamais le traitement des autres.
+
+================================================================================
+7. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.0.1)
+================================================================================
+- Environnement isolé : toutes les dépendances (adb.exe, scrcpy.exe,
+  ffmpeg.exe) sont stockées dans le sous-dossier /Tools pour éviter les
+  conflits Windows.
+- Cœur asynchrone : les opérations longues (transferts, Bugreport, requêtes
+  réseau) s'exécutent en tâche de fond, l'interface reste réactive.
+- Sécurité des processus : nettoyage automatique (anti-zombies) de tous les
+  processus externes lancés par l'application à sa fermeture.
+- Toute action destructrice ou irréversible (suppression, désinstallation,
+  réinitialisation, désactivation du débogage...) est systématiquement
+  confirmée avant exécution, avec le détail exact de ce qui va être fait.
+- La fenêtre mémorise sa taille et sa position entre deux lancements.
+- Limites connues de cette version : Device Info, Package Manager (hors
+  installation) et Explorer restent volontairement mono-appareil (une seule
+  cible à la fois) ; il n'existe pas encore d'historique de diagnostic
+  consultable par numéro de série d'un terminal (chaque export RMA/rapport
+  reste un fichier indépendant sur le PC, non relu par l'application).
+================================================================================

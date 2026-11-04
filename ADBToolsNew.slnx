@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ADBToolsNew.csproj" Id="4efb37a3-1f70-41ba-8312-dfe1c88d62cc" />
+  <Project Path="Tests/ADBToolsNew.Tests.csproj" />
+</Solution>

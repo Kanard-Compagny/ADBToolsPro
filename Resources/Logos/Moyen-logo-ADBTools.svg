@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(0.969663,0.969663,-0.969663,0.969663,518.788,-517.782)">
+        <path d="M527.5,127C718.005,179.601 882.399,343.995 935,534.5C882.399,725.005 718.005,889.399 527.5,942C336.995,889.399 172.601,725.005 120,534.5C172.601,343.995 336.995,179.601 527.5,127Z" style="fill:rgb(20,92,67);"/>
+    </g>
+    <g transform="matrix(0.929312,0,0,0.929312,62.6778,-37.5441)">
+        <path d="M769,514.689C769,414.964 688.036,334 588.311,334L378.689,334C278.964,334 198,414.964 198,514.689L198,558.311C198,658.036 278.964,739 378.689,739L588.311,739C688.036,739 769,658.036 769,558.311L769,514.689Z" style="fill:rgb(240,127,19);fill-opacity:0.09;stroke:rgb(240,127,19);stroke-width:65.39px;"/>
+    </g>
+    <g transform="matrix(0.922363,0,-5.12014e-17,0.922363,-193.534,32.4912)">
+        <path d="M644.75,487.973L644.75,441.25" style="fill:none;stroke:rgb(240,127,19);stroke-width:65.88px;"/>
+    </g>
+    <g transform="matrix(0.443736,-0.673087,0.473603,0.63064,24.7713,437.677)">
+        <path d="M309,401L413,512" style="fill:none;stroke:rgb(240,127,19);stroke-width:93.58px;"/>
+    </g>
+    <g transform="matrix(0.922363,0,0,0.922363,30.6005,-25.2841)">
+        <circle cx="641.75" cy="527.25" r="70.75" style="fill:rgb(240,127,19);"/>
+    </g>
+    <g transform="matrix(0.84362,0,0,0.84362,99.4761,-32.0411)">
+        <circle cx="620.007" cy="587.007" r="23.007" style="fill:rgb(20,92,67);"/>
+    </g>
+    <g transform="matrix(0.84362,0,0,0.84362,83.8629,-26.3644)">
+        <path d="M512,340.931L466,268L549,268L512,139L466,268" style="fill:none;stroke:rgb(240,127,19);stroke-width:79.02px;"/>
+    </g>
+    <g transform="matrix(0.902332,0,0,0.902332,-10.3226,41.899)">
+        <text x="153px" y="878px" style="font-family:'Calibri-Bold', 'Calibri', sans-serif;font-weight:700;font-size:180.36px;">ADB T<tspan x="602.315px 724.287px " y="878px 878px ">OO</tspan>LS</text>
+    </g>
+</svg>
