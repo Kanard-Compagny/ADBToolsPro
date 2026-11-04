@@ -55,7 +55,15 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="{DynamicResource SideBg}" CornerRadius="12" Padding="28,24" Margin="20">
+    <Grid Margin="20">
+    <!-- Ombre portée discrète (comme la fenêtre principale), sur un calque à part pour ne pas flouter le contenu. -->
+    <Border CornerRadius="12" Background="{DynamicResource SideBg}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="3" BlurRadius="18" Opacity="0.45" Color="Black"/>
+        </Border.Effect>
+    </Border>
+    <!-- Liseré fin vert pour délimiter la fenêtre. -->
+    <Border Background="{DynamicResource SideBg}" CornerRadius="12" BorderBrush="{DynamicResource SideActiveBg}" BorderThickness="1" Padding="28,24">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -85,4 +93,5 @@
             </StackPanel>
         </Grid>
     </Border>
+    </Grid>
 </Window>
