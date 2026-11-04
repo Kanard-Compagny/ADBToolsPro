@@ -1,25 +1,15 @@
-## Nouveautés de la version 1.1.0
+## Nouveautés de la version 1.1.1
 
-Première version publique : ADB Tools devient un logiciel **libre et gratuit** (licence GNU GPL v3).
+### Mises à jour automatiques
+- Nouvelle section **Paramètres ▸ Mises à jour** : version installée, recherche d'une nouvelle version, nouveautés et installation en un clic.
+- À chaque ouverture, ADB Tools regarde discrètement si une nouvelle version est sortie et l'indique par un bouton **Mise à jour** en haut à droite (désactivable).
+- L'installation télécharge l'archive, **vérifie son empreinte SHA-256**, remplace uniquement les fichiers du programme puis redémarre : modèles de rapport, outils tiers, captures et réglages sont conservés.
 
-### Apparence
-- Nouvelle identité visuelle : logos, icône et écran de démarrage refaits.
-- Thèmes **clair**, **sombre** et **Système** (suit le réglage de Windows), avec un bouton Thème dans la barre du haut.
-- Fenêtre aux coins arrondis avec ombre, menus contextuels assortis.
-
-### Paramètres
-- Nouvelle page **Paramètres** : Général, Outils tiers, Rapports et À propos.
-- Captures : ouverture et nettoyage du dossier depuis la barre du haut.
-
-### Outils tiers
-- ADB / Fastboot, scrcpy et FFmpeg ne sont plus livrés avec le programme : ils sont **téléchargés au premier lancement** depuis leurs sources officielles, avec vérification de l'intégrité des fichiers.
-- Recherche de mises à jour des outils (au plus une fois par jour) et installation en un clic.
-
-### Rapports Word
-- Modèles de rapport (SAV et Wi-Fi) **personnalisables** : importez votre propre modèle `.docx` avec des balises `{{BALISE}}`, ajoutez votre logo, revenez au modèle fourni à tout moment.
+### Divers
+- Le numéro de version affiché suit exactement la version installée (les archives de test affichent « -dev »).
 
 ## Installation
-1. Téléchargez `ADBToolsPro-1.1.0.zip` ci-dessous et décompressez-le où vous voulez (aucune installation).
-2. Lancez `ADBToolsNew.exe` : au premier lancement, ADB Tools propose de télécharger ADB / Fastboot et scrcpy.
+1. Déjà en 1.1.0 ou plus : **Paramètres ▸ Mises à jour ▸ Installer**.
+2. Sinon : téléchargez `ADBToolsPro-1.1.1.zip` ci-dessous et décompressez-le où vous voulez (aucune installation), puis lancez `ADBToolsNew.exe`.
 
 Prérequis : Windows 10 ou 11 avec .NET Framework 4.7.2 ou plus récent (déjà présent sur les Windows à jour).

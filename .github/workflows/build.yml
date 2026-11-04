@@ -1,8 +1,8 @@
-# Compilation automatique : tests à chaque envoi, archive portable téléchargeable.
-# Publication automatique : un envoi sur main dont la version (AssemblyVersion de Properties\AssemblyInfo.cs)
-# n'a pas encore d'étiquette vX.Y.Z crée l'étiquette et la « Release » GitHub avec ADBToolsPro-X.Y.Z.zip.
-# Sinon, simple compilation « -dev » (archive disponible dans l'onglet Actions).
-# Autres moyens : Actions → Compilation → « Run workflow » en saisissant la version, ou créer un tag vX.Y.Z.
+# Compilation automatique : tests à chaque envoi et archive de test « X.Y.Z-dev.N » téléchargeable dans l'onglet
+# Actions (pour essayer avant de publier).
+# Publication, une fois la version de test validée : Actions → Compilation → « Run workflow » en saisissant la
+# version (ex. 1.1.1), ou envoi d'une étiquette vX.Y.Z. La « Release » GitHub est alors créée avec
+# ADBToolsPro-X.Y.Z.zip et son empreinte SHA-256 ; les programmes installés la proposent en mise à jour.
 name: Compilation
 
 on:
@@ -44,18 +44,26 @@ jobs:
           $prefix = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
           $publish = "${{ github.event.inputs.publier }}".Trim().TrimStart("v")
           $release = "false"
-          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v") }
-          elseif ($publish) { $v = $publish }
-          else {
-            $v = "$prefix-dev.${{ github.run_number }}"
-            # Envoi sur main avec une version encore jamais publiée : publication automatique.
-            if ("${{ github.event_name }}" -eq "push" -and "${{ github.ref }}" -eq "refs/heads/main") {
-              $existing = git ls-remote --tags origin "refs/tags/v$prefix"
-              if ($LASTEXITCODE -eq 0 -and -not $existing) { $v = $prefix; $release = "true" }
-            }
-          }
+          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v"); $release = "true" }
+          elseif ($publish) { $v = $publish; $release = "true" }
+          else { $v = "$prefix-dev.${{ github.run_number }}" }
+          if ($v -notmatch '^\d+\.\d+\.\d+') { throw "Version invalide : $v (attendu X.Y.Z)" }
           "value=$v" >> $env:GITHUB_OUTPUT
           "release=$release" >> $env:GITHUB_OUTPUT
+
+      - name: Inscription de la version dans le programme
+        shell: pwsh
+        run: |
+          # Le programme affiche (et compare pour ses mises à jour) exactement la version compilée ici.
+          $v = "${{ steps.version.outputs.value }}"
+          $num = ($v -split '-')[0]
+          $f = "Properties/AssemblyInfo.cs"
+          $c = Get-Content -Raw -Encoding utf8 $f
+          $c = $c -replace 'AssemblyVersion\("[^"]*"\)', "AssemblyVersion(`"$num.0`")"
+          $c = $c -replace 'AssemblyFileVersion\("[^"]*"\)', "AssemblyFileVersion(`"$num.0`")"
+          $c = $c -replace 'AssemblyInformationalVersion\("[^"]*"\)', "AssemblyInformationalVersion(`"$v`")"
+          Set-Content -Path $f -Value $c -Encoding utf8 -NoNewline
+          Select-String -Path $f -Pattern 'Assembly(File|Informational)?Version\(' | ForEach-Object { $_.Line }
 
       - name: Restauration des packages NuGet
         run: nuget restore packages.config -PackagesDirectory packages
@@ -94,7 +102,7 @@ jobs:
           path: publication/ADBToolsPro
 
       - name: Release
-        if: github.ref_type == 'tag' || github.event.inputs.publier != '' || steps.version.outputs.release == 'true'
+        if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           # Bouton « Run workflow » ou publication automatique : l'étiquette vX.Y.Z est créée sur ce commit si elle n'existe pas.

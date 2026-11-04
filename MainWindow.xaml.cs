@@ -314,6 +314,7 @@ namespace ADBToolsNew
             UpdateWindowFrame();
             UpdateReportTemplateButtons();
             _ = CheckToolUpdatesInBackgroundAsync(); // mises à jour des outils tiers, une fois par jour
+            _ = CheckAppUpdateAtStartupAsync();      // nouvelle version d'ADB Tools, à chaque ouverture
             // --- Chargement des préférences utilisateur (taille fenêtre, historique...) ---
             string prefsPath = GetPrefsPath();
             if (File.Exists(prefsPath))

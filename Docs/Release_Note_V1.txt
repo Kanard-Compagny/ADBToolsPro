@@ -1,9 +1,9 @@
 ================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.1.0
+                              RELEASE NOTES V1.1.1
 ================================================================================
-Version        : 1.1.0 (première version publique, open source)
-Date de sortie : Novembre 2026 (1.0.1 : Octobre 2026, 1.0.0 : Septembre 2026)
+Version        : 1.1.1 (mises à jour automatiques)
+Date de sortie : Novembre 2026 (1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -20,12 +20,26 @@ la saisie manuelle de lignes de commande.
 
 La version 1.0.0 a été la première version stable diffusée en équipe. La
 version 1.0.1 est une version corrective issue d'un audit complet du code :
-ses changements sont détaillés en section 3. Chaque onglet a été testé sur du
+ses changements sont détaillés en section 4. Chaque onglet a été testé sur du
 matériel réel ; les limitations connues sont listées en fin de document
-(section 8) pour éviter toute mauvaise surprise sur le terrain.
+(section 9) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.1.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.1.1 (Novembre 2026)
+================================================================================
+[Mises à jour automatiques]
+- Nouvelle section Paramètres > Mises à jour : version installée, recherche
+  d'une nouvelle version, nouveautés et installation en un clic.
+- À chaque ouverture, ADB Tools regarde discrètement si une nouvelle version
+  est sortie et l'indique par un bouton "Mise à jour" en haut à droite
+  (vérification désactivable dans Paramètres > Mises à jour).
+- L'installation télécharge la nouvelle version, vérifie son intégrité
+  (empreinte SHA-256), remplace uniquement les fichiers du programme puis
+  redémarre : modèles de rapport, outils tiers, captures et réglages sont
+  conservés.
+
+================================================================================
+3. NOUVEAUTÉS DE LA VERSION 1.1.0 (Novembre 2026)
 ================================================================================
 Première version publique : ADB Tools devient un logiciel libre et gratuit
 (licence GNU GPL v3), publié sur GitHub par Mr.Kanard.
@@ -58,7 +72,7 @@ Première version publique : ADB Tools devient un logiciel libre et gratuit
   dans des fenêtres mises en forme.
 
 ================================================================================
-3. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
+4. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
 ================================================================================
 Version corrective : aucune fonction retirée, aucune habitude à changer. Elle
 fiabilise les mesures et les rapports remis aux clients, corrige plusieurs
@@ -158,7 +172,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   Radar et la génération des rapports, sans terminal branché.
 
 ================================================================================
-4. PRÉREQUIS D'UTILISATION
+5. PRÉREQUIS D'UTILISATION
 ================================================================================
 - Câble USB Data (transfert de données) de bonne qualité.
 - Terminaux Android avec le "Débogage USB" activé (Options Développeur).
@@ -167,7 +181,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   d'extraire le dossier ZIP sur le bureau et de lancer l'exécutable.
 
 ================================================================================
-5. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
+6. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
 ================================================================================
 - Liste déroulante des terminaux détectés, avec indicateur d'état (connecté /
   non autorisé / hors-ligne) et rafraîchissement automatique toutes les 2 sec.
@@ -179,7 +193,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (dès Android 5+) et appairage par code natif (Android 11+).
 
 ================================================================================
-6. FONCTIONNALITÉS PAR ONGLET
+7. FONCTIONNALITÉS PAR ONGLET
 ================================================================================
 
 [📱 Dashboard]
@@ -311,7 +325,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (.zip) pour les échanges avec le support constructeur.
 
 ================================================================================
-7. EXÉCUTION MULTI-APPAREILS (transversale)
+8. EXÉCUTION MULTI-APPAREILS (transversale)
 ================================================================================
 Trois actions peuvent être lancées sur plusieurs terminaux connectés à la
 fois, via un même sélecteur d'appareils cohérent dans toute l'application :
@@ -325,7 +339,7 @@ reçoit un résultat individuel dans la Console — un échec sur l'un n'interro
 jamais le traitement des autres.
 
 ================================================================================
-8. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.1.0)
+9. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.1.1)
 ================================================================================
 - Environnement isolé : les outils tiers (adb.exe, scrcpy.exe, ffmpeg.exe)
   sont téléchargés dans le sous-dossier /Tools à côté du programme, pour

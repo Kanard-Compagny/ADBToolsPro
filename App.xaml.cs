@@ -15,13 +15,18 @@ namespace ADBToolsNew
     /// </summary>
     public partial class App : Application
     {
-        /// <summary>Version affichée (splash, "À propos"), lue dans l'assembly : on ne la modifie plus qu'à un
-        /// seul endroit, Properties\AssemblyInfo.cs (ex. "1.0.1").</summary>
+        /// <summary>Version affichée (splash, barre de titre, "À propos"), lue dans l'assembly : on ne la modifie qu'à
+        /// un seul endroit, Properties\AssemblyInfo.cs. Les archives de test compilées par GitHub affichent en plus
+        /// leur numéro de compilation (ex. "1.1.1-dev.12").</summary>
         public static string VersionText
         {
             get
             {
-                var v = typeof(App).Assembly.GetName().Version;
+                var asm = typeof(App).Assembly;
+                var info = (System.Reflection.AssemblyInformationalVersionAttribute)Attribute.GetCustomAttribute(
+                    asm, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+                if (!string.IsNullOrWhiteSpace(info?.InformationalVersion)) return info.InformationalVersion.Trim();
+                var v = asm.GetName().Version;
                 return v == null ? "" : $"{v.Major}.{v.Minor}.{v.Build}";
             }
         }

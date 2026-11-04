@@ -29,7 +29,7 @@ namespace ADBToolsNew
 
         private string CurrentSettingsTag()
         {
-            foreach (var rb in new[] { SetNavGeneral, SetNavTools, SetNavReports, SetNavAbout })
+            foreach (var rb in new[] { SetNavGeneral, SetNavTools, SetNavReports, SetNavUpdates, SetNavAbout })
                 if (rb != null && rb.IsChecked == true) return rb.Tag as string;
             return "General";
         }
@@ -47,11 +47,13 @@ namespace ADBToolsNew
             SettingsPanelGeneral.Visibility = tag == "General" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelTools.Visibility = tag == "Tools" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelReports.Visibility = tag == "Reports" ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPanelUpdates.Visibility = tag == "Updates" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
 
             if (tag == "General") UpdateThemeUi();
             if (tag == "Tools" && SettingsToolsList.Children.Count == 0) _ = RefreshToolsListAsync(false);
             if (tag == "Reports") UpdateReportTemplateStates();
+            if (tag == "Updates") UpdateAppUpdateUi();
         }
 
         /// <summary>Ouvre directement une section des Paramètres (ex. depuis un message « Paramètres ▸ Outils tiers »).</summary>
@@ -59,6 +61,7 @@ namespace ADBToolsNew
         {
             if (tag == "Tools") SetNavTools.IsChecked = true;
             else if (tag == "Reports") SetNavReports.IsChecked = true;
+            else if (tag == "Updates") SetNavUpdates.IsChecked = true;
             else if (tag == "About") SetNavAbout.IsChecked = true;
             else SetNavGeneral.IsChecked = true;
             NavSettings_Click(BtnNavSettings, new RoutedEventArgs());

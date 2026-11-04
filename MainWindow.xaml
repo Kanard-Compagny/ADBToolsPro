@@ -1,4 +1,4 @@
-﻿<Window x:Class="ADBToolsNew.MainWindow"
+<Window x:Class="ADBToolsNew.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
@@ -872,6 +872,14 @@
                     </Popup>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Nouvelle version d'ADB Tools disponible : visible seulement dans ce cas, ouvre Paramètres ▸ Mises à jour -->
+                <Button x:Name="BtnUpdateAvailable" Click="BtnUpdateAvailable_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,8,0"
+                        Visibility="Collapsed" ToolTip="Une nouvelle version d'ADB Tools est disponible">
+                    <StackPanel Orientation="Horizontal" Margin="12,0">
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource Action}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="TxtUpdateAvailable" Text="Mise à jour" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <!-- Dossier des captures : ouvrir / vider (comme « Dossier » dans Scanalyse) -->
                 <Button x:Name="BtnCapturesMenu" Click="BtnCapturesMenu_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,8,0"
                         ToolTip="Captures d'écran, vidéos, logs et rapports générés">
@@ -2710,6 +2718,12 @@
                                         </RadioButton>
                                         <Border Height="1" Background="{DynamicResource Line}" Margin="12,14,12,0"/>
                                         <TextBlock Text="ADB TOOLS" Style="{StaticResource SettingsGroupLabelStyle}"/>
+                                        <RadioButton x:Name="SetNavUpdates" GroupName="SettingsNav" Tag="Updates" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Mises à jour" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                         <RadioButton x:Name="SetNavAbout" GroupName="SettingsNav" Tag="About" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
@@ -2825,6 +2839,42 @@
                                                 <Button Content="📂 Ouvrir le dossier des modèles" Click="BtnTemplatesOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,10,0"/>
                                                 <Button Content="📄 Liste des balises" Click="BtnTemplatesTags_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
                                             </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Mises à jour -->
+                                <StackPanel x:Name="SettingsPanelUpdates" Visibility="Collapsed">
+                                    <TextBlock Text="Mises à jour" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Nouvelles versions d'ADB Tools, publiées sur GitHub." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Image Source="/Resources/logo_adbtools.png" Width="36" Height="36" Margin="0,0,12,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="ADB Tools Pro" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                    <TextBlock x:Name="TxtUpdCurrent" Text="Version installée" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock x:Name="TxtUpdStatus" Text="" FontSize="12.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                            <ProgressBar x:Name="UpdProgress" Style="{StaticResource ModernProgressBarStyle}" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,12"/>
+                                            <WrapPanel>
+                                                <Button x:Name="BtnUpdInstall" Content="Installer" Click="BtnUpdInstall_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8" Visibility="Collapsed"/>
+                                                <Button x:Name="BtnUpdCheck" Content="🔄 Rechercher les mises à jour" Click="BtnUpdCheck_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button x:Name="BtnUpdNotes" Content="Nouveautés" Click="BtnUpdNotes_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8" Visibility="Collapsed"/>
+                                                <Button Content="Page des versions" Click="BtnUpdPage_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Vérification automatique" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="À chaque ouverture, ADB Tools regarde discrètement si une nouvelle version est sortie et l'indique en haut à droite. Rien n'est installé sans votre accord." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <CheckBox x:Name="ChkUpdAuto" Content="Rechercher les nouvelles versions au démarrage" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkUpdAuto_Changed" Unchecked="ChkUpdAuto_Changed"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
