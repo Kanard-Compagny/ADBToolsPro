@@ -30,7 +30,6 @@ namespace ADBToolsNew
         public double ConsoleHeight { get; set; } = 250;
         public bool IsSidebarCollapsed { get; set; }
         public List<string> History { get; set; } = new List<string>();
-        public string AcceptedCguDate { get; set; } = "";
     }
 
     public class AndroidDevice
@@ -212,8 +211,7 @@ namespace ADBToolsNew
             // Les événements Loaded/Closing sont câblés depuis le XAML (Window_Loaded / Window_Closing)
             // et regroupent tout le cycle de vie de la fenêtre (préférences + moteur ADB) en un seul point d'entrée chacun.
 
-            // La surveillance des terminaux (qui lance adb) ne démarre plus ici mais dans Window_Loaded, une fois
-            // les CGU acceptées : auparavant adb tournait déjà pendant l'affichage des CGU, et même après un refus.
+            // La surveillance des terminaux (qui lance adb) démarre dans Window_Loaded, une fois la fenêtre affichée.
             InitializeAdbLibrary();
         }
 
@@ -312,12 +310,12 @@ namespace ADBToolsNew
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateThemeUi();
+            TxtTitleVersion.Text = $"version {App.VersionText}";
             UpdateWindowFrame();
             UpdateReportTemplateButtons();
             _ = CheckToolUpdatesInBackgroundAsync(); // mises à jour des outils tiers, une fois par jour
             // --- Chargement des préférences utilisateur (taille fenêtre, historique...) ---
             string prefsPath = GetPrefsPath();
-            string acceptedCguDate = "";
             if (File.Exists(prefsPath))
             {
                 try
@@ -348,8 +346,6 @@ namespace ADBToolsNew
                             foreach (var cmd in prefs.History)
                                 AddCommandToHistory(cmd);
                         }
-
-                        acceptedCguDate = prefs.AcceptedCguDate ?? "";
                     }
                 }
                 catch (Exception exCorrupt)
@@ -377,11 +373,6 @@ namespace ADBToolsNew
             // AllowsTransparency="True" fausse légèrement le centrage natif "CenterScreen".
             CenterOnScreen();
 
-            // --- Validation obligatoire des CGU (bloquant : ferme l'app si refusé) ---
-            // Refus = arrêt immédiat : plus rien ne doit démarrer (démon adb, surveillance des terminaux).
-            // (Ancienne validation obligatoire des CGU retirée : ADB Tools est un logiciel libre sous licence GPL-3.0,
-            //  il n'y a rien à accepter pour l'utiliser.)
-
             // --- Initialisation du moteur ADB (démarrage du démon) ---
             try
             {
@@ -397,7 +388,7 @@ namespace ADBToolsNew
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Nettoyage automatique des processus indisponible sur ce PC ({ChildProcessTracker.DisabledReason}). L'application fonctionne normalement, mais adb/scrcpy pourraient rester ouverts après un plantage.");
             }
 
-            // --- Surveillance des terminaux : seulement après les CGU et le démarrage du démon ---
+            // --- Surveillance des terminaux : seulement après le démarrage du démon ---
             StartDeviceWatcher();
             StartStatsWatcher();
         }
@@ -436,8 +427,7 @@ namespace ADBToolsNew
                     WindowState = this.WindowState.ToString(),
                     ConsoleHeight = consoleH,
                     IsSidebarCollapsed = this._isSidebarCollapsed,
-                    History = CmbCommandHistory.Items.Cast<string>().ToList(),
-                    AcceptedCguDate = this._acceptedCguDate
+                    History = CmbCommandHistory.Items.Cast<string>().ToList()
                 };
 
                 var xs = new XmlSerializer(typeof(UserPrefs));

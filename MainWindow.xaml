@@ -751,22 +751,13 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
-                    <TextBlock Text="ADB Tools Pro" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TitleInk}" FontFamily="{DynamicResource FontDisplay}" VerticalAlignment="Center"/>
-                    <TextBlock Text="  Édition 2027" FontSize="13" Foreground="{DynamicResource TitleMuted}" VerticalAlignment="Center"/>
+                <!-- Barre de titre façon Scanalyse : petit logo, nom du programme, version en discret. -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                    <Image Source="/Resources/logo_adbtools.png" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="ADB Tools Pro" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TitleInk}" FontFamily="{DynamicResource FontDisplay}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtTitleVersion" Text="version" FontSize="12" Foreground="{DynamicResource TitleMuted}" VerticalAlignment="Center" Margin="10,1,0,0"/>
                 </StackPanel>
 
-                <Grid Grid.Column="1" Width="200" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <!-- Trapèze (plus large en haut) plutôt qu'un rectangle plein, avec le même remplissage/
-                         bordure que les cartes et une lueur blanc cassé assortie (voir CardGlowStyle). -->
-                    <Polygon Points="0,0 200,0 180,34 20,34" Fill="{DynamicResource TitleHover}"/>
-                    <Image Source="/Resources/logo_adbtools.png"
-                           Height="26"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                </Grid>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button Content="—" Click="BtnMinimize_Click" Width="45" Height="35" Style="{StaticResource WindowControlStyle}" WindowChrome.IsHitTestVisibleInChrome="True"/>
@@ -918,8 +909,7 @@
 
                         <Grid Grid.Row="0" Margin="10,20,10,20">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" x:Name="SidebarLogoGroup">
-                                <Image Source="/Resources/logo_adbtools.png" Height="24" Margin="10,0,10,0" VerticalAlignment="Center" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Text="MENU" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SideMuted}" VerticalAlignment="Center"/>
+                                <TextBlock Text="MENU" Margin="14,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SideMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Button x:Name="BtnToggleSidebar" Click="BtnToggleSidebar_Click" Content="◀" Style="{StaticResource SideIconButtonStyle}" FontSize="14" HorizontalAlignment="Right" Width="30" Height="30"/>
                         </Grid>
@@ -1006,7 +996,14 @@
                                  (remplace l'ancien groupe « Informations »). -->
                             <Button x:Name="BtnNavSettings" Click="NavSettings_Click" Style="{StaticResource MenuButtonStyle}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⚙️" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
+                                    <!-- Icône "réglages" (deux curseurs), la même que dans Scanalyse. -->
+                                    <Border Width="50" VerticalAlignment="Center">
+                                        <Viewbox Width="18" Height="18" HorizontalAlignment="Center">
+                                            <Path Width="24" Height="24" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                  Data="M20,7 L11,7 M14,17 L5,17 M17,14 A3,3 0 1 1 17,20 A3,3 0 1 1 17,14 M7,4 A3,3 0 1 1 7,10 A3,3 0 1 1 7,4"/>
+                                        </Viewbox>
+                                    </Border>
                                     <TextBlock Text="Paramètres" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
                                 </StackPanel>
                             </Button>
@@ -2976,10 +2973,6 @@
                 </Border>
             </Grid>
 
-            <!-- Visionneuse de document (CGU / Notes de version) : même famille visuelle que les overlays
-                 ci-dessus. Deux modes : acceptation obligatoire (premier lancement du CGU, boutons
-                 J'accepte/Refuser) ou simple consultation (bouton Fermer, accès à la demande depuis le
-                 pied de la sidebar). -->
             <!-- Outils tiers (adb/fastboot, scrcpy, FFmpeg) : versions installées, mises à jour, téléchargement.
                  Les lignes sont construites dans MainWindow.Tools.cs. -->
             <Grid x:Name="ToolsOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="999">
@@ -3017,42 +3010,6 @@
                         </Grid>
                     </Grid>
                 </Border>
-            </Grid>
-
-            <Grid x:Name="DocumentViewerOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="999">
-                <!-- Netteté du texte : la lueur (DropShadowEffect de CardGlowStyle) est portée par un cadre vide
-                     placé DERRIÈRE le contenu, et non par le conteneur du texte. Un effet sur un parent fait
-                     rendre tout son contenu en image (sans ClearType), ce qui rendait le texte flou. -->
-                <Grid Width="700" Height="560" HorizontalAlignment="Center" VerticalAlignment="Center" UseLayoutRounding="True">
-                <Border Background="{DynamicResource BgCard}" CornerRadius="10" Style="{StaticResource CardGlowStyle}"/>
-                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="25">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock x:Name="TxtDocumentViewerTitle" Grid.Row="0" Text="Document" Foreground="{DynamicResource Ink}" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
-
-                        <Border Grid.Row="1" Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="6" Margin="0,0,0,15">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
-                                <TextBlock x:Name="TxtDocumentViewerContent" Text="" Foreground="{DynamicResource TextSecondary}" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
-                                           TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"/>
-                            </ScrollViewer>
-                        </Border>
-
-                        <StackPanel x:Name="DocumentViewerAcceptButtons" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button x:Name="BtnDocumentViewerDecline" Content="Refuser" Click="BtnDocumentViewerDecline_Click" Style="{StaticResource OutlineButtonStyle}" Width="110" Height="34" Margin="0,0,10,0"/>
-                            <Button x:Name="BtnDocumentViewerAccept" Content="✔️ J'accepte" Click="BtnDocumentViewerAccept_Click" Style="{StaticResource PrimaryButtonStyle}" Width="150" Height="34"/>
-                        </StackPanel>
-
-                        <StackPanel x:Name="DocumentViewerCloseButtons" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
-                            <Button x:Name="BtnDocumentViewerClose" Content="Fermer" Click="BtnDocumentViewerClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="110" Height="34"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-                </Grid>
             </Grid>
 
         </Grid>

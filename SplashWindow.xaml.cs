@@ -11,7 +11,7 @@ namespace ADBToolsNew
         public SplashWindow()
         {
             InitializeComponent();
-            TxtVersion.Text = $"Édition 2027 • v{App.VersionText}";
+            TxtVersion.Text = $"version {App.VersionText}";
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
