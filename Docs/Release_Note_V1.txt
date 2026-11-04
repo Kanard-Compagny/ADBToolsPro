@@ -1,12 +1,13 @@
 ================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.0.1
+                              RELEASE NOTES V1.1.0
 ================================================================================
-Version        : 1.0.1 (version corrective de la 1.0.0)
-Date de sortie : Octobre 2026 (1.0.0 : Septembre 2026)
+Version        : 1.1.0 (première version publique, open source)
+Date de sortie : Novembre 2026 (1.0.1 : Octobre 2026, 1.0.0 : Septembre 2026)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
-Architecture   : Portable / Standalone (Dépendances intégrées)
+Architecture   : Portable (outils tiers téléchargés au premier lancement)
+Licence        : GNU GPL v3 (logiciel libre et gratuit)
 
 ================================================================================
 1. PRÉSENTATION GÉNÉRALE
@@ -19,12 +20,45 @@ la saisie manuelle de lignes de commande.
 
 La version 1.0.0 a été la première version stable diffusée en équipe. La
 version 1.0.1 est une version corrective issue d'un audit complet du code :
-ses changements sont détaillés en section 2. Chaque onglet a été testé sur du
+ses changements sont détaillés en section 3. Chaque onglet a été testé sur du
 matériel réel ; les limitations connues sont listées en fin de document
-(section 7) pour éviter toute mauvaise surprise sur le terrain.
+(section 8) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.1.0 (Novembre 2026)
+================================================================================
+Première version publique : ADB Tools devient un logiciel libre et gratuit
+(licence GNU GPL v3), publié sur GitHub par Mr.Kanard.
+
+[Apparence]
+- Nouvelle identité visuelle : logos, icône et écran de démarrage refaits.
+- Thèmes clair, sombre et "Système" (suit le réglage de Windows), avec un
+  bouton Thème dans la barre du haut.
+- Fenêtre aux coins arrondis avec ombre, menus contextuels assortis.
+
+[Paramètres]
+- Nouvelle page Paramètres (bas du menu) : Général, Outils tiers, Rapports
+  et À propos.
+- Captures : ouverture et nettoyage du dossier depuis la barre du haut.
+
+[Outils tiers]
+- ADB / Fastboot, scrcpy et FFmpeg ne sont plus livrés avec le programme :
+  ils sont téléchargés au premier lancement depuis leurs sources officielles,
+  avec vérification de l'intégrité des fichiers.
+- Recherche de mises à jour des outils (au plus une fois par jour) et
+  installation en un clic depuis Paramètres > Outils tiers.
+
+[Rapports Word]
+- Modèles de rapport (SAV et Wi-Fi) personnalisables : importez votre propre
+  modèle .docx avec des balises {{BALISE}}, ajoutez votre logo, revenez au
+  modèle fourni à tout moment. La liste des balises est dans Paramètres.
+
+[Documents]
+- Licence, composants tiers, liste des balises et "Quoi de neuf" s'ouvrent
+  dans des fenêtres mises en forme.
+
+================================================================================
+3. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
 ================================================================================
 Version corrective : aucune fonction retirée, aucune habitude à changer. Elle
 fiabilise les mesures et les rapports remis aux clients, corrige plusieurs
@@ -124,7 +158,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   Radar et la génération des rapports, sans terminal branché.
 
 ================================================================================
-3. PRÉREQUIS D'UTILISATION
+4. PRÉREQUIS D'UTILISATION
 ================================================================================
 - Câble USB Data (transfert de données) de bonne qualité.
 - Terminaux Android avec le "Débogage USB" activé (Options Développeur).
@@ -133,7 +167,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   d'extraire le dossier ZIP sur le bureau et de lancer l'exécutable.
 
 ================================================================================
-4. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
+5. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
 ================================================================================
 - Liste déroulante des terminaux détectés, avec indicateur d'état (connecté /
   non autorisé / hors-ligne) et rafraîchissement automatique toutes les 2 sec.
@@ -145,7 +179,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (dès Android 5+) et appairage par code natif (Android 11+).
 
 ================================================================================
-5. FONCTIONNALITÉS PAR ONGLET
+6. FONCTIONNALITÉS PAR ONGLET
 ================================================================================
 
 [📱 Dashboard]
@@ -277,7 +311,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (.zip) pour les échanges avec le support constructeur.
 
 ================================================================================
-6. EXÉCUTION MULTI-APPAREILS (transversale)
+7. EXÉCUTION MULTI-APPAREILS (transversale)
 ================================================================================
 Trois actions peuvent être lancées sur plusieurs terminaux connectés à la
 fois, via un même sélecteur d'appareils cohérent dans toute l'application :
@@ -291,11 +325,11 @@ reçoit un résultat individuel dans la Console — un échec sur l'un n'interro
 jamais le traitement des autres.
 
 ================================================================================
-7. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.0.1)
+8. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.1.0)
 ================================================================================
-- Environnement isolé : toutes les dépendances (adb.exe, scrcpy.exe,
-  ffmpeg.exe) sont stockées dans le sous-dossier /Tools pour éviter les
-  conflits Windows.
+- Environnement isolé : les outils tiers (adb.exe, scrcpy.exe, ffmpeg.exe)
+  sont téléchargés dans le sous-dossier /Tools à côté du programme, pour
+  éviter les conflits Windows.
 - Cœur asynchrone : les opérations longues (transferts, Bugreport, requêtes
   réseau) s'exécutent en tâche de fond, l'interface reste réactive.
 - Sécurité des processus : nettoyage automatique (anti-zombies) de tous les

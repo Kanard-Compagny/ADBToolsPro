@@ -1,0 +1,107 @@
+# Compilation automatique : tests à chaque envoi, archive portable téléchargeable.
+# Publication automatique : un envoi sur main dont la version (AssemblyVersion de Properties\AssemblyInfo.cs)
+# n'a pas encore d'étiquette vX.Y.Z crée l'étiquette et la « Release » GitHub avec ADBToolsPro-X.Y.Z.zip.
+# Sinon, simple compilation « -dev » (archive disponible dans l'onglet Actions).
+# Autres moyens : Actions → Compilation → « Run workflow » en saisissant la version, ou créer un tag vX.Y.Z.
+name: Compilation
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publier:
+        description: "Version à publier (ex. 1.1.0) : crée l'étiquette vX.Y.Z et la Release. Vide : simple compilation."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+# Une compilation à la fois par branche : deux envois rapprochés ne publient pas deux fois la même version.
+concurrency:
+  group: compilation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - uses: nuget/setup-nuget@v2
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $info = Get-Content -Raw Properties/AssemblyInfo.cs
+          if ($info -notmatch 'AssemblyVersion\("(\d+)\.(\d+)\.(\d+)') { throw "AssemblyVersion introuvable" }
+          $prefix = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+          $publish = "${{ github.event.inputs.publier }}".Trim().TrimStart("v")
+          $release = "false"
+          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart("v") }
+          elseif ($publish) { $v = $publish }
+          else {
+            $v = "$prefix-dev.${{ github.run_number }}"
+            # Envoi sur main avec une version encore jamais publiée : publication automatique.
+            if ("${{ github.event_name }}" -eq "push" -and "${{ github.ref }}" -eq "refs/heads/main") {
+              $existing = git ls-remote --tags origin "refs/tags/v$prefix"
+              if ($LASTEXITCODE -eq 0 -and -not $existing) { $v = $prefix; $release = "true" }
+            }
+          }
+          "value=$v" >> $env:GITHUB_OUTPUT
+          "release=$release" >> $env:GITHUB_OUTPUT
+
+      - name: Restauration des packages NuGet
+        run: nuget restore packages.config -PackagesDirectory packages
+
+      - name: Compilation (Release)
+        run: msbuild ADBToolsNew.csproj -p:Configuration=Release -p:Platform=AnyCPU -m -nologo -v:minimal
+
+      - name: Tests
+        shell: pwsh
+        run: |
+          # MSBuild de Visual Studio (le projet principal WPF « ancien format » ne se compile pas avec dotnet build).
+          msbuild Tests/ADBToolsNew.Tests.csproj -restore -p:Configuration=Release -m -nologo -v:minimal
+          dotnet test Tests/ADBToolsNew.Tests.csproj -c Release --no-build -nologo
+
+      - name: Archive portable
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.value }}"
+          $dest = "publication/ADBToolsPro"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          # Contenu du dossier de sortie, sans les fichiers de débogage ni la documentation XML des bibliothèques.
+          Copy-Item bin/Release/* $dest -Recurse -Exclude *.pdb,*.xml
+          Remove-Item "$dest/Tools", "$dest/Captures" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item LICENSE, README.md $dest
+          Compress-Archive -Path $dest -DestinationPath "publication/ADBToolsPro-$v.zip" -Force
+          # Empreinte SHA-256 : publiée dans les notes et en fichier (format sha256sum).
+          $hash = (Get-FileHash "publication/ADBToolsPro-$v.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "publication/ADBToolsPro-$v.zip.sha256" -Value "$hash  ADBToolsPro-$v.zip`n" -Encoding ascii -NoNewline
+          $notes = "**SHA-256 de ADBToolsPro-$v.zip** : ``$hash```n`n" + (Get-Content -Raw -Encoding utf8 CHANGELOG.md)
+          Set-Content -Path publication/notes.md -Value $notes -Encoding utf8
+
+      - name: Archive à télécharger (onglet Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ADBToolsPro-${{ steps.version.outputs.value }}
+          path: publication/ADBToolsPro
+
+      - name: Release
+        if: github.ref_type == 'tag' || github.event.inputs.publier != '' || steps.version.outputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          # Bouton « Run workflow » ou publication automatique : l'étiquette vX.Y.Z est créée sur ce commit si elle n'existe pas.
+          tag_name: v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: ADB Tools Pro ${{ steps.version.outputs.value }}
+          body_path: publication/notes.md
+          files: |
+            publication/ADBToolsPro-${{ steps.version.outputs.value }}.zip
+            publication/ADBToolsPro-${{ steps.version.outputs.value }}.zip.sha256

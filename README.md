@@ -57,7 +57,7 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 
 ## Démarrer
 
-1. Téléchargez le programme depuis la page des versions de ce dépôt *(première version publiée bientôt)*.
+1. Téléchargez `ADBToolsPro-x.y.z.zip` depuis la [page des versions](../../releases/latest) et décompressez-le où vous voulez (aucune installation).
 2. Lancez `ADBToolsNew.exe`. Au premier lancement, ADB Tools propose de télécharger **ADB / Fastboot** (Google) et **scrcpy** (environ 20 Mo) depuis leurs sites officiels, dans le dossier `Tools` à côté du programme.
 3. Sur le terminal : activez les **options développeur** puis le **débogage USB**, branchez-le et acceptez la demande d'autorisation.
 
