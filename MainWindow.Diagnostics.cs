@@ -681,6 +681,7 @@ namespace ADBToolsNew
                 System.IO.File.WriteAllText(savePath, json);
 
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💾 Rapport JSON RMA généré : {savePath}");
+                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Rapport RMA", serial, "", "", _diagList), savePath);
                 ShowInExplorer(savePath);
             }
             catch (Exception ex)
@@ -727,6 +728,7 @@ namespace ADBToolsNew
             {
                 string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetReportsFolderPath(), serial, societe, incident, _diagList);
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Rapport Word généré : {outputPath}");
+                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Diagnostic SAV", serial, societe, incident, _diagList), outputPath);
                 ShowInExplorer(outputPath);
             }
             catch (Exception ex)

@@ -143,7 +143,7 @@ namespace ADBToolsNew.Core
             WordReportService.ReplacePlaceholderParagraphText(body, "[[RESUME]]", BuildSummaryText(stats, duration));
         }
 
-        private static string BuildSummaryText(RadarStats stats, TimeSpan duration)
+        internal static string BuildSummaryText(RadarStats stats, TimeSpan duration)
         {
             string verdict = RadarStats.VerdictLabel(stats.Verdict);
             return $"Résumé : {verdict} — Durée du test : {RadarStats.FormatDuration(duration)}. " +

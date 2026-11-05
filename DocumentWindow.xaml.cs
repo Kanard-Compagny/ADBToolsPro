@@ -155,6 +155,128 @@ namespace ADBToolsNew
             w.Show();
         }
 
+        // ------------------------------------------------------------------ Historique des diagnostics
+
+        /// <summary>
+        /// Historique des diagnostics (fiches de <see cref="DiagHistory"/>), regroupé par terminal, avec recherche
+        /// (numéro de série, modèle, client, incident), détail des tests et ouverture du rapport.
+        /// </summary>
+        public static void ShowHistory(Window owner, List<HistoryEntry> entries, string serialFilter)
+        {
+            string title = string.IsNullOrWhiteSpace(serialFilter) ? "Historique des diagnostics" : "Historique — " + serialFilter;
+            var w = Create(owner, "Historique", title, null);
+            var host = w.ContentHost;
+
+            host.Children.Add(Paragraph($"Dossier : {DiagHistory.Folder}", "Muted", new Thickness(0, 0, 0, 12)));
+
+            var search = new TextBox { Height = 34, Margin = new Thickness(0, 0, 0, 14), ToolTip = "Rechercher : numéro de série, modèle, client, incident, technicien" };
+            search.Padding = new Thickness(8, 0, 8, 0);
+            search.VerticalContentAlignment = VerticalAlignment.Center;
+            search.SetResourceReference(Control.BackgroundProperty, "Surface");
+            search.SetResourceReference(Control.ForegroundProperty, "Ink");
+            search.SetResourceReference(Control.BorderBrushProperty, "Line");
+            search.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, "Ink");
+            var hint = Paragraph("Rechercher (numéro de série, modèle, client, incident, technicien) :", "Muted", new Thickness(0, 0, 0, 4));
+            var list = new StackPanel();
+            if (entries.Count > 0) { host.Children.Add(hint); host.Children.Add(search); }
+            host.Children.Add(list);
+
+            void Render(string filter)
+            {
+                list.Children.Clear();
+                var shown = entries.Where(e => string.IsNullOrWhiteSpace(filter) || Matches(e, filter)).ToList();
+                if (shown.Count == 0)
+                {
+                    list.Children.Add(Paragraph(entries.Count == 0
+                        ? "Aucun diagnostic enregistré pour le moment. Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est ajouté automatiquement à l'historique."
+                        : "Aucune fiche ne correspond à cette recherche.", "Muted"));
+                    return;
+                }
+                foreach (var group in shown.GroupBy(e => e.Serial ?? ""))
+                {
+                    var first = group.First();
+                    string model = group.Select(e => e.Model).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
+                    list.Children.Add(H2(string.IsNullOrWhiteSpace(model) ? group.Key : $"{group.Key}  ·  {model}"));
+                    list.Children.Add(Paragraph($"{group.Count()} fiche(s) — dernière le {first.Date:dd/MM/yyyy à HH:mm}", "Muted", new Thickness(0, 0, 0, 8)));
+                    foreach (var e in group) list.Children.Add(HistoryCard(e));
+                }
+            }
+
+            search.TextChanged += (s2, e2) => Render(search.Text.Trim());
+            Render(null);
+            w.Show();
+        }
+
+        private static bool Matches(HistoryEntry e, string filter)
+        {
+            string f = filter.ToLowerInvariant();
+            return new[] { e.Serial, e.Model, e.Client, e.Incident, e.Technician, e.Type }
+                .Any(v => !string.IsNullOrEmpty(v) && v.ToLowerInvariant().Contains(f));
+        }
+
+        private static UIElement HistoryCard(HistoryEntry e)
+        {
+            var card = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 8) };
+            card.SetResourceReference(Border.BackgroundProperty, "Surface");
+            card.SetResourceReference(Border.BorderBrushProperty, "Line");
+            var stack = new StackPanel();
+            card.Child = stack;
+
+            // Ligne 1 : date · type · verdict (coloré)
+            var line1 = new TextBlock { FontSize = 13.5, TextWrapping = TextWrapping.Wrap };
+            line1.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            line1.Inlines.Add(new Run($"{e.Date:dd/MM/yyyy HH:mm}  ·  ") { FontWeight = FontWeights.SemiBold });
+            line1.Inlines.Add(new Run(e.Type) { FontWeight = FontWeights.SemiBold });
+            if (!string.IsNullOrWhiteSpace(e.Verdict))
+            {
+                var verdict = new Run("  ·  " + e.Verdict);
+                verdict.SetResourceReference(TextElement.ForegroundProperty, e.Bad > 0 ? "BadFg" : e.Warn > 0 ? "WarnFg" : (e.Ok > 0 ? "OkFg" : "Muted"));
+                line1.Inlines.Add(verdict);
+            }
+            stack.Children.Add(line1);
+
+            // Ligne 2 : client, incident, technicien
+            var meta = new List<string>();
+            if (!string.IsNullOrWhiteSpace(e.Client)) meta.Add("Client : " + e.Client);
+            if (!string.IsNullOrWhiteSpace(e.Incident)) meta.Add("Incident : " + e.Incident);
+            if (!string.IsNullOrWhiteSpace(e.Technician)) meta.Add("Technicien : " + e.Technician);
+            if (!string.IsNullOrWhiteSpace(e.Android)) meta.Add("Android " + e.Android);
+            if (meta.Count > 0) stack.Children.Add(Themed(string.Join("  ·  ", meta), "Muted", 12, FontWeights.Normal, new Thickness(0, 3, 0, 0)));
+
+            // Ligne 3 : liens « Détails » / « Ouvrir le rapport »
+            var links = new TextBlock { Margin = new Thickness(0, 6, 0, 0), FontSize = 12.5 };
+            var details = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 8, 0, 0) };
+            if (e.Items.Count > 0 || !string.IsNullOrWhiteSpace(e.Summary))
+            {
+                var h = new Hyperlink(new Run("Détails des tests")) { TextDecorations = null };
+                h.SetResourceReference(TextElement.ForegroundProperty, "BrandText");
+                h.Click += (s, a) => details.Visibility = details.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+                links.Inlines.Add(h);
+                if (!string.IsNullOrWhiteSpace(e.Summary))
+                    details.Children.Add(Themed(e.Summary, "Ink", 12.5, FontWeights.Normal, new Thickness(0, 0, 0, 6)));
+                if (e.Items.Count > 0)
+                    details.Children.Add(BuildSimpleTable(new[] { "Test", "Résultat", "Commentaire" }, new[] { 1.2, 1.0, 1.6 },
+                        e.Items.Select(i => new[] { i.Name, i.Status, i.Comment }).ToList()));
+            }
+            string report = e.ReportPath;
+            if (report != null && File.Exists(report))
+            {
+                if (links.Inlines.Count > 0) links.Inlines.Add(new Run("     "));
+                var open = new Hyperlink(new Run("Ouvrir le rapport")) { TextDecorations = null };
+                open.SetResourceReference(TextElement.ForegroundProperty, "BrandText");
+                open.Click += (s, a) => { try { Process.Start(new ProcessStartInfo(report) { UseShellExecute = true }); } catch { } };
+                links.Inlines.Add(open);
+                links.Inlines.Add(new Run("     "));
+                var folder = new Hyperlink(new Run("Afficher dans le dossier")) { TextDecorations = null };
+                folder.SetResourceReference(TextElement.ForegroundProperty, "Muted");
+                folder.Click += (s, a) => { try { Process.Start("explorer.exe", $"/select,\"{report}\""); } catch { } };
+                links.Inlines.Add(folder);
+            }
+            if (links.Inlines.Count > 0) stack.Children.Add(links);
+            stack.Children.Add(details);
+            return card;
+        }
+
         // ------------------------------------------------------------------ Mise en forme du texte
 
         /// <summary>

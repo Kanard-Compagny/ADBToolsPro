@@ -339,7 +339,7 @@ namespace ADBToolsNew.Core
             return string.Join(", ", parts.Take(parts.Count - 1)) + " et " + parts[parts.Count - 1];
         }
 
-        private static string ValidityLabel(string statusIcon)
+        internal static string ValidityLabel(string statusIcon)
         {
             switch (statusIcon)
             {

@@ -33,6 +33,13 @@ namespace ADBToolsNew.Core
         /// <summary>Dossier des rapports Word / RMA. Vide : dossier des captures.</summary>
         public string ReportsFolder { get; set; } = "";
 
+        // --- Historique des diagnostics
+        public bool HistoryEnabled { get; set; } = true;
+        /// <summary>Durée de conservation en jours (0 = jamais supprimé).</summary>
+        public int HistoryRetentionDays { get; set; }
+        /// <summary>Dossier de l'historique. Vide : dossier « Historique » à côté du programme.</summary>
+        public string HistoryFolder { get; set; } = "";
+
         // --- Profil d'équipe appliqué sur ce poste (affichage seulement)
         public string TeamProfileName { get; set; } = "";
         public DateTime? TeamProfileImported { get; set; }
@@ -98,6 +105,8 @@ namespace ADBToolsNew.Core
             ReportContact = ReportContact ?? "";
             ReportTechnician = ReportTechnician ?? "";
             ReportsFolder = ReportsFolder ?? "";
+            HistoryFolder = HistoryFolder ?? "";
+            if (HistoryRetentionDays < 0) HistoryRetentionDays = 0;
         }
 
         public static void Save()

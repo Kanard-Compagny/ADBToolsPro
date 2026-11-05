@@ -397,6 +397,7 @@ namespace ADBToolsNew
             OpenStartPage(); // page choisie dans Paramètres ▸ Général
             ShowWelcomeIfFirstLaunch(); // accueil au premier lancement (Paramètres ▸ Prise en main)
             _ = ImportTeamProfileFromCommandLineAsync(); // .adbprofil glissé sur l'exe
+            _ = PurgeHistoryAtStartupAsync(); // durée de conservation de l'historique (Paramètres ▸ Historique)
         }
 
         /// <summary>Centre la fenêtre sur l'écran de travail actuel, en tenant compte de la taille réelle

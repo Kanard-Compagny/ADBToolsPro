@@ -472,6 +472,22 @@ namespace ADBToolsNew
                     stats, duration, pingChartPath, rssiChartPath, TxtWifiLogcat.Text);
 
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Rapport Word Wi-Fi généré : {outputPath}");
+                RecordHistory(new ADBToolsNew.Core.HistoryEntry
+                {
+                    Type = "Analyse Wi-Fi",
+                    Serial = serial,
+                    Model = deviceModel ?? "",
+                    Client = societe,
+                    Incident = incident,
+                    Technician = ADBToolsNew.Core.AppSettings.Current.ReportTechnician ?? "",
+                    Summary = ADBToolsNew.Core.WifiReportService.BuildSummaryText(stats, duration),
+                    Items =
+                    {
+                        new ADBToolsNew.Core.HistoryItem { Name = "Réseau", Status = TxtWifiSsid.Text },
+                        new ADBToolsNew.Core.HistoryItem { Name = "Fréquence", Status = TxtWifiFreq.Text },
+                        new ADBToolsNew.Core.HistoryItem { Name = "Débit", Status = TxtWifiSpeed.Text },
+                    }
+                }, outputPath);
                 ShowInExplorer(outputPath);
             }
             catch (Exception ex)

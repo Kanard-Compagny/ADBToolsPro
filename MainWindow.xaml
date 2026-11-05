@@ -2194,6 +2194,8 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Banc de Test &amp; Contrôle Qualité" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" Grid.Column="1">
+                                        <Button x:Name="BtnDiagHistory" Content="🗂️ Historique" Click="BtnDiagHistory_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,10,0"
+                                                ToolTip="Diagnostics et analyses déjà réalisés sur ce terminal (historique par numéro de série)."/>
                                         <Button x:Name="BtnExportRma" Content="💾 Exporter (JSON)" Click="BtnExportRma_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Width="160" Margin="0,0,10,0"
                                                 ToolTip="Exporte le rapport SAV brut au format JSON (données uniquement, sans mise en page)."/>
                                         <Button x:Name="BtnReportTemplateSav" Content="⚙️ Modèle : fourni" Tag="Sav" Click="BtnReportTemplate_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,10,0"
@@ -2816,6 +2818,12 @@
                                                 <TextBlock Text="Rapports Word" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </RadioButton>
+                                        <RadioButton x:Name="SetNavHistory" GroupName="SettingsNav" Tag="History" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Historique" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                         <RadioButton x:Name="SetNavTeam" GroupName="SettingsNav" Tag="Team" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="&#xE716;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
@@ -3097,6 +3105,42 @@
                                     </Border>
                                 </StackPanel>
 
+                                <!-- Historique -->
+                                <StackPanel x:Name="SettingsPanelHistory" Visibility="Collapsed">
+                                    <TextBlock Text="Historique" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Enregistrement des diagnostics par numéro de série, durée de conservation et emplacement." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Enregistrement des diagnostics" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <CheckBox x:Name="ChkHistoryEnabled" Content="Enregistrer automatiquement chaque rapport (Diagnostic SAV, RMA, Analyse Wi-Fi) dans l'historique du terminal" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkHistoryEnabled_Changed" Unchecked="ChkHistoryEnabled_Changed" Margin="0,10,0,12"/>
+                                            <TextBlock Text="Supprimer automatiquement les fiches plus anciennes que" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,6"/>
+                                            <WrapPanel x:Name="HistoryRetentionChoices">
+                                                <RadioButton GroupName="HistoryRetention" Tag="0" Content="Jamais" Style="{StaticResource SettingsPillStyle}" Checked="HistoryRetention_Checked"/>
+                                                <RadioButton GroupName="HistoryRetention" Tag="30" Content="30 jours" Style="{StaticResource SettingsPillStyle}" Checked="HistoryRetention_Checked"/>
+                                                <RadioButton GroupName="HistoryRetention" Tag="90" Content="3 mois" Style="{StaticResource SettingsPillStyle}" Checked="HistoryRetention_Checked"/>
+                                                <RadioButton GroupName="HistoryRetention" Tag="180" Content="6 mois" Style="{StaticResource SettingsPillStyle}" Checked="HistoryRetention_Checked"/>
+                                                <RadioButton GroupName="HistoryRetention" Tag="365" Content="1 an" Style="{StaticResource SettingsPillStyle}" Checked="HistoryRetention_Checked"/>
+                                            </WrapPanel>
+                                            <TextBlock Text="Appliqué à chaque démarrage. Une fiche contient les résultats de chaque test et une copie du rapport." FontSize="11.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Dossier de l'historique" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Par défaut, l'historique est rangé à côté du programme : il le suit (clé USB, dossier partagé). Choisissez un dossier réseau pour que toute l'équipe partage le même historique." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10,7" Margin="0,0,0,10">
+                                                <TextBlock x:Name="TxtHistoryFolder" Text="" FontFamily="{DynamicResource FontMono}" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                            </Border>
+                                            <WrapPanel>
+                                                <Button Content="Consulter l'historique" Click="BtnHistoryOpenViewer_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button Content="Changer de dossier…" Click="BtnHistoryFolderChange_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button Content="Ouvrir le dossier" Click="BtnHistoryFolderOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button x:Name="BtnHistoryFolderReset" Content="Revenir à côté du programme" Click="BtnHistoryFolderReset_Click" Style="{StaticResource SettingsLinkStyle}" Margin="0,0,8,8" Visibility="Collapsed"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
                                 <!-- Profil d'équipe -->
                                 <StackPanel x:Name="SettingsPanelTeam" Visibility="Collapsed">
                                     <TextBlock Text="Profil d'équipe" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
@@ -3197,7 +3241,7 @@
                                             <TextBlock Text="Désinstaller ADB Tools" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                             <TextBlock Text="Efface les réglages de ce poste et, si vous le cochez, vos données, puis ferme ADB Tools. L'Explorateur s'ouvre ensuite sur le dossier du programme : il ne reste qu'à le supprimer (Suppr)."
                                                        FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-                                            <CheckBox x:Name="ChkUninstallData" Content="Supprimer aussi mes données : captures, vidéos, logs et rapports, modèles de rapport personnels, outils téléchargés (adb, scrcpy, FFmpeg)" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,14"/>
+                                            <CheckBox x:Name="ChkUninstallData" Content="Supprimer aussi mes données : captures, vidéos, logs et rapports, historique (s'il est à côté du programme), modèles de rapport personnels, outils téléchargés (adb, scrcpy, FFmpeg)" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,14"/>
                                             <WrapPanel>
                                                 <Button Content="Désinstaller…" Click="BtnUninstall_Click" Style="{StaticResource DangerButtonStyle}" Height="32" Padding="14,0"/>
                                             </WrapPanel>

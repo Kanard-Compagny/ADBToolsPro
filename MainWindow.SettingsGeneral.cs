@@ -266,6 +266,7 @@ namespace ADBToolsNew
             Line("Outils", ToolsManager.ToolsFolder);
             Line("Captures", GetCaptureFolderPath());
             if (!string.IsNullOrWhiteSpace(AppSettings.Current.ReportsFolder)) Line("Rapports", AppSettings.Current.ReportsFolder);
+            Line("Historique", DiagHistory.Folder);
             Line("Réglages", AppSettings.DataFolder);
             string share = AppUpdater.ShareFolder;
             if (!string.IsNullOrWhiteSpace(share)) Line("Diffusion", share);
@@ -373,6 +374,8 @@ namespace ADBToolsNew
                 sb.AppendLine($"rmdir /s /q \"{ReportTemplates.UserFolder}\" 2>nul");
                 sb.AppendLine($"rmdir /s /q \"{ToolsManager.ToolsFolder}\" 2>nul");
                 sb.AppendLine($"del /q \"{Path.Combine(appDir, "AdbLibrary.json")}\" 2>nul");
+                // Historique : seulement le dossier à côté du programme (jamais un dossier réseau partagé par l'équipe).
+                sb.AppendLine($"rmdir /s /q \"{DiagHistory.DefaultFolder}\" 2>nul");
             }
             sb.AppendLine($"start \"\" explorer.exe /select,\"{exe}\"");
             sb.AppendLine("(goto) 2>nul & del \"%~f0\"");
