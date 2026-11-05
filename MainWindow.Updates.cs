@@ -133,9 +133,68 @@ namespace ADBToolsNew
 
         // ------------------------------------------------------------------ Boutons
 
+        /// <summary>Pastille « Mise à jour X » de la barre de titre : propose directement l'installation (comme Scanalyse).</summary>
         private void BtnUpdateAvailable_Click(object sender, RoutedEventArgs e)
         {
-            OpenSettings("Updates");
+            if (AppUpdater.IsUpdate(_latestRelease) && AppUpdater.CanInstall(_latestRelease))
+                BtnUpdInstall_Click(sender, e);
+            else
+                OpenSettings("Updates");
+        }
+
+        // ------------------------------------------------------------------ Fenêtre d'installation
+
+        private TaskCompletionSource<bool> _updateDialogTcs;
+
+        /// <summary>« Installer ADB Tools X ? » avec les nouveautés de la version ; vrai si l'utilisateur confirme.</summary>
+        private Task<bool> ShowUpdateDialogAsync(AppRelease release)
+        {
+            TxtUpdateDialogTitle.Text = Loc.F("Installer ADB Tools {0} ?", release.VersionText);
+            string notes = FormatReleaseNotes(release.Notes);
+            TxtUpdateDialogNotes.Text = notes;
+            TxtUpdateDialogNotes.Visibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateDialog.Visibility = Visibility.Visible;
+            _updateDialogTcs?.TrySetResult(false);
+            _updateDialogTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            BtnUpdateDialogInstall.Focus();
+            return _updateDialogTcs.Task;
+        }
+
+        private void BtnUpdateDialogInstall_Click(object sender, RoutedEventArgs e)
+        {
+            UpdateDialog.Visibility = Visibility.Collapsed;
+            _updateDialogTcs?.TrySetResult(true);
+        }
+
+        private void BtnUpdateDialogCancel_Click(object sender, RoutedEventArgs e)
+        {
+            UpdateDialog.Visibility = Visibility.Collapsed;
+            _updateDialogTcs?.TrySetResult(false);
+        }
+
+        /// <summary>
+        /// Notes de version (Markdown du CHANGELOG / de GitHub) en texte lisible : titres et mise en forme retirés,
+        /// puces « • », sans la partie « Installation » (inutile ici : c'est justement ce que fait le bouton).
+        /// </summary>
+        public static string FormatReleaseNotes(string markdown)
+        {
+            var lines = new System.Collections.Generic.List<string>();
+            foreach (var raw in (markdown ?? "").Replace("\r", "").Split('\n'))
+            {
+                string line = raw.TrimEnd();
+                string t = line.TrimStart();
+                if (t.StartsWith("## Installation", StringComparison.OrdinalIgnoreCase) || t.StartsWith("Prérequis", StringComparison.Ordinal)) break;
+                if (t.StartsWith("#", StringComparison.Ordinal)) continue; // titre (« Nouveautés 1.3.0 ») : déjà dans le titre de la fenêtre
+                line = Regex.Replace(line, @"\*\*|`", "");
+                int indent = line.Length - line.TrimStart().Length;
+                t = line.TrimStart();
+                if (t.StartsWith("- ", StringComparison.Ordinal) || t.StartsWith("* ", StringComparison.Ordinal))
+                    line = (indent >= 2 ? "    – " : "• ") + t.Substring(2);
+                if (line.Length == 0 && (lines.Count == 0 || lines[lines.Count - 1].Length == 0)) continue;
+                lines.Add(line);
+            }
+            while (lines.Count > 0 && lines[lines.Count - 1].Length == 0) lines.RemoveAt(lines.Count - 1);
+            return string.Join("\n", lines);
         }
 
         private async void BtnUpdCheck_Click(object sender, RoutedEventArgs e)
@@ -202,11 +261,8 @@ namespace ADBToolsNew
                 return;
             }
 
-            bool go = await ShowCustomDialogAsync(Loc.F("⬆️ Installer la version {0} ?", release.VersionText),
-                Loc.T("ADB Tools va télécharger la nouvelle version, vérifier son intégrité, puis redémarrer pour l'installer.\n\n") +
-                Loc.T("Vos modèles de rapport, outils tiers, captures et réglages sont conservés."),
-                Loc.T("Installer et redémarrer"), Loc.T("Annuler"), false);
-            if (!go) return;
+            if (!await ShowUpdateDialogAsync(release)) return;
+            OpenSettings("Updates"); // la progression du téléchargement s'affiche dans Paramètres ▸ Mises à jour
 
             _updateBusy = true;
             BtnUpdInstall.IsEnabled = false;

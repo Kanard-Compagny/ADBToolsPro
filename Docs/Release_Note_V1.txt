@@ -56,6 +56,11 @@ COMPARATEUR DE TERMINAUX (nouvelle page du menu)
     idéal pour voir ce qu'une mise à jour ou une intervention a modifié.
   - Export du tableau des différences en .csv (Excel).
 
+MISES À JOUR, COMME DANS SCANALYSE
+  - La pastille « Mise à jour X » s'affiche dans la barre de titre, à côté de
+    la version. Un clic ouvre la fenêtre d'installation avec les nouveautés,
+    puis « Installer et redémarrer ».
+
 ================================================================================
 2 bis. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
 ================================================================================

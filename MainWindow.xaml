@@ -844,6 +844,27 @@
                     <Image Source="/Resources/logo_adbtools.png" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="ADB Tools Pro" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TitleInk}" FontFamily="{DynamicResource FontDisplay}" VerticalAlignment="Center"/>
                     <TextBlock x:Name="TxtTitleVersion" Text="version" FontSize="12" Foreground="{DynamicResource TitleMuted}" VerticalAlignment="Center" Margin="10,1,0,0"/>
+                    <!-- Nouvelle version disponible (comme dans Scanalyse) : pastille à côté de la version, un clic
+                         propose l'installation avec les nouveautés. Visible seulement dans ce cas. -->
+                    <Button x:Name="BtnUpdateAvailable" Click="BtnUpdateAvailable_Click" Visibility="Collapsed" Cursor="Hand" Margin="12,0,0,0" VerticalAlignment="Center"
+                            WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Une nouvelle version d'ADB Tools est disponible : cliquez pour voir les nouveautés et l'installer">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Pill" Background="#1FFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="11" Padding="10,2,11,3">
+                                    <ContentPresenter VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Pill" Property="Background" Value="#33FFFFFF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" Fill="{DynamicResource Action}" VerticalAlignment="Center" Margin="0,1,7,0"/>
+                            <TextBlock x:Name="TxtUpdateAvailable" Text="Mise à jour" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TitleInk}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
 
@@ -960,14 +981,6 @@
                     </Popup>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <!-- Nouvelle version d'ADB Tools disponible : visible seulement dans ce cas, ouvre Paramètres ▸ Mises à jour -->
-                <Button x:Name="BtnUpdateAvailable" Click="BtnUpdateAvailable_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,8,0"
-                        Visibility="Collapsed" ToolTip="Une nouvelle version d'ADB Tools est disponible">
-                    <StackPanel Orientation="Horizontal" Margin="12,0">
-                        <Ellipse Width="8" Height="8" Fill="{DynamicResource Action}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="TxtUpdateAvailable" Text="Mise à jour" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
                 <!-- Dossier des captures : ouvrir / vider (comme « Dossier » dans Scanalyse) -->
                 <Button x:Name="BtnCapturesMenu" Click="BtnCapturesMenu_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,8,0"
                         ToolTip="Captures d'écran, vidéos, logs et rapports générés">
@@ -3632,6 +3645,37 @@
                             <Button x:Name="BtnDialogConfirm" Content="Confirmer" Click="BtnDialogConfirm_Click" Style="{StaticResource DangerButtonStyle}" MinWidth="100" Height="32" Padding="16,0"/>
                         </StackPanel>
                     </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Installation d'une mise à jour (comme dans Scanalyse) : nouveautés de la version, puis
+                 « Installer et redémarrer ». -->
+            <Grid x:Name="UpdateDialog" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1003">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Width="440" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40" Padding="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="22,20,22,14">
+                            <Border Width="38" Height="38" CornerRadius="19" Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource WarnFg}" BorderThickness="1" Margin="0,0,14,0">
+                                <TextBlock Text="!" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource WarnFg}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="TxtUpdateDialogTitle" Text="Installer ADB Tools ?" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="340"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="420" Margin="22,0,10,0" Padding="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtUpdateDialogNotes" Foreground="{DynamicResource Ink}" FontSize="13" TextWrapping="Wrap" LineHeight="19"/>
+                                <TextBlock x:Name="TxtUpdateDialogInfo" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,4"
+                                           Text="ADB Tools va télécharger la nouvelle version, vérifier son intégrité, puis redémarrer. Vos modèles de rapport, outils tiers, captures et réglages sont conservés."/>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="22,16,22,20">
+                            <Button Content="Annuler" Click="BtnUpdateDialogCancel_Click" Style="{StaticResource OutlineButtonStyle}" MinWidth="100" Height="34" Padding="16,0" Margin="0,0,10,0"/>
+                            <Button x:Name="BtnUpdateDialogInstall" Content="Installer et redémarrer" Click="BtnUpdateDialogInstall_Click" Style="{StaticResource PrimaryButtonStyle}" MinWidth="160" Height="34" Padding="18,0"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
             </Grid>
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ADBToolsNew.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -103,6 +103,14 @@ namespace ADBToolsNew.Tests
             Assert.IsTrue(AppUpdater.IsUpdate(new AppRelease { Version = new Version(v.Major, v.Minor, v.Build + 1) }));
             Assert.IsTrue(AppUpdater.IsUpdate(new AppRelease { Version = new Version(v.Major, v.Minor + 1, 0) }));
             Assert.IsFalse(AppUpdater.IsUpdate(null));
+        }
+
+        [TestMethod]
+        public void NotesDeVersion_TexteLisibleSansInstallation()
+        {
+            string md = "## Nouveautés 1.3.0\n\n- **Analyse des logs** (page Logs) : `logcat -d`.\n  - sous-point\n- Comparateur\n\n## Installation\n1. Télécharger";
+            string txt = ADBToolsNew.MainWindow.FormatReleaseNotes(md);
+            Assert.AreEqual("• Analyse des logs (page Logs) : logcat -d.\n    – sous-point\n• Comparateur", txt);
         }
     }
 }

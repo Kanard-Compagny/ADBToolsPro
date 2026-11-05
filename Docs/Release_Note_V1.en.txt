@@ -52,6 +52,11 @@ DEVICE COMPARATOR (new menu page)
     see what an update or an intervention changed.
   - Export of the differences table as .csv (Excel).
 
+UPDATES, AS IN SCANALYSE
+  - The "Update X" badge appears in the title bar, next to the version. A
+    click opens the install window with what's new, then "Install and
+    restart".
+
 ================================================================================
 2b. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
