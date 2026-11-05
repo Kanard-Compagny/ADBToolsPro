@@ -66,8 +66,36 @@ namespace ADBToolsNew
                 foreach (var child in UiScaleChoices.Children)
                     if (child is RadioButton rb) rb.IsChecked = Math.Abs(ParseScale(rb.Tag) - AppSettings.Current.UiScale) < 0.01;
                 ChkConsoleAtStartup.IsChecked = AppSettings.Current.ConsoleExpandedAtStartup;
+                foreach (var child in LanguageChoices.Children)
+                    if (child is RadioButton rb) rb.IsChecked = (rb.Tag as string) == (AppSettings.Current.Language == "en" ? "en" : "fr");
             }
             finally { _updatingGeneralUi = false; }
+        }
+
+        /// <summary>Langue de l'interface : enregistrée, puis proposée au redémarrage (comme Scanalyse).</summary>
+        private async void Language_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_updatingGeneralUi || !IsLoaded || !(sender is RadioButton rb)) return;
+            string lang = rb.Tag as string == "en" ? "en" : "fr";
+            if (AppSettings.Current.Language == lang) return;
+            AppSettings.Current.Language = lang;
+            AppSettings.Save();
+            // Message dans la langue choisie : c'est celle que l'utilisateur lit le mieux.
+            bool restart = lang == "en"
+                ? await ShowCustomDialogAsync("🌐 Language", "English will be used after ADB Tools restarts.\n\nRestart now?", "Restart now", "Later", false)
+                : await ShowCustomDialogAsync("🌐 Langue", "Le français sera utilisé après le redémarrage d'ADB Tools.\n\nRedémarrer maintenant ?", "Redémarrer maintenant", "Plus tard", false);
+            if (!restart) return;
+            if (_isSideloading)
+            {
+                await ShowCustomDialogAsync("⏳", lang == "en" ? "A sideload is in progress: restart ADB Tools once it is finished." : "Un Sideload est en cours : redémarrez ADB Tools une fois qu'il est terminé.", "OK", null, false);
+                return;
+            }
+            try
+            {
+                Process.Start(new ProcessStartInfo(Process.GetCurrentProcess().MainModule.FileName) { UseShellExecute = true });
+                Application.Current.Shutdown();
+            }
+            catch { }
         }
 
         private void StartPage_Checked(object sender, RoutedEventArgs e)
@@ -120,7 +148,7 @@ namespace ADBToolsNew
                 }
                 catch
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Dossier des rapports inaccessible ({custom}) : enregistrement dans le dossier des captures.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Dossier des rapports inaccessible ({1}) : enregistrement dans le dossier des captures.", DateTime.Now, custom));
                 }
             }
             return GetCaptureFolderPath();
@@ -134,12 +162,12 @@ namespace ADBToolsNew
             if (!TxtReportTechnician.IsKeyboardFocusWithin) TxtReportTechnician.Text = s.ReportTechnician;
 
             string logo = ReportTemplates.GetLogoPath();
-            TxtReportLogo.Text = logo == null ? "Aucun" : Path.GetFileName(logo);
+            TxtReportLogo.Text = logo == null ? Loc.T("Aucun") : Path.GetFileName(logo);
             BtnReportLogoClear.Visibility = logo == null ? Visibility.Collapsed : Visibility.Visible;
             ImgReportLogo.Source = LoadImageUnlocked(logo);
 
             bool custom = !string.IsNullOrWhiteSpace(s.ReportsFolder);
-            TxtReportsFolder.Text = custom ? s.ReportsFolder : GetCaptureFolderPath() + "   (dossier des captures)";
+            TxtReportsFolder.Text = custom ? s.ReportsFolder : GetCaptureFolderPath() + Loc.T("   (dossier des captures)");
             BtnReportsFolderReset.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -175,18 +203,18 @@ namespace ADBToolsNew
         {
             var dlg = new OpenFileDialog
             {
-                Title = "Logo des rapports",
-                Filter = "Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg"
+                Title = Loc.T("Logo des rapports"),
+                Filter = Loc.T("Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg")
             };
             if (dlg.ShowDialog() != true) return;
             try
             {
                 ReportTemplates.SetLogo(dlg.FileName);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖼️ Logo des rapports mis à jour.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖼️ Logo des rapports mis à jour.", DateTime.Now));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Logo non enregistré : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Logo non enregistré : {1}", DateTime.Now, ex.Message));
             }
             UpdateReportSettingsUi();
         }
@@ -194,7 +222,7 @@ namespace ADBToolsNew
         private void BtnReportLogoClear_Click(object sender, RoutedEventArgs e)
         {
             try { ReportTemplates.ClearLogo(); }
-            catch (Exception ex) { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Logo non retiré : {ex.Message}"); }
+            catch (Exception ex) { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Logo non retiré : {1}", DateTime.Now, ex.Message)); }
             UpdateReportSettingsUi();
         }
 
@@ -281,11 +309,11 @@ namespace ADBToolsNew
             try
             {
                 Clipboard.SetText(BuildDiagnosticText());
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📋 Diagnostic copié dans le presse-papiers.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📋 Diagnostic copié dans le presse-papiers.", DateTime.Now));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Copie impossible : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Copie impossible : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -309,16 +337,16 @@ namespace ADBToolsNew
             bool withData = ChkUninstallData.IsChecked == true;
             if (_isSideloading)
             {
-                await ShowCustomDialogAsync("⏳ Opération en cours", "Une mise à jour du terminal (Sideload) est en cours. Attendez qu'elle soit terminée.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("⏳ Opération en cours"), Loc.T("Une mise à jour du terminal (Sideload) est en cours. Attendez qu'elle soit terminée."), "OK", null, false);
                 return;
             }
 
             string detail = withData
                 ? "Les réglages de ce poste ET vos données (captures, vidéos, logs, rapports, modèles personnels, bibliothèque de commandes, outils téléchargés) seront définitivement supprimés."
                 : "Les réglages de ce poste seront supprimés. Vos données (captures, rapports, modèles, outils téléchargés) restent dans le dossier du programme.";
-            bool ok = await ShowCustomDialogAsync("🗑️ Désinstaller ADB Tools ?",
-                detail + "\n\nADB Tools va se fermer, puis l'Explorateur s'ouvrira sur le dossier du programme : il ne restera qu'à le supprimer.",
-                "Désinstaller", "Annuler", true);
+            bool ok = await ShowCustomDialogAsync(Loc.T("🗑️ Désinstaller ADB Tools ?"),
+                detail + Loc.T("\n\nADB Tools va se fermer, puis l'Explorateur s'ouvrira sur le dossier du programme : il ne restera qu'à le supprimer."),
+                Loc.T("Désinstaller"), Loc.T("Annuler"), true);
             if (!ok) return;
 
             try
@@ -330,7 +358,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Désinstallation impossible", ex.Message, "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Désinstallation impossible"), ex.Message, "OK", null, true);
             }
         }
 

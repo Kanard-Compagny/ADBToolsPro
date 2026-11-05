@@ -82,26 +82,26 @@ namespace ADBToolsNew
 
         private List<TourStep> BuildTourSteps() => new List<TourStep>
         {
-            new TourStep { Target = () => ConnectionBar, Title = "Barre de connexion",
-                Body = "Choisissez le terminal dans la liste, puis « Connecter ». Le voyant passe au vert une fois connecté. À droite : désactiver le mode développeur et les différents redémarrages (classique, recovery, bootloader)." },
-            new TourStep { Target = () => SideMenuScroll, Title = "Le menu",
-                Body = "Chaque outil a sa page : informations du terminal, mirroring, applications, fichiers, outils avancés, diagnostics, Wi-Fi, bibliothèque de commandes et logs. La flèche en haut du menu le replie pour gagner de la place." },
-            new TourStep { Target = () => BtnNavDashboard, Title = "Device Info",
-                Body = "Le tableau de bord du terminal connecté : modèle, version d'Android, batterie, stockage, réseau. Les cartes changent de couleur selon l'état." },
-            new TourStep { Target = () => BtnNavMirroring, Title = "Mirroring",
-                Body = "Affiche et pilote l'écran du terminal sur le PC (scrcpy), avec captures d'écran et enregistrement vidéo." },
-            new TourStep { Target = () => BtnNavDiag, Title = "Diagnostics SAV",
-                Body = "Tests automatiques (Wi-Fi, batterie, stockage, capteurs…) et manuels (boutons, tactile, scanner, écran), puis rapport Word à remettre au client." },
-            new TourStep { Target = () => BtnNavRadar, Title = "Analyse Wi-Fi",
-                Body = "Suivi en direct du signal et de la latence, avec graphiques et rapport Word." },
-            new TourStep { Target = () => ConsoleBorder, Title = "La console",
-                Body = "Chaque action y est notée, avec son résultat. « Copier Logs » pour transmettre un souci ; la flèche la replie." },
-            new TourStep { Target = () => BtnCapturesMenu, Title = "Captures",
-                Body = "Ouvre ou vide le dossier où sont rangés captures d'écran, vidéos, logs et rapports." },
-            new TourStep { Target = () => BtnThemeMode, Title = "Thème",
-                Body = "Passe de « Système » (comme Windows) à Clair puis Sombre." },
-            new TourStep { Target = () => BtnNavSettings, Title = "Paramètres",
-                Body = "Réglages de ce poste : démarrage, mises à jour, outils tiers, en-tête et modèles des rapports… La visite se relance aussi d'ici (Prise en main)." },
+            new TourStep { Target = () => ConnectionBar, Title = Loc.T("Barre de connexion"),
+                Body = Loc.T("Choisissez le terminal dans la liste, puis « Connecter ». Le voyant passe au vert une fois connecté. À droite : désactiver le mode développeur et les différents redémarrages (classique, recovery, bootloader).") },
+            new TourStep { Target = () => SideMenuScroll, Title = Loc.T("Le menu"),
+                Body = Loc.T("Chaque outil a sa page : informations du terminal, mirroring, applications, fichiers, outils avancés, diagnostics, Wi-Fi, bibliothèque de commandes et logs. La flèche en haut du menu le replie pour gagner de la place.") },
+            new TourStep { Target = () => BtnNavDashboard, Title = Loc.T("Device Info"),
+                Body = Loc.T("Le tableau de bord du terminal connecté : modèle, version d'Android, batterie, stockage, réseau. Les cartes changent de couleur selon l'état.") },
+            new TourStep { Target = () => BtnNavMirroring, Title = Loc.T("Mirroring"),
+                Body = Loc.T("Affiche et pilote l'écran du terminal sur le PC (scrcpy), avec captures d'écran et enregistrement vidéo.") },
+            new TourStep { Target = () => BtnNavDiag, Title = Loc.T("Diagnostics SAV"),
+                Body = Loc.T("Tests automatiques (Wi-Fi, batterie, stockage, capteurs…) et manuels (boutons, tactile, scanner, écran), puis rapport Word à remettre au client.") },
+            new TourStep { Target = () => BtnNavRadar, Title = Loc.T("Analyse Wi-Fi"),
+                Body = Loc.T("Suivi en direct du signal et de la latence, avec graphiques et rapport Word.") },
+            new TourStep { Target = () => ConsoleBorder, Title = Loc.T("La console"),
+                Body = Loc.T("Chaque action y est notée, avec son résultat. « Copier Logs » pour transmettre un souci ; la flèche la replie.") },
+            new TourStep { Target = () => BtnCapturesMenu, Title = Loc.T("Captures"),
+                Body = Loc.T("Ouvre ou vide le dossier où sont rangés captures d'écran, vidéos, logs et rapports.") },
+            new TourStep { Target = () => BtnThemeMode, Title = Loc.T("Thème"),
+                Body = Loc.T("Passe de « Système » (comme Windows) à Clair puis Sombre.") },
+            new TourStep { Target = () => BtnNavSettings, Title = Loc.T("Paramètres"),
+                Body = Loc.T("Réglages de ce poste : démarrage, mises à jour, outils tiers, en-tête et modèles des rapports… La visite se relance aussi d'ici (Prise en main).") },
         };
 
         private void StartTour()
@@ -168,7 +168,7 @@ namespace ADBToolsNew
             TxtTourTitle.Text = step.Title;
             TxtTourBody.Text = step.Body;
             BtnTourPrev.IsEnabled = _tourIndex > 0;
-            BtnTourNext.Content = _tourIndex == _tourSteps.Count - 1 ? "Terminer" : "Suivant";
+            BtnTourNext.Content = _tourIndex == _tourSteps.Count - 1 ? Loc.T("Terminer") : Loc.T("Suivant");
 
             Rect target = Rect.Empty;
             var el = step.Target?.Invoke();

@@ -202,7 +202,7 @@ namespace ADBToolsNew.Core
         /// <summary>Version la plus récente déposée dans le dossier de l'équipe (null si aucune).</summary>
         public static AppRelease FindInShare(string folder)
         {
-            if (!Directory.Exists(folder)) throw new DirectoryNotFoundException("dossier introuvable");
+            if (!Directory.Exists(folder)) throw new DirectoryNotFoundException(Loc.T("dossier introuvable"));
             AppRelease best = null;
             foreach (var path in Directory.GetFiles(folder, "ADBToolsPro-*.zip"))
             {
@@ -269,7 +269,7 @@ namespace ADBToolsNew.Core
         /// </summary>
         public static async Task<string> DownloadAsync(AppRelease release, IProgress<double> progress, CancellationToken ct = default)
         {
-            if (!CanInstall(release)) throw new InvalidOperationException("Cette version ne contient pas d'archive installable.");
+            if (!CanInstall(release)) throw new InvalidOperationException(Loc.T("Cette version ne contient pas d'archive installable."));
 
             try { if (Directory.Exists(WorkFolder)) Directory.Delete(WorkFolder, true); } catch { }
             Directory.CreateDirectory(WorkFolder);
@@ -284,7 +284,7 @@ namespace ADBToolsNew.Core
                     : await Http.GetStringAsync(release.Sha256Url).ConfigureAwait(false);
                 expected = shaText.Trim().Split(new[] { ' ', '\t', '\r', '\n', '*' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant();
                 if (string.IsNullOrEmpty(expected) || expected.Length != 64)
-                    throw new InvalidDataException("Empreinte SHA-256 de la mise à jour illisible.");
+                    throw new InvalidDataException(Loc.T("Empreinte SHA-256 de la mise à jour illisible."));
             }
 
             if (release.FromShare)
@@ -312,7 +312,7 @@ namespace ADBToolsNew.Core
                 using (var fs = File.OpenRead(zipPath))
                     actual = BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
                 if (actual != expected)
-                    throw new InvalidDataException("L'archive est incomplète ou modifiée (empreinte SHA-256 différente). Rien n'a été installé.");
+                    throw new InvalidDataException(Loc.T("L'archive est incomplète ou modifiée (empreinte SHA-256 différente). Rien n'a été installé."));
             }
 
             string extractFolder = Path.Combine(WorkFolder, "fichiers");
@@ -321,7 +321,7 @@ namespace ADBToolsNew.Core
             // L'archive contient un dossier racine « ADBToolsPro\ » : on renvoie le dossier qui contient l'exe.
             string exeName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
             string exe = Directory.GetFiles(extractFolder, exeName, SearchOption.AllDirectories).FirstOrDefault();
-            if (exe == null) throw new InvalidDataException($"{exeName} introuvable dans l'archive de mise à jour.");
+            if (exe == null) throw new InvalidDataException(Loc.F("{0} introuvable dans l'archive de mise à jour.", exeName));
             return Path.GetDirectoryName(exe);
         }
 

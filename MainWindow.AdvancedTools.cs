@@ -76,7 +76,7 @@ namespace ADBToolsNew
                     string dpiOutput = resDpi.StandardOutput ?? "";
                     var matchOverrideDpi = System.Text.RegularExpressions.Regex.Match(dpiOutput, @"Override density:\s*(\d+)");
                     var matchPhysicalDpi = System.Text.RegularExpressions.Regex.Match(dpiOutput, @"Physical density:\s*(\d+)");
-                    if (matchOverrideDpi.Success) TxtDpiValue.Text = $"{matchOverrideDpi.Groups[1].Value} (personnalisé)";
+                    if (matchOverrideDpi.Success) TxtDpiValue.Text = Loc.F("{0} (personnalisé)", matchOverrideDpi.Groups[1].Value);
                     else if (matchPhysicalDpi.Success) TxtDpiValue.Text = matchPhysicalDpi.Groups[1].Value;
 
                     // Extraction dynamique de la Résolution
@@ -103,14 +103,14 @@ namespace ADBToolsNew
             if (sender is Button btn && btn.Tag != null)
             {
                 string keycode = btn.Tag.ToString();
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🕹️ Envoi de la touche : {btn.Content.ToString().Replace(" ", "")} (Key: {keycode})");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🕹️ Envoi de la touche : {1} (Key: {2})", DateTime.Now, btn.Content.ToString().Replace(" ", ""), keycode));
                 try
                 {
                     await _adbManager.ExecuteAsync($"-s {dev.Serial} shell input keyevent {keycode}");
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur envoi touche : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur envoi touche : {1}", DateTime.Now, ex.Message));
                 }
             }
         }
@@ -121,7 +121,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") { ToggleRotation.IsChecked = !ToggleRotation.IsChecked; return; }
 
             string val = ToggleRotation.IsChecked == true ? "1" : "0";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔄 Rotation Auto réglée sur : {(val == "1" ? "ON" : "OFF")}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 Rotation Auto réglée sur : {1}", DateTime.Now, (val == "1" ? "ON" : Loc.T("OFF"))));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell settings put system accelerometer_rotation {val}");
@@ -129,7 +129,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleRotation.IsChecked = !ToggleRotation.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Rotation Auto : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Rotation Auto : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -139,7 +139,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") { ToggleDarkMode.IsChecked = !ToggleDarkMode.IsChecked; return; }
 
             string mode = ToggleDarkMode.IsChecked == true ? "yes" : "no";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🌙 Bascule Mode Sombre : {mode.ToUpper()}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🌙 Bascule Mode Sombre : {1}", DateTime.Now, mode.ToUpper()));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell cmd uimode night {mode}");
@@ -147,7 +147,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleDarkMode.IsChecked = !ToggleDarkMode.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Mode Sombre : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Mode Sombre : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -162,7 +162,7 @@ namespace ADBToolsNew
             percent = Math.Max(0, Math.Min(100, percent));
             int brightness = (int)(percent * 2.55); // Map le pourcentage (0-100) vers la valeur système (0-255)
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💡 Luminosité réglée à {percent}%");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💡 Luminosité réglée à {1}%", DateTime.Now, percent));
 
             try
             {
@@ -177,7 +177,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur luminosité : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur luminosité : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -192,7 +192,7 @@ namespace ADBToolsNew
             if (e.Key != System.Windows.Input.Key.Enter) return;
             string cleanInput = TxtBrightness.Text.Replace("%", "").Trim();
             if (int.TryParse(cleanInput, out int percent)) await ApplyBrightnessAsync(percent);
-            else AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez entrer un nombre valide pour la luminosité (ex: 50).");
+            else AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez entrer un nombre valide pour la luminosité (ex: 50).", DateTime.Now));
         }
 
         /// <summary>Applique la densité DPI : appelée par les boutons +/- ET par la validation Entrée.</summary>
@@ -202,7 +202,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") return;
 
             dpi = Math.Max(120, dpi); // en dessous, l'interface devient inutilisable sur la plupart des terminaux
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖥️ Changement DPI vers {dpi}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖥️ Changement DPI vers {1}...", DateTime.Now, dpi));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell wm density {dpi}");
@@ -210,7 +210,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur DPI : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur DPI : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -230,7 +230,7 @@ namespace ADBToolsNew
             if (e.Key != System.Windows.Input.Key.Enter) return;
             int dpi = ParseDpiOrDefault();
             if (System.Text.RegularExpressions.Regex.IsMatch(TxtDpiValue.Text ?? "", @"^\s*\d+")) await ApplyDpiAsync(dpi);
-            else AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez entrer une valeur DPI valide (ex: 240).");
+            else AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez entrer une valeur DPI valide (ex: 240).", DateTime.Now));
         }
 
         private async void BtnSetRes_Click(object sender, RoutedEventArgs e)
@@ -241,14 +241,14 @@ namespace ADBToolsNew
             string res = TxtResValue.Text.Trim();
             if (!string.IsNullOrEmpty(res))
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖥️ Changement Résolution vers {res}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖥️ Changement Résolution vers {1}...", DateTime.Now, res));
                 try
                 {
                     await _adbManager.ExecuteAsync($"-s {dev.Serial} shell wm size {res}");
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Résolution : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Résolution : {1}", DateTime.Now, ex.Message));
                 }
             }
         }
@@ -258,7 +258,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔄 Réinitialisation de l'affichage (DPI & Résolution)...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 Réinitialisation de l'affichage (DPI & Résolution)...", DateTime.Now));
 
             try
             {
@@ -274,7 +274,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur réinitialisation affichage : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur réinitialisation affichage : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -289,14 +289,14 @@ namespace ADBToolsNew
             else if (CmbScreenTimeout.SelectedIndex == 2) ms = "300000"; // 5m
             else if (CmbScreenTimeout.SelectedIndex == 3) ms = "1800000"; // 30m
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⏱️ Application du délai de mise en veille...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⏱️ Application du délai de mise en veille...", DateTime.Now));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell settings put system screen_off_timeout {ms}");
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur délai de mise en veille : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur délai de mise en veille : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -314,7 +314,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleWifi.IsChecked = !ToggleWifi.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Wi-Fi : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Wi-Fi : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -324,7 +324,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") { ToggleBluetooth.IsChecked = !ToggleBluetooth.IsChecked; return; }
             bool wantOn = ToggleBluetooth.IsChecked == true;
             string cmd = wantOn ? "enable" : "disable";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🛜 Bluetooth : {cmd.ToUpper()}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🛜 Bluetooth : {1}", DateTime.Now, cmd.ToUpper()));
             ToggleBluetooth.IsEnabled = false;
             try
             {
@@ -352,7 +352,7 @@ namespace ADBToolsNew
                     }
                     if (state == wantOn)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Bluetooth {(wantOn ? "activé" : "désactivé")} ({command}).");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Bluetooth {1} ({2}).", DateTime.Now, (wantOn ? Loc.T("activé") : Loc.T("désactivé")), command));
                         return;
                     }
                 }
@@ -368,13 +368,13 @@ namespace ADBToolsNew
 
                 if (requestShown)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 👉 Validez la demande « {(wantOn ? "Activer" : "Désactiver")} le Bluetooth » sur l'écran du terminal (20 s)...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 👉 Validez la demande « {1} le Bluetooth » sur l'écran du terminal (20 s)...", DateTime.Now, (wantOn ? Loc.T("Activer") : Loc.T("Désactiver"))));
                     for (int i = 0; i < 40; i++)
                     {
                         await System.Threading.Tasks.Task.Delay(500);
                         if (await ReadBluetoothStateAsync(dev.Serial) == wantOn)
                         {
-                            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Bluetooth {(wantOn ? "activé" : "désactivé")} (confirmé sur le terminal).");
+                            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Bluetooth {1} (confirmé sur le terminal).", DateTime.Now, (wantOn ? Loc.T("activé") : Loc.T("désactivé"))));
                             return;
                         }
                     }
@@ -383,13 +383,13 @@ namespace ADBToolsNew
                 // Aucune méthode n'a changé l'état : on remet l'interrupteur sur l'état réel et on explique.
                 bool? actual = await ReadBluetoothStateAsync(dev.Serial);
                 if (actual.HasValue) ToggleBluetooth.IsChecked = actual.Value;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Le Bluetooth n'a pas changé d'état. Commandes tentées :{attempts}" +
-                                      "\n   Sur un terminal géré (MDM / StageNow), le Bluetooth peut être verrouillé par une politique.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Le Bluetooth n'a pas changé d'état. Commandes tentées :{1}", DateTime.Now, attempts) +
+                                      Loc.T("\n   Sur un terminal géré (MDM / StageNow), le Bluetooth peut être verrouillé par une politique."));
             }
             catch (Exception ex)
             {
                 ToggleBluetooth.IsChecked = !ToggleBluetooth.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Bluetooth : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Bluetooth : {1}", DateTime.Now, ex.Message));
             }
             finally
             {
@@ -418,7 +418,7 @@ namespace ADBToolsNew
 
             string val = ToggleAirplane.IsChecked == true ? "1" : "0";
             string state = ToggleAirplane.IsChecked == true ? "true" : "false";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✈️ Mode Avion : {(val == "1" ? "ON" : "OFF")}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✈️ Mode Avion : {1}", DateTime.Now, (val == "1" ? "ON" : Loc.T("OFF"))));
 
             try
             {
@@ -437,7 +437,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleAirplane.IsChecked = !ToggleAirplane.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Mode Avion : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Mode Avion : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -447,7 +447,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") { ToggleNfc.IsChecked = !ToggleNfc.IsChecked; return; }
 
             string action = ToggleNfc.IsChecked == true ? "enable" : "disable";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📲 NFC : {action.ToUpper()}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📲 NFC : {1}", DateTime.Now, action.ToUpper()));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell svc nfc {action}");
@@ -455,7 +455,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleNfc.IsChecked = !ToggleNfc.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur NFC : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur NFC : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -469,7 +469,7 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") { ToggleLocation.IsChecked = !ToggleLocation.IsChecked; return; }
 
             string val = ToggleLocation.IsChecked == true ? "3" : "0";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📍 Localisation réglée sur : {(val == "3" ? "ON" : "OFF")}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📍 Localisation réglée sur : {1}", DateTime.Now, (val == "3" ? "ON" : Loc.T("OFF"))));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell settings put secure location_mode {val}");
@@ -477,7 +477,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 ToggleLocation.IsChecked = !ToggleLocation.IsChecked;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Localisation : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Localisation : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -486,7 +486,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔎 UI Automator : Extraction de l'arborescence XML en cours...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔎 UI Automator : Extraction de l'arborescence XML en cours...", DateTime.Now));
             BtnDumpUi.IsEnabled = false;
 
             try
@@ -497,10 +497,10 @@ namespace ADBToolsNew
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell rm /sdcard/layout_dump.xml");
 
                 UpdateCaptureFolderStats();
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ XML généré avec succès !");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ XML généré avec succès !", DateTime.Now));
                 if (System.IO.File.Exists(localPath)) OpenWithShell(localPath);
             }
-            catch (Exception ex) { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur UI Automator : {ex.Message}"); }
+            catch (Exception ex) { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur UI Automator : {1}", DateTime.Now, ex.Message)); }
             finally { BtnDumpUi.IsEnabled = true; }
         }
 
@@ -516,7 +516,7 @@ namespace ADBToolsNew
 
             index = Math.Max(0, index);
             int stream = GetSelectedVolumeStream();
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔊 Changement du volume (flux {stream}) vers {index}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔊 Changement du volume (flux {1}) vers {2}...", DateTime.Now, stream, index));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell cmd media_session volume --stream {stream} --set {index} --show");
@@ -524,7 +524,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Volume : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Volume : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -538,7 +538,7 @@ namespace ADBToolsNew
         {
             if (e.Key != System.Windows.Input.Key.Enter) return;
             if (int.TryParse(TxtVolumeValue.Text.Trim(), out int v)) await ApplyVolumeAsync(v);
-            else AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez entrer un index de volume valide (ex: 8).");
+            else AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez entrer un index de volume valide (ex: 8).", DateTime.Now));
         }
 
         /// <summary>
@@ -552,14 +552,14 @@ namespace ADBToolsNew
             if (dev == null || dev.State != "device") return;
 
             string label = mode == 2 ? "Son" : mode == 1 ? "Vibreur" : "Silencieux";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔔 Mode sonnerie réglé sur {label}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔔 Mode sonnerie réglé sur {1}...", DateTime.Now, label));
             try
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell service call audio 8 i32 {mode}");
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Mode sonnerie : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Mode sonnerie : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -572,19 +572,19 @@ namespace ADBToolsNew
 
         private async void BtnSideloadOs_Click(object sender, RoutedEventArgs e)
         {
-            bool confirm = await ShowCustomDialogAsync("⚠️ ATTENTION SIDELOAD", "Pour flasher un OS, assurez-vous qu'UN SEUL terminal est branché en USB à ce PC et qu'il est sur l'écran 'Apply update from ADB'.\n\nDébranchez tous les autres appareils avant de continuer !", "J'ai compris", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("⚠️ ATTENTION SIDELOAD"), Loc.T("Pour flasher un OS, assurez-vous qu'UN SEUL terminal est branché en USB à ce PC et qu'il est sur l'écran 'Apply update from ADB'.\n\nDébranchez tous les autres appareils avant de continuer !"), Loc.T("J'ai compris"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "Fichiers de mise à jour OS (*.zip)|*.zip",
-                Title = "Sélectionnez le fichier OS_Update.zip"
+                Title = Loc.T("Sélectionnez le fichier OS_Update.zip")
             };
 
             if (dlg.ShowDialog() == true)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📦 Démarrage du Sideload avec : {System.IO.Path.GetFileName(dlg.FileName)}");
-                AppendConsole($"\n⚠️ NE DÉBRANCHEZ SURTOUT PAS LE TERMINAL ! PATIENTEZ...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Démarrage du Sideload avec : {1}", DateTime.Now, System.IO.Path.GetFileName(dlg.FileName)));
+                AppendConsole(Loc.F("\n⚠️ NE DÉBRANCHEZ SURTOUT PAS LE TERMINAL ! PATIENTEZ..."));
 
                 _isSideloading = true;
                 try
@@ -610,17 +610,17 @@ namespace ADBToolsNew
 
                     if (transferComplete)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Sideload terminé ! Suivez l'installation sur l'écran du terminal. ({lastLines})");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Sideload terminé ! Suivez l'installation sur l'écran du terminal. ({1})", DateTime.Now, lastLines));
                     }
                     else
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Le Sideload a échoué : {lastLines}" +
-                                              "\n   Vérifiez que le terminal est bien sur 'Apply update from ADB' et qu'un seul appareil est branché.");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Le Sideload a échoué : {1}", DateTime.Now, lastLines) +
+                                              Loc.T("\n   Vérifiez que le terminal est bien sur 'Apply update from ADB' et qu'un seul appareil est branché."));
                     }
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Sideload : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Sideload : {1}", DateTime.Now, ex.Message));
                 }
                 finally
                 {

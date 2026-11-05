@@ -24,11 +24,11 @@ namespace ADBToolsNew
             try
             {
                 DiagHistory.Save(entry, reportPath);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗂️ Ajouté à l'historique du terminal {entry.Serial}.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗂️ Ajouté à l'historique du terminal {1}.", DateTime.Now, entry.Serial));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Historique non enregistré ({ex.Message}). Le rapport, lui, est bien créé.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Historique non enregistré ({1}). Le rapport, lui, est bien créé.", DateTime.Now, ex.Message));
             }
         }
 
@@ -40,7 +40,7 @@ namespace ADBToolsNew
             try
             {
                 int removed = await Task.Run(() => DiagHistory.Purge(days));
-                if (removed > 0) AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗂️ Historique : {removed} fiche(s) de plus de {days} jours supprimée(s).");
+                if (removed > 0) AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗂️ Historique : {1} fiche(s) de plus de {2} jours supprimée(s).", DateTime.Now, removed, days));
             }
             catch { }
         }
@@ -63,7 +63,7 @@ namespace ADBToolsNew
                 // Aucun historique pour ce terminal : on montre tout l'historique plutôt qu'une fenêtre vide.
                 if (entries.Count == 0 && !string.IsNullOrWhiteSpace(serial))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗂️ Aucun historique pour {serial} : affichage de tout l'historique.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗂️ Aucun historique pour {1} : affichage de tout l'historique.", DateTime.Now, serial));
                     serial = null;
                     entries = await Task.Run(() => DiagHistory.LoadAll(null));
                 }
@@ -71,7 +71,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Historique illisible", ex.Message, "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Historique illisible"), ex.Message, "OK", null, true);
             }
         }
 
@@ -87,7 +87,7 @@ namespace ADBToolsNew
                 foreach (var child in HistoryRetentionChoices.Children)
                     if (child is RadioButton rb) rb.IsChecked = int.TryParse(rb.Tag as string, out int d) && d == s.HistoryRetentionDays;
                 bool custom = !string.IsNullOrWhiteSpace(s.HistoryFolder);
-                TxtHistoryFolder.Text = custom ? s.HistoryFolder : DiagHistory.DefaultFolder + "   (à côté du programme)";
+                TxtHistoryFolder.Text = custom ? s.HistoryFolder : DiagHistory.DefaultFolder + Loc.T("   (à côté du programme)");
                 BtnHistoryFolderReset.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
             }
             finally { _updatingHistoryUi = false; }
@@ -128,7 +128,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Dossier de l'historique inaccessible : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Dossier de l'historique inaccessible : {1}", DateTime.Now, ex.Message));
             }
         }
 

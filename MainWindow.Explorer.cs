@@ -73,7 +73,7 @@ namespace ADBToolsNew
             _currentExplorerPath = path;
             TxtCurrentPath.Text = path;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📂 Lecture du répertoire : {_currentExplorerPath}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📂 Lecture du répertoire : {1}...", DateTime.Now, _currentExplorerPath));
 
             try
             {
@@ -86,7 +86,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[ERREUR] {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[ERREUR] {0}", ex.Message)); });
             }
         }
 
@@ -141,7 +141,7 @@ namespace ADBToolsNew
 
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Sélectionnez les fichiers à envoyer vers le terminal",
+                Title = Loc.T("Sélectionnez les fichiers à envoyer vers le terminal"),
                 Multiselect = true // ✅ MULTI-SÉLECTION ACTIVÉE
             };
 
@@ -154,8 +154,8 @@ namespace ADBToolsNew
             {
                 string file = dlg.FileNames[i];
                 string fileName = System.IO.Path.GetFileName(file);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📤 PUSH : Envoi de '{fileName}'...");
-                ShowTransferProgress($"Envoi {i + 1}/{total} : {fileName}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📤 PUSH : Envoi de '{1}'...", DateTime.Now, fileName));
+                ShowTransferProgress(Loc.F("Envoi {0}/{1} : {2}", i + 1, total, fileName));
 
                 var transfer = new AdbTransferProcess();
                 var (success, _) = await transfer.RunAsync(_adbExePath,
@@ -165,12 +165,12 @@ namespace ADBToolsNew
 
                 if (_transferCts.IsCancellationRequested)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⛔ Transfert annulé.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⛔ Transfert annulé.", DateTime.Now));
                     break;
                 }
                 AppendConsole(success
-                    ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ '{fileName}' envoyé."
-                    : $"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec pour '{fileName}'.");
+                    ? Loc.F("\n[{0:HH:mm:ss}] ✅ '{1}' envoyé.", DateTime.Now, fileName)
+                    : Loc.F("\n[{0:HH:mm:ss}] ❌ Échec pour '{1}'.", DateTime.Now, fileName));
             }
 
             HideTransferProgress();
@@ -186,13 +186,13 @@ namespace ADBToolsNew
             if (files.Count == 1 && !files[0].IsDirectory)
             {
                 var file = files[0];
-                var dlg = new Microsoft.Win32.SaveFileDialog { FileName = file.Name, Title = "Enregistrer le fichier sous..." };
+                var dlg = new Microsoft.Win32.SaveFileDialog { FileName = file.Name, Title = Loc.T("Enregistrer le fichier sous...") };
                 if (dlg.ShowDialog() != true) return;
 
                 _transferCts = new System.Threading.CancellationTokenSource();
                 string remotePath = _currentExplorerPath + file.Name;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📥 PULL : Téléchargement de {file.Name}...");
-                ShowTransferProgress($"Récupération : {file.Name}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📥 PULL : Téléchargement de {1}...", DateTime.Now, file.Name));
+                ShowTransferProgress(Loc.F("Récupération : {0}", file.Name));
 
                 var transfer = new AdbTransferProcess();
                 var (success, _) = await transfer.RunAsync(_adbExePath,
@@ -202,8 +202,8 @@ namespace ADBToolsNew
 
                 HideTransferProgress();
                 AppendConsole(_transferCts.IsCancellationRequested
-                    ? $"\n[{DateTime.Now:HH:mm:ss}] ⛔ Transfert annulé."
-                    : (success ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ Fichier récupéré !" : $"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec du transfert."));
+                    ? Loc.F("\n[{0:HH:mm:ss}] ⛔ Transfert annulé.", DateTime.Now)
+                    : (success ? Loc.F("\n[{0:HH:mm:ss}] ✅ Fichier récupéré !", DateTime.Now) : Loc.F("\n[{0:HH:mm:ss}] ❌ Échec du transfert.", DateTime.Now)));
             }
             else
             {
@@ -219,8 +219,8 @@ namespace ADBToolsNew
                 {
                     var file = files[i];
                     string remotePath = _currentExplorerPath + file.Name;
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📥 PULL : Téléchargement de {file.Name} vers {destFolder}...");
-                    ShowTransferProgress($"Récupération {i + 1}/{total} : {file.Name}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📥 PULL : Téléchargement de {1} vers {2}...", DateTime.Now, file.Name, destFolder));
+                    ShowTransferProgress(Loc.F("Récupération {0}/{1} : {2}", i + 1, total, file.Name));
 
                     var transfer = new AdbTransferProcess();
                     var (success, _) = await transfer.RunAsync(_adbExePath,
@@ -230,12 +230,12 @@ namespace ADBToolsNew
 
                     if (_transferCts.IsCancellationRequested)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⛔ Transfert annulé.");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⛔ Transfert annulé.", DateTime.Now));
                         break;
                     }
                     AppendConsole(success
-                        ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ Terminé pour {file.Name} !"
-                        : $"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec pour {file.Name}.");
+                        ? Loc.F("\n[{0:HH:mm:ss}] ✅ Terminé pour {1} !", DateTime.Now, file.Name)
+                        : Loc.F("\n[{0:HH:mm:ss}] ❌ Échec pour {1}.", DateTime.Now, file.Name));
                 }
 
                 HideTransferProgress();
@@ -248,7 +248,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            bool isConfirmed = await ShowCustomDialogAsync("Nouveau Dossier", "Entrez le nom du nouveau dossier :", "Créer", "Annuler", false, true, "Nouveau_Dossier");
+            bool isConfirmed = await ShowCustomDialogAsync(Loc.T("Nouveau Dossier"), Loc.T("Entrez le nom du nouveau dossier :"), Loc.T("Créer"), Loc.T("Annuler"), false, true, Loc.T("Nouveau_Dossier"));
 
             if (isConfirmed)
             {
@@ -256,7 +256,7 @@ namespace ADBToolsNew
                 if (!string.IsNullOrEmpty(newName))
                 {
                     string fullPath = _currentExplorerPath + newName;
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📁 Création du dossier {newName}...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📁 Création du dossier {1}...", DateTime.Now, newName));
 
                     ReportAdbActionResult("Création du dossier", newName, await _fileExplorerService.CreateFolderAsync(dev.Serial, fullPath));
                     LoadCurrentFolderAsync();
@@ -269,7 +269,7 @@ namespace ADBToolsNew
             var files = GetSelectedFiles();
             if (files.Count != 1)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez sélectionner un seul élément à renommer.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez sélectionner un seul élément à renommer.", DateTime.Now));
                 return;
             }
 
@@ -277,7 +277,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            bool isConfirmed = await ShowCustomDialogAsync("Renommer", $"Renommer l'élément '{file.Name}' en :", "Valider", "Annuler", false, true, file.Name);
+            bool isConfirmed = await ShowCustomDialogAsync(Loc.T("Renommer"), Loc.F("Renommer l'élément '{0}' en :", file.Name), Loc.T("Valider"), Loc.T("Annuler"), false, true, file.Name);
 
             if (isConfirmed)
             {
@@ -287,7 +287,7 @@ namespace ADBToolsNew
                     string oldPath = _currentExplorerPath + file.Name;
                     string newPath = _currentExplorerPath + newName;
 
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✏️ Renommage de {file.Name} en {newName}...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✏️ Renommage de {1} en {2}...", DateTime.Now, file.Name, newName));
 
                     var res = await _fileExplorerService.RenameAsync(dev.Serial, oldPath, newPath);
                     ReportAdbActionResult("Renommage", file.Name, res);
@@ -304,14 +304,14 @@ namespace ADBToolsNew
             if (files.Count == 0 || dev == null) return;
 
             string msg = files.Count == 1 ? $"Voulez-vous supprimer '{files[0].Name}' ?" : $"Voulez-vous supprimer ces {files.Count} éléments ?";
-            bool isConfirmed = await ShowCustomDialogAsync("Suppression Irréversible", msg, "Supprimer", "Annuler", true);
+            bool isConfirmed = await ShowCustomDialogAsync(Loc.T("Suppression Irréversible"), msg, Loc.T("Supprimer"), Loc.T("Annuler"), true);
 
             if (isConfirmed)
             {
                 foreach (var file in files)
                 {
                     string remotePath = _currentExplorerPath + file.Name;
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗑️ Suppression de {file.Name}...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗑️ Suppression de {1}...", DateTime.Now, file.Name));
 
                     ReportAdbActionResult("Suppression", file.Name, await _fileExplorerService.DeleteAsync(dev.Serial, remotePath));
                 }

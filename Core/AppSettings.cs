@@ -10,6 +10,9 @@ namespace ADBToolsNew.Core
     /// </summary>
     public sealed class AppSettings
     {
+        // --- Général : langue de l'interface ("fr" ou "en"), appliquée au redémarrage
+        public string Language { get; set; } = "fr";
+
         // --- Général : démarrage et affichage
         /// <summary>Page ouverte au démarrage : Dashboard, Mirroring, Packages, Explorer, Tools, Diag, Radar, Library, Logs.</summary>
         public string StartPage { get; set; } = "Dashboard";

@@ -38,7 +38,7 @@ namespace ADBToolsNew
         {
             if (_updateBusy) return;
             _updateBusy = true;
-            if (userAsked) SetUpdateStatus("Recherche d'une nouvelle version…", null);
+            if (userAsked) SetUpdateStatus(Loc.T("Recherche d'une nouvelle version…"), null);
             try
             {
                 _lastUpdateCheck = await AppUpdater.CheckAsync();
@@ -46,12 +46,12 @@ namespace ADBToolsNew
                 UpdateAppUpdateUi();
                 if (AppUpdater.IsUpdate(_latestRelease))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔔 Nouvelle version d'ADB Tools disponible : {_latestRelease.VersionText} ({_latestRelease.SourceLabel}) — Paramètres ▸ Mises à jour.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔔 Nouvelle version d'ADB Tools disponible : {1} ({2}) — Paramètres ▸ Mises à jour.", DateTime.Now, _latestRelease.VersionText, _latestRelease.SourceLabel));
                 }
             }
             catch (Exception ex)
             {
-                if (userAsked) SetUpdateStatus("La recherche a échoué (" + ex.Message + "). Réessayez plus tard.", "BadFg");
+                if (userAsked) SetUpdateStatus(Loc.T("La recherche a échoué (") + ex.Message + Loc.T("). Réessayez plus tard."), "BadFg");
                 else throw;
             }
             finally
@@ -65,18 +65,18 @@ namespace ADBToolsNew
         private void UpdateAppUpdateUi()
         {
             if (TxtUpdCurrent == null) return;
-            TxtUpdCurrent.Text = $"Version installée : {App.VersionText}";
+            TxtUpdCurrent.Text = Loc.F("Version installée : {0}", App.VersionText);
             if (ChkUpdAuto != null) ChkUpdAuto.IsChecked = AppUpdater.AutoCheckEnabled;
             string share = AppUpdater.ShareFolder;
-            TxtUpdShare.Text = string.IsNullOrWhiteSpace(share) ? "Aucun (GitHub seulement, si le dépôt est public)" : share;
+            TxtUpdShare.Text = string.IsNullOrWhiteSpace(share) ? Loc.T("Aucun (GitHub seulement, si le dépôt est public)") : share;
             BtnUpdShareClear.Visibility = string.IsNullOrWhiteSpace(share) ? Visibility.Collapsed : Visibility.Visible;
 
             bool available = AppUpdater.IsUpdate(_latestRelease);
             BtnUpdateAvailable.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
-            if (available) TxtUpdateAvailable.Text = $"Mise à jour {_latestRelease.VersionText}";
+            if (available) TxtUpdateAvailable.Text = Loc.F("Mise à jour {0}", _latestRelease.VersionText);
 
             BtnUpdNotes.Visibility = _latestRelease != null && !string.IsNullOrWhiteSpace(_latestRelease.Notes) ? Visibility.Visible : Visibility.Collapsed;
-            BtnUpdNotes.Content = available ? $"Nouveautés de la {_latestRelease.VersionText}" : "Nouveautés de cette version";
+            BtnUpdNotes.Content = available ? Loc.F("Nouveautés de la {0}", _latestRelease.VersionText) : Loc.T("Nouveautés de cette version");
 
             // Détail des sources qui n'ont pas répondu (dépôt privé, partage introuvable...), en petit sous l'état.
             var problems = new System.Collections.Generic.List<string>();
@@ -88,7 +88,7 @@ namespace ADBToolsNew
             if (_lastUpdateCheck == null)
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
-                SetUpdateStatus("Aucune vérification pour le moment. Cliquez sur « Rechercher maintenant ».", null);
+                SetUpdateStatus(Loc.T("Aucune vérification pour le moment. Cliquez sur « Rechercher maintenant »."), null);
                 return;
             }
 
@@ -96,31 +96,31 @@ namespace ADBToolsNew
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
                 SetUpdateStatus(string.IsNullOrWhiteSpace(share)
-                    ? "Aucune version trouvée. Si le dépôt GitHub est privé, choisissez le dossier de diffusion de l'équipe ci-dessous."
-                    : "Aucune version trouvée pour le moment.", "WarnFg");
+                    ? Loc.T("Aucune version trouvée. Si le dépôt GitHub est privé, choisissez le dossier de diffusion de l'équipe ci-dessous.")
+                    : Loc.T("Aucune version trouvée pour le moment."), "WarnFg");
                 return;
             }
 
             if (!available)
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
-                SetUpdateStatus($"ADB Tools {App.VersionText} est à jour (dernière version disponible : {_latestRelease.VersionText}, {_latestRelease.SourceLabel}).", "OkFg");
+                SetUpdateStatus(Loc.F("ADB Tools {0} est à jour (dernière version disponible : {1}, {2}).", App.VersionText, _latestRelease.VersionText, _latestRelease.SourceLabel), "OkFg");
                 return;
             }
 
             string date = _latestRelease.PublishedAt.HasValue ? $", publiée le {_latestRelease.PublishedAt.Value.ToLocalTime():dd/MM/yyyy}" : "";
             if (AppUpdater.CanInstall(_latestRelease))
             {
-                BtnUpdInstall.Content = $"Installer la version {_latestRelease.VersionText}";
+                BtnUpdInstall.Content = Loc.F("Installer la version {0}", _latestRelease.VersionText);
                 BtnUpdInstall.Visibility = Visibility.Visible;
                 double mo = _latestRelease.ZipSize / 1024.0 / 1024.0;
-                SetUpdateStatus($"Nouvelle version disponible : {_latestRelease.VersionText}{date} ({mo:0.0} Mo, {_latestRelease.SourceLabel}). " +
-                                "L'installation remplace uniquement les fichiers du programme : vos modèles, outils, captures et réglages sont conservés.", "Ink");
+                SetUpdateStatus(Loc.F("Nouvelle version disponible : {0}{1} ({2:0.0} Mo, {3}). ", _latestRelease.VersionText, date, mo, _latestRelease.SourceLabel) +
+                                Loc.T("L'installation remplace uniquement les fichiers du programme : vos modèles, outils, captures et réglages sont conservés."), "Ink");
             }
             else
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
-                SetUpdateStatus($"Nouvelle version disponible : {_latestRelease.VersionText}{date}. Elle s'installe à la main depuis la page des versions.", "Ink");
+                SetUpdateStatus(Loc.F("Nouvelle version disponible : {0}{1}. Elle s'installe à la main depuis la page des versions.", _latestRelease.VersionText, date), "Ink");
             }
         }
 
@@ -190,22 +190,22 @@ namespace ADBToolsNew
 
             if (_isSideloading)
             {
-                await ShowCustomDialogAsync("⏳ Opération en cours", "Une mise à jour du terminal (Sideload) est en cours. Attendez qu'elle soit terminée avant de mettre à jour ADB Tools.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("⏳ Opération en cours"), Loc.T("Une mise à jour du terminal (Sideload) est en cours. Attendez qu'elle soit terminée avant de mettre à jour ADB Tools."), "OK", null, false);
                 return;
             }
             if (!AppUpdater.AppFolderIsWritable())
             {
-                await ShowCustomDialogAsync("🔒 Dossier protégé",
-                    "ADB Tools ne peut pas modifier son propre dossier (par exemple dans « Program Files »).\n\n" +
-                    "Téléchargez la nouvelle version depuis la page des versions et décompressez-la à la place de l'ancienne, ou déplacez ADB Tools dans un dossier personnel (Documents, Bureau...).",
+                await ShowCustomDialogAsync(Loc.T("🔒 Dossier protégé"),
+                    Loc.T("ADB Tools ne peut pas modifier son propre dossier (par exemple dans « Program Files »).\n\n") +
+                    Loc.T("Téléchargez la nouvelle version depuis la page des versions et décompressez-la à la place de l'ancienne, ou déplacez ADB Tools dans un dossier personnel (Documents, Bureau...)."),
                     "OK", null, false);
                 return;
             }
 
-            bool go = await ShowCustomDialogAsync($"⬆️ Installer la version {release.VersionText} ?",
-                "ADB Tools va télécharger la nouvelle version, vérifier son intégrité, puis redémarrer pour l'installer.\n\n" +
-                "Vos modèles de rapport, outils tiers, captures et réglages sont conservés.",
-                "Installer et redémarrer", "Annuler", false);
+            bool go = await ShowCustomDialogAsync(Loc.F("⬆️ Installer la version {0} ?", release.VersionText),
+                Loc.T("ADB Tools va télécharger la nouvelle version, vérifier son intégrité, puis redémarrer pour l'installer.\n\n") +
+                Loc.T("Vos modèles de rapport, outils tiers, captures et réglages sont conservés."),
+                Loc.T("Installer et redémarrer"), Loc.T("Annuler"), false);
             if (!go) return;
 
             _updateBusy = true;
@@ -215,16 +215,16 @@ namespace ADBToolsNew
             UpdProgress.Visibility = Visibility.Visible;
             try
             {
-                SetUpdateStatus($"Téléchargement de la version {release.VersionText}…", null);
+                SetUpdateStatus(Loc.F("Téléchargement de la version {0}…", release.VersionText), null);
                 var progress = new Progress<double>(p =>
                 {
                     UpdProgress.Value = p;
-                    SetUpdateStatus($"Téléchargement de la version {release.VersionText}… {p:0} %", null);
+                    SetUpdateStatus(Loc.F("Téléchargement de la version {0}… {1:0} %", release.VersionText, p), null);
                 });
                 string folder = await AppUpdater.DownloadAsync(release, progress);
 
-                SetUpdateStatus("Installation : ADB Tools va redémarrer…", "Ink");
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⬆️ Installation de la version {release.VersionText} : redémarrage d'ADB Tools.");
+                SetUpdateStatus(Loc.T("Installation : ADB Tools va redémarrer…"), "Ink");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⬆️ Installation de la version {1} : redémarrage d'ADB Tools.", DateTime.Now, release.VersionText));
                 AppUpdater.StartInstallAndExit(folder);
                 await Task.Delay(300);
                 Application.Current.Shutdown();
@@ -232,7 +232,7 @@ namespace ADBToolsNew
             catch (Exception ex)
             {
                 UpdProgress.Visibility = Visibility.Collapsed;
-                SetUpdateStatus("La mise à jour n'a pas pu être installée : " + ex.Message, "BadFg");
+                SetUpdateStatus(Loc.T("La mise à jour n'a pas pu être installée : ") + ex.Message, "BadFg");
                 BtnUpdInstall.IsEnabled = true;
                 BtnUpdCheck.IsEnabled = true;
                 _updateBusy = false;

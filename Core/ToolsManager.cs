@@ -352,10 +352,10 @@ namespace ADBToolsNew.Core
         public static async Task<string> InstallAsync(ToolComponent c, IProgress<ToolProgress> progress, CancellationToken ct = default)
         {
             string name = DisplayName(c);
-            progress?.Report(new ToolProgress($"{name} : recherche de la dernière version…", -1));
+            progress?.Report(new ToolProgress(Loc.F("{0} : recherche de la dernière version…", name), -1));
             var latest = await GetLatestAsync(c, ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(latest.Url))
-                throw new InvalidOperationException($"Impossible de trouver le téléchargement de {name}.");
+                throw new InvalidOperationException(Loc.F("Impossible de trouver le téléchargement de {0}.", name));
 
             string work = Path.Combine(Path.GetTempPath(), "ADBTools_outils");
             string zipPath = Path.Combine(work, c + ".zip");
@@ -388,12 +388,12 @@ namespace ADBToolsNew.Core
                                 if (percent != lastPercent)
                                 {
                                     lastPercent = percent;
-                                    progress?.Report(new ToolProgress($"{name} : téléchargement… {read / 1048576} / {total.Value / 1048576} Mo", percent * 0.8));
+                                    progress?.Report(new ToolProgress(Loc.F("{0} : téléchargement… {1} / {2} Mo", name, read / 1048576, total.Value / 1048576), percent * 0.8));
                                 }
                             }
                             else
                             {
-                                progress?.Report(new ToolProgress($"{name} : téléchargement… {read / 1048576} Mo", -1));
+                                progress?.Report(new ToolProgress(Loc.F("{0} : téléchargement… {1} Mo", name, read / 1048576), -1));
                             }
                         }
                     }
@@ -402,17 +402,17 @@ namespace ADBToolsNew.Core
                 // Contrôle d'intégrité quand la source fournit une empreinte (catalogue Google)
                 if (!string.IsNullOrEmpty(latest.Sha1))
                 {
-                    progress?.Report(new ToolProgress($"{name} : vérification de l'archive…", 82));
+                    progress?.Report(new ToolProgress(Loc.F("{0} : vérification de l'archive…", name), 82));
                     string actual;
                     using (var sha = System.Security.Cryptography.SHA1.Create())
                     using (var f = File.OpenRead(zipPath))
                         actual = BitConverter.ToString(sha.ComputeHash(f)).Replace("-", "").ToLowerInvariant();
                     if (actual != latest.Sha1)
-                        throw new InvalidOperationException($"L'archive téléchargée de {name} est corrompue (empreinte différente). Réessayez.");
+                        throw new InvalidOperationException(Loc.F("L'archive téléchargée de {0} est corrompue (empreinte différente). Réessayez.", name));
                 }
 
                 // 2. Extraction des seuls fichiers utiles dans un dossier temporaire
-                progress?.Report(new ToolProgress($"{name} : extraction…", 85));
+                progress?.Report(new ToolProgress(Loc.F("{0} : extraction…", name), 85));
                 string version = latest.Version;
                 using (var zip = ZipFile.OpenRead(zipPath))
                 {
@@ -448,11 +448,11 @@ namespace ADBToolsNew.Core
                 foreach (var f in RequiredFiles(c))
                 {
                     if (!File.Exists(Path.Combine(staging, f)))
-                        throw new InvalidOperationException($"Le fichier {f} est absent de l'archive téléchargée de {name}. Réessayez plus tard.");
+                        throw new InvalidOperationException(Loc.F("Le fichier {0} est absent de l'archive téléchargée de {1}. Réessayez plus tard.", f, name));
                 }
 
                 // 3. Remplacement dans Tools\ (adb doit être arrêté, sinon adb.exe est verrouillé)
-                progress?.Report(new ToolProgress($"{name} : installation…", 92));
+                progress?.Report(new ToolProgress(Loc.F("{0} : installation…", name), 92));
                 Directory.CreateDirectory(ToolsFolder);
                 if (c == ToolComponent.PlatformTools) StopAdbServer();
 
@@ -463,7 +463,7 @@ namespace ADBToolsNew.Core
                 }
 
                 WriteManifestVersion(c, version);
-                progress?.Report(new ToolProgress($"{name} {version} installé.", 100));
+                progress?.Report(new ToolProgress(Loc.F("{0} {1} installé.", name, version), 100));
                 return version;
             }
             finally
@@ -488,8 +488,8 @@ namespace ADBToolsNew.Core
                 }
                 catch (IOException ex)
                 {
-                    throw new IOException($"Impossible de remplacer {Path.GetFileName(dest)} : le fichier est utilisé. " +
-                        $"Arrêtez le mirroring / l'enregistrement en cours, puis relancez la mise à jour de {toolName}.", ex);
+                    throw new IOException(Loc.F("Impossible de remplacer {0} : le fichier est utilisé. ", Path.GetFileName(dest)) +
+                        Loc.F("Arrêtez le mirroring / l'enregistrement en cours, puis relancez la mise à jour de {0}.", toolName), ex);
                 }
             }
         }

@@ -49,7 +49,7 @@ namespace ADBToolsNew
             if (ToggleLogcatRead.IsChecked == true)
             {
                 // DÉMARRAGE DE LA LECTURE
-                ToggleLogcatRead.Content = "⏸️ Pause";
+                ToggleLogcatRead.Content = Loc.T("⏸️ Pause");
                 StartLogcat(dev.Serial);
 
                 // LANCE LA PULSATION DU BOUTON LOGS DANS LE MENU DE GAUCHE
@@ -58,7 +58,7 @@ namespace ADBToolsNew
             else
             {
                 // MISE EN PAUSE
-                ToggleLogcatRead.Content = "▶️ Démarrer";
+                ToggleLogcatRead.Content = Loc.T("▶️ Démarrer");
                 StopLogcat();
 
                 // ARRÊTE LA PULSATION
@@ -79,7 +79,7 @@ namespace ADBToolsNew
             {
                 _logcatService.Start(_adbExePath, serial);
             }
-            catch (Exception ex) { AppendConsole($"\n❌ Erreur Logcat : {ex.Message}"); }
+            catch (Exception ex) { AppendConsole(Loc.F("\n❌ Erreur Logcat : {0}", ex.Message)); }
         }
 
         // La méthode qui s'exécute toutes les 500ms pour rafraîchir l'écran
@@ -261,12 +261,12 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            TxtPackageFilter.ToolTip = "Détection en cours...";
+            TxtPackageFilter.ToolTip = Loc.T("Détection en cours...");
             string pkg = await _foregroundAppService.GetForegroundPackageNameAsync(dev.Serial);
 
             if (string.IsNullOrEmpty(pkg))
             {
-                TxtPackageFilter.ToolTip = "Impossible de détecter l'app affichée";
+                TxtPackageFilter.ToolTip = Loc.T("Impossible de détecter l'app affichée");
                 return;
             }
 
@@ -298,7 +298,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            TxtPackageFilter.ToolTip = $"{pkg} (recherche du PID...)";
+            TxtPackageFilter.ToolTip = Loc.F("{0} (recherche du PID...)", pkg);
 
             string pid = await _foregroundAppService.GetPidForPackageAsync(dev.Serial, pkg);
 
@@ -306,14 +306,14 @@ namespace ADBToolsNew
             {
                 _targetForegroundPid = pid;
                 _packageFilterActive = true;
-                TxtPackageFilter.ToolTip = $"Filtre actif : {pkg} (PID {pid})";
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🎯 Filtrage actif sur : {pkg} (PID {pid})");
+                TxtPackageFilter.ToolTip = Loc.F("Filtre actif : {0} (PID {1})", pkg, pid);
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎯 Filtrage actif sur : {1} (PID {2})", DateTime.Now, pkg, pid));
             }
             else
             {
                 _packageFilterActive = false;
                 _targetForegroundPid = "";
-                TxtPackageFilter.ToolTip = $"{pkg} : PID introuvable — l'app tourne-t-elle ?";
+                TxtPackageFilter.ToolTip = Loc.F("{0} : PID introuvable — l'app tourne-t-elle ?", pkg);
             }
 
             ApplyFiltersToExistingLogs();
@@ -323,7 +323,7 @@ namespace ADBToolsNew
         {
             _packageFilterActive = false;
             _targetForegroundPid = "";
-            TxtPackageFilter.ToolTip = "Nom de package exact (ex: com.zebra.launcher) — vide = toutes les applications";
+            TxtPackageFilter.ToolTip = Loc.T("Nom de package exact (ex: com.zebra.launcher) — vide = toutes les applications");
             TogglePackageFilter.IsChecked = false;
             ApplyFiltersToExistingLogs();
         }
@@ -353,7 +353,7 @@ namespace ADBToolsNew
                 if (IsErrorLevel(_displayLogs[i])) { SelectAndScrollToLog(i); return; }
             }
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⏭️ Aucune ligne Erreur/Fatal dans les logs affichés.");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⏭️ Aucune ligne Erreur/Fatal dans les logs affichés.", DateTime.Now));
         }
 
         private static bool IsErrorLevel(LogEntry log) => log.Level == "E" || log.Level == "F";
@@ -389,7 +389,7 @@ namespace ADBToolsNew
             if (dev != null && dev.State == "device")
             {
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} logcat -c");
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🧹 Tampon Logcat vidé sur le terminal (l'affichage actuel est conservé).");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧹 Tampon Logcat vidé sur le terminal (l'affichage actuel est conservé).", DateTime.Now));
             }
         }
 
@@ -398,7 +398,7 @@ namespace ADBToolsNew
             _masterLogs.Clear();
             _displayLogs.Clear();
             TxtLogsRaw.Clear();
-            TxtLogStats.Text = "Lignes affichées : 0 / 10000";
+            TxtLogStats.Text = Loc.T("Lignes affichées : 0 / 10000");
         }
 
         private void BtnCopyLogs_Click(object sender, RoutedEventArgs e)
@@ -421,7 +421,7 @@ namespace ADBToolsNew
                 foreach (var log in source) sb.AppendLine(log.RawLine);
                 Clipboard.SetText(sb.ToString());
             }
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📋 Logs copiés dans le presse-papier.");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📋 Logs copiés dans le presse-papier.", DateTime.Now));
         }
 
         private void BtnSaveLogs_Click(object sender, RoutedEventArgs e)
@@ -437,12 +437,12 @@ namespace ADBToolsNew
             try
             {
                 System.IO.File.WriteAllText(savePath, sb.ToString());
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💾 Logs sauvegardés dans : {savePath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💾 Logs sauvegardés dans : {1}", DateTime.Now, savePath));
                 ShowInExplorer(savePath);
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Sauvegarde des logs impossible : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Sauvegarde des logs impossible : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -455,13 +455,13 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            bool confirm = await ShowCustomDialogAsync("☢️ GÉNÉRER BUGREPORT", "Le Bugreport capture toute la vie du système pour les constructeurs.\n\nAttention : Cette opération prend entre 2 et 5 minutes sur le terminal. Voulez-vous démarrer ?", "Oui, Lancer", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("☢️ GÉNÉRER BUGREPORT"), Loc.T("Le Bugreport capture toute la vie du système pour les constructeurs.\n\nAttention : Cette opération prend entre 2 et 5 minutes sur le terminal. Voulez-vous démarrer ?"), Loc.T("Oui, Lancer"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
             string savePath = System.IO.Path.Combine(GetCaptureFolderPath(), $"Bugreport_{FileNameHelper.Sanitize(dev.Serial)}_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ☢️ Lancement du Bugreport (Ceci peut prendre 5 minutes)...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ☢️ Lancement du Bugreport (Ceci peut prendre 5 minutes)...", DateTime.Now));
             BtnBugReport.IsEnabled = false;
-            BtnBugReport.Content = "⏳ Génération...";
+            BtnBugReport.Content = Loc.T("⏳ Génération...");
 
             try
             {
@@ -471,24 +471,24 @@ namespace ADBToolsNew
 
                 if (result.IsSuccess && System.IO.File.Exists(savePath))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Bugreport terminé et sauvegardé : {savePath}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Bugreport terminé et sauvegardé : {1}", DateTime.Now, savePath));
                     ShowInExplorer(savePath);
                 }
                 else
                 {
                     string detail = (result.StandardError ?? "").Trim();
                     if (string.IsNullOrEmpty(detail)) detail = (result.StandardOutput ?? "").Trim();
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec du Bugreport (code {result.ExitCode}) : {detail}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Échec du Bugreport (code {1}) : {2}", DateTime.Now, result.ExitCode, detail));
                 }
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur Bugreport : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Bugreport : {1}", DateTime.Now, ex.Message));
             }
             finally
             {
                 BtnBugReport.IsEnabled = true;
-                BtnBugReport.Content = "☢️ GÉNÉRER BUGREPORT (.zip)";
+                BtnBugReport.Content = Loc.T("☢️ GÉNÉRER BUGREPORT (.zip)");
             }
         }
     }

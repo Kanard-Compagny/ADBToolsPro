@@ -75,7 +75,7 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || string.IsNullOrEmpty(selectedDevice.State) || selectedDevice.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Aucun appareil valide sélectionné.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Aucun appareil valide sélectionné.", DateTime.Now));
                 return;
             }
 
@@ -95,7 +95,7 @@ namespace ADBToolsNew
                 string formattedCmd = FormatAdbCommand(singleCmd);
                 int cmdIndex = i + 1;
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ┌─── Exec [{cmdIndex}/{totalCommands}] : adb -s {selectedDevice.Serial} {formattedCmd}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ┌─── Exec [{1}/{2}] : adb -s {3} {4}", DateTime.Now, cmdIndex, totalCommands, selectedDevice.Serial, formattedCmd));
 
                 try
                 {
@@ -111,13 +111,13 @@ namespace ADBToolsNew
                             if (!string.IsNullOrWhiteSpace(output))
                             {
                                 if (isMultiLine)
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Retour ADB [{cmdIndex}/{totalCommands}] :\n{output}");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Retour ADB [{1}/{2}] :\n{3}", DateTime.Now, cmdIndex, totalCommands, output));
                                 else
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Retour ADB [{cmdIndex}/{totalCommands}] : {output}");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Retour ADB [{1}/{2}] : {3}", DateTime.Now, cmdIndex, totalCommands, output));
                             }
                             else
                             {
-                                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Retour ADB [{cmdIndex}/{totalCommands}] : (Succès - Aucune donnée retournée)");
+                                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Retour ADB [{1}/{2}] : (Succès - Aucune donnée retournée)", DateTime.Now, cmdIndex, totalCommands));
                             }
 
                             AddCommandToHistory(singleCmd);
@@ -128,9 +128,9 @@ namespace ADBToolsNew
                             bool errMultiLine = errOutput.Contains("\n");
 
                             if (errMultiLine)
-                                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Erreur ADB [{cmdIndex}/{totalCommands}] :\n{errOutput}");
+                                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Erreur ADB [{1}/{2}] :\n{3}", DateTime.Now, cmdIndex, totalCommands, errOutput));
                             else
-                                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Erreur ADB [{cmdIndex}/{totalCommands}] : {errOutput}");
+                                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Erreur ADB [{1}/{2}] : {3}", DateTime.Now, cmdIndex, totalCommands, errOutput));
                         }
                     });
                 }
@@ -138,7 +138,7 @@ namespace ADBToolsNew
                 {
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] └── Exception [{cmdIndex}/{totalCommands}] : {ex.Message}");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] └── Exception [{1}/{2}] : {3}", DateTime.Now, cmdIndex, totalCommands, ex.Message));
                     });
                 }
             }
@@ -360,12 +360,12 @@ namespace ADBToolsNew
                                 TxtBatteryDetails.Text = $"{batVolt} mV • {batTemp:F1}°C";
                                 UpdateGaugePath(PathBatteryProgress, batLevel);
 
-                                TxtPopupBatLevel.Text = $"Niveau : {batLevel}%";
-                                TxtPopupBatStatus.Text = $"Statut : {statusStr}";
-                                TxtPopupBatHealth.Text = $"Santé : {healthStr}";
-                                TxtPopupBatTemp.Text = $"Température : {batTemp:F1} °C";
-                                TxtPopupBatVoltage.Text = $"Tension : {batVolt} mV";
-                                TxtPopupBatTech.Text = $"Technologie : {techStr}";
+                                TxtPopupBatLevel.Text = Loc.F("Niveau : {0}%", batLevel);
+                                TxtPopupBatStatus.Text = Loc.F("Statut : {0}", statusStr);
+                                TxtPopupBatHealth.Text = Loc.F("Santé : {0}", healthStr);
+                                TxtPopupBatTemp.Text = Loc.F("Température : {0:F1} °C", batTemp);
+                                TxtPopupBatVoltage.Text = Loc.F("Tension : {0} mV", batVolt);
+                                TxtPopupBatTech.Text = Loc.F("Technologie : {0}", techStr);
 
                                 // --- RAM UI ---
                                 TxtRamPct.Text = $"{ramPct:F0}%";
@@ -374,25 +374,25 @@ namespace ADBToolsNew
                                 TxtRamDetails.Text = $"{usedRam:F1} / {totalRam:F1} GB";
                                 UpdateGaugePath(PathRamProgress, ramPct);
 
-                                TxtPopupRamTotal.Text = $"RAM Totale : {totalRam:F2} GB";
-                                TxtPopupRamUsed.Text = $"Utilisée : {usedRam:F2} GB";
-                                TxtPopupRamFree.Text = $"Disponible : {availRam:F2} GB";
-                                TxtPopupRamBuffers.Text = $"Buffers / Cache : {buffersMB:F0} MB";
-                                TxtPopupRamSwap.Text = $"Swap / ZRAM : {swapMB:F0} MB";
+                                TxtPopupRamTotal.Text = Loc.F("RAM Totale : {0:F2} GB", totalRam);
+                                TxtPopupRamUsed.Text = Loc.F("Utilisée : {0:F2} GB", usedRam);
+                                TxtPopupRamFree.Text = Loc.F("Disponible : {0:F2} GB", availRam);
+                                TxtPopupRamBuffers.Text = Loc.F("Buffers / Cache : {0:F0} MB", buffersMB);
+                                TxtPopupRamSwap.Text = Loc.F("Swap / ZRAM : {0:F0} MB", swapMB);
 
                                 // --- CPU UI ---
                                 TxtCpuPct.Text = $"{cpuLevel:F0}%";
                                 PathCpuProgress.Stroke = cpuColor; // Seulement la jauge change de couleur
                                 GlowCpu.Color = ((SolidColorBrush)cpuColor).Color; // La lueur de la carte suit le même statut
-                                TxtCpuDetails.Text = coreCount > 0 ? $"{coreCount} Cœurs • Charge" : "-- Cœurs • Charge";
+                                TxtCpuDetails.Text = coreCount > 0 ? Loc.F("{0} Cœurs • Charge", coreCount) : Loc.T("-- Cœurs • Charge");
                                 UpdateGaugePath(PathCpuProgress, cpuLevel);
 
-                                TxtPopupCpuUsage.Text = $"Charge globale : {cpuLevel:F1}%";
+                                TxtPopupCpuUsage.Text = Loc.F("Charge globale : {0:F1}%", cpuLevel);
                                 TxtPopupCpuCores.Text = coreCount > 0
-                                    ? $"Nombre de Cœurs : {coreCount} ({GetCoreCountLabel(coreCount)})"
-                                    : "Nombre de Cœurs : Inconnu";
-                                TxtPopupCpuArch.Text = $"Architecture : {abi}";
-                                TxtPopupCpuHardware.Text = $"Puce / Hardware : {hardware}";
+                                    ? Loc.F("Nombre de Cœurs : {0} ({1})", coreCount, GetCoreCountLabel(coreCount))
+                                    : Loc.T("Nombre de Cœurs : Inconnu");
+                                TxtPopupCpuArch.Text = Loc.F("Architecture : {0}", abi);
+                                TxtPopupCpuHardware.Text = Loc.F("Puce / Hardware : {0}", hardware);
 
                                 // --- Stockage UI ---
                                 TxtStoragePct.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
@@ -402,9 +402,9 @@ namespace ADBToolsNew
                                 TxtStorageDetails.Text = $"{storageUsed} / {storageTotal}";
                                 UpdateGaugePath(PathStorageProgress, storagePct);
 
-                                TxtPopupStorageTotal.Text = $"Espace Total : {storageTotal}";
-                                TxtPopupStorageUsed.Text = $"Utilisé : {storageUsed} ({storagePct}%)";
-                                TxtPopupStorageFree.Text = $"Disponible : {storageFree}";
+                                TxtPopupStorageTotal.Text = Loc.F("Espace Total : {0}", storageTotal);
+                                TxtPopupStorageUsed.Text = Loc.F("Utilisé : {0} ({1}%)", storageUsed, storagePct);
+                                TxtPopupStorageFree.Text = Loc.F("Disponible : {0}", storageFree);
                             });
                         }
                         catch { }
@@ -429,7 +429,7 @@ namespace ADBToolsNew
 
                         UpdateGaugePath(PathBatteryProgress, 0); TxtBatteryPct.Text = "--%"; TxtBatteryDetails.Text = "-- mV • --°C";
                         UpdateGaugePath(PathRamProgress, 0); TxtRamPct.Text = "--%"; TxtRamDetails.Text = "-- / -- GB";
-                        UpdateGaugePath(PathCpuProgress, 0); TxtCpuPct.Text = "--%"; TxtCpuDetails.Text = "-- Cœurs • Charge";
+                        UpdateGaugePath(PathCpuProgress, 0); TxtCpuPct.Text = "--%"; TxtCpuDetails.Text = Loc.T("-- Cœurs • Charge");
                         UpdateGaugePath(PathStorageProgress, 0); TxtStoragePct.Text = "--%"; TxtStorageDetails.Text = "-- / -- Go";
                     });
                     _isStatsPolling = false;
@@ -488,14 +488,14 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || selectedDevice.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Aucun appareil valide sélectionné.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Aucun appareil valide sélectionné.", DateTime.Now));
                 return;
             }
 
-            bool confirm = await ShowCustomDialogAsync("🔒 Dev Off", $"Désactiver le mode développeur et le débogage USB sur {selectedDevice.Serial} ?\n\nLa connexion ADB sera immédiatement rompue — il faudra réactiver le débogage USB manuellement sur le terminal pour s'y reconnecter.", "Désactiver", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("🔒 Dev Off"), Loc.F("Désactiver le mode développeur et le débogage USB sur {0} ?\n\nLa connexion ADB sera immédiatement rompue — il faudra réactiver le débogage USB manuellement sur le terminal pour s'y reconnecter.", selectedDevice.Serial), Loc.T("Désactiver"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🛡️ Désactivation du mode développeur sur {selectedDevice.Serial}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🛡️ Désactivation du mode développeur sur {1}...", DateTime.Now, selectedDevice.Serial));
 
             try
             {
@@ -509,7 +509,7 @@ namespace ADBToolsNew
                     // Couper l'ADB depuis l'ADB provoque une coupure violente (Broken Pipe / EOF) que le C# perçoit parfois comme une erreur.
                     // Si on arrive ici sans crash majeur, c'est que la roquette a bien été tirée !
 
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Mode développeur et Débogage USB désactivés de force. (Connexion rompue).");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Mode développeur et Débogage USB désactivés de force. (Connexion rompue).", DateTime.Now));
 
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
                 });
@@ -518,7 +518,7 @@ namespace ADBToolsNew
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [INFO] La connexion a été coupée par le terminal : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [INFO] La connexion a été coupée par le terminal : {1}", DateTime.Now, ex.Message));
                 });
             }
         }
@@ -528,7 +528,7 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || selectedDevice.State != "device") return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔄 Redémarrage en cours ({selectedDevice.Serial})...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 Redémarrage en cours ({1})...", DateTime.Now, selectedDevice.Serial));
 
             try
             {
@@ -542,7 +542,7 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || selectedDevice.State != "device") return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚕️ Passage en mode Recovery ({selectedDevice.Serial})...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚕️ Passage en mode Recovery ({1})...", DateTime.Now, selectedDevice.Serial));
 
             try
             {
@@ -559,12 +559,12 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || selectedDevice.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez sélectionner un appareil connecté en USB pour basculer en Wi-Fi.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez sélectionner un appareil connecté en USB pour basculer en Wi-Fi.", DateTime.Now));
                 return;
             }
 
             BtnWifiLegacy.IsEnabled = false;
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📡 Recherche de l'IP du terminal {selectedDevice.Serial}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📡 Recherche de l'IP du terminal {1}...", DateTime.Now, selectedDevice.Serial));
 
             try
             {
@@ -576,29 +576,29 @@ namespace ADBToolsNew
 
                 if (string.IsNullOrEmpty(ipAddress))
                 {
-                    Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Aucune adresse IP Wi-Fi trouvée. Le terminal est-il connecté au réseau ?"); });
+                    Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Aucune adresse IP Wi-Fi trouvée. Le terminal est-il connecté au réseau ?", DateTime.Now)); });
                     return;
                 }
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📡 IP trouvée : {ipAddress}. Ouverture du port TCP 5555...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📡 IP trouvée : {1}. Ouverture du port TCP 5555...", DateTime.Now, ipAddress));
 
                 await _adbManager.ExecuteAsync($"-s {selectedDevice.Serial} tcpip 5555");
                 await System.Threading.Tasks.Task.Delay(2000);
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📡 Connexion sans fil à {ipAddress}:5555...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📡 Connexion sans fil à {1}:5555...", DateTime.Now, ipAddress));
 
                 var connectResult = await _adbManager.ExecuteAsync($"connect {ipAddress}:5555");
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Résultat : {connectResult.StandardOutput.Trim()}");
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💡 Vous pouvez maintenant débrancher le câble USB !");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Résultat : {1}", DateTime.Now, connectResult.StandardOutput.Trim()));
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💡 Vous pouvez maintenant débrancher le câble USB !", DateTime.Now));
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
                 });
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [EXCEPTION] {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [EXCEPTION] {1}", DateTime.Now, ex.Message)); });
             }
             finally
             {
@@ -614,34 +614,34 @@ namespace ADBToolsNew
 
             if (string.IsNullOrEmpty(pairIpPort) || string.IsNullOrEmpty(pairCode) || string.IsNullOrEmpty(connectPort))
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez remplir les 3 champs (IP:Port de pairage, Code, et Port de connexion).");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez remplir les 3 champs (IP:Port de pairage, Code, et Port de connexion).", DateTime.Now));
                 return;
             }
 
             string pureIp = pairIpPort.Split(':')[0];
 
             BtnWifiModern.IsEnabled = false;
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📡 [ÉTAPE 1/2] Tentative de Pairage avec {pairIpPort}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📡 [ÉTAPE 1/2] Tentative de Pairage avec {1}...", DateTime.Now, pairIpPort));
 
             try
             {
                 var pairResult = await _adbManager.ExecuteAsync($"pair {pairIpPort} {pairCode}");
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] Retour Pairage : {pairResult.StandardOutput.Trim()}{pairResult.StandardError.Trim()}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] Retour Pairage : {1}{2}", DateTime.Now, pairResult.StandardOutput.Trim(), pairResult.StandardError.Trim())); });
 
                 await System.Threading.Tasks.Task.Delay(1000);
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📡 [ÉTAPE 2/2] Connexion finale à {pureIp}:{connectPort}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📡 [ÉTAPE 2/2] Connexion finale à {1}:{2}...", DateTime.Now, pureIp, connectPort));
                 var connectResult = await _adbManager.ExecuteAsync($"connect {pureIp}:{connectPort}");
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Résultat Connexion : {connectResult.StandardOutput.Trim()}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Résultat Connexion : {1}", DateTime.Now, connectResult.StandardOutput.Trim()));
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
                 });
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [EXCEPTION] {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [EXCEPTION] {1}", DateTime.Now, ex.Message)); });
             }
             finally
             {

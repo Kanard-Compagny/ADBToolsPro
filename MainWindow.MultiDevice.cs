@@ -68,7 +68,7 @@ namespace ADBToolsNew
             }
 
             BtnMultiDeviceRun.IsEnabled = false;
-            BtnMultiDeviceRun.Content = "Exécuter";
+            BtnMultiDeviceRun.Content = Loc.T("Exécuter");
             MultiDeviceOverlay.Visibility = Visibility.Visible;
 
             await PopulateMultiDeviceCheckListAsync();
@@ -88,7 +88,7 @@ namespace ADBToolsNew
             {
                 MultiDeviceCheckList.Children.Add(new TextBlock
                 {
-                    Text = "Aucun appareil détecté.",
+                    Text = Loc.T("Aucun appareil détecté."),
                     Foreground = (System.Windows.Media.Brush)FindResource("TextSecondary"),
                     FontStyle = FontStyles.Italic
                 });
@@ -116,7 +116,7 @@ namespace ADBToolsNew
         {
             int count = GetCheckedMultiDevices().Count;
             BtnMultiDeviceRun.IsEnabled = count > 0;
-            BtnMultiDeviceRun.Content = count > 0 ? $"Exécuter sur {count} appareil(s)" : "Exécuter";
+            BtnMultiDeviceRun.Content = count > 0 ? Loc.F("Exécuter sur {0} appareil(s)", count) : Loc.T("Exécuter");
         }
 
         private List<AndroidDevice> GetCheckedMultiDevices() =>
@@ -151,16 +151,16 @@ namespace ADBToolsNew
 
             string serialsList = string.Join("\n", targets.Select(d => d.Serial));
             bool confirm = await ShowCustomDialogAsync(
-                "Exécuter sur plusieurs appareils",
-                $"{_multiDeviceConfirmBody}\n\nAppareils ciblés ({targets.Count}) :\n{serialsList}",
-                "Confirmer",
-                "Annuler",
+                Loc.T("Exécuter sur plusieurs appareils"),
+                Loc.F("{0}\n\nAppareils ciblés ({1}) :\n{2}", _multiDeviceConfirmBody, targets.Count, serialsList),
+                Loc.T("Confirmer"),
+                Loc.T("Annuler"),
                 _multiDeviceConfirmIsDanger
             );
             if (!confirm) return;
 
             BtnMultiDeviceRun.IsEnabled = false;
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖥️ Lancement sur {targets.Count} terminal(aux)...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖥️ Lancement sur {1} terminal(aux)...", DateTime.Now, targets.Count));
 
             foreach (var dev in targets)
             {
@@ -177,7 +177,7 @@ namespace ADBToolsNew
                 }
             }
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖥️ Traitement multi-appareils terminé.");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖥️ Traitement multi-appareils terminé.", DateTime.Now));
             BtnMultiDeviceRun.IsEnabled = true;
 
             _multiDeviceOnComplete?.Invoke(targets);

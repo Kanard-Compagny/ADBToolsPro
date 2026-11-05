@@ -28,7 +28,7 @@ namespace ADBToolsNew
             bool applied = !string.IsNullOrWhiteSpace(s.TeamProfileName);
             TeamProfileAppliedCard.Visibility = applied ? Visibility.Visible : Visibility.Collapsed;
             if (applied)
-                TxtTeamProfileApplied.Text = $"Profil appliqué sur ce poste : « {s.TeamProfileName} »" +
+                TxtTeamProfileApplied.Text = Loc.F("Profil appliqué sur ce poste : « {0} »", s.TeamProfileName) +
                     (s.TeamProfileImported.HasValue ? $", le {s.TeamProfileImported.Value:dd/MM/yyyy à HH:mm}." : ".");
         }
 
@@ -44,19 +44,19 @@ namespace ADBToolsNew
             };
             if (!opt.Header && !opt.Templates && !opt.Library && !opt.UpdateShare && !opt.ReportsFolder)
             {
-                await ShowCustomDialogAsync("Profil d'équipe", "Cochez au moins un élément à inclure dans le profil.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("Profil d'équipe"), Loc.T("Cochez au moins un élément à inclure dans le profil."), "OK", null, false);
                 return;
             }
 
             string suggested = string.IsNullOrWhiteSpace(AppSettings.Current.ReportCompany) ? "Mon équipe" : AppSettings.Current.ReportCompany.Split('\n')[0].Trim();
-            bool ok = await ShowCustomDialogAsync("👥 Nom du profil", "Nom affiché sur les postes qui importeront ce profil :", "Continuer", "Annuler", false, requiresInput: true, defaultInput: suggested);
+            bool ok = await ShowCustomDialogAsync(Loc.T("👥 Nom du profil"), Loc.T("Nom affiché sur les postes qui importeront ce profil :"), Loc.T("Continuer"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: suggested);
             if (!ok) return;
             opt.Name = string.IsNullOrWhiteSpace(TxtDialogInput.Text) ? suggested : TxtDialogInput.Text.Trim();
 
             var dlg = new SaveFileDialog
             {
-                Title = "Exporter le profil d'équipe",
-                FileName = "Profil_" + FileNameHelper.Sanitize(opt.Name) + TeamProfile.Extension,
+                Title = Loc.T("Exporter le profil d'équipe"),
+                FileName = Loc.T("Profil_") + FileNameHelper.Sanitize(opt.Name) + TeamProfile.Extension,
                 DefaultExt = TeamProfile.Extension,
                 Filter = TeamProfile.FileFilter
             };
@@ -65,18 +65,18 @@ namespace ADBToolsNew
             try
             {
                 TeamProfile.Export(dlg.FileName, opt, opt.Library ? LibraryToJson() : null, App.VersionText);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 👥 Profil d'équipe « {opt.Name} » exporté : {dlg.FileName}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 👥 Profil d'équipe « {1} » exporté : {2}", DateTime.Now, opt.Name, dlg.FileName));
                 ShowInExplorer(dlg.FileName);
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Export impossible", ex.Message, "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Export impossible"), ex.Message, "OK", null, true);
             }
         }
 
         private async void BtnTeamImport_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Title = "Importer un profil d'équipe", Filter = TeamProfile.FileFilter };
+            var dlg = new OpenFileDialog { Title = Loc.T("Importer un profil d'équipe"), Filter = TeamProfile.FileFilter };
             if (dlg.ShowDialog() != true) return;
             await ImportTeamProfileAsync(dlg.FileName);
         }
@@ -97,7 +97,7 @@ namespace ADBToolsNew
             try { pkg = TeamProfile.Read(path); }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Profil illisible", ex.Message, "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Profil illisible"), ex.Message, "OK", null, true);
                 return;
             }
 
@@ -114,31 +114,31 @@ namespace ADBToolsNew
             if (!string.IsNullOrWhiteSpace(info.ReportsFolder)) lines.Add("• Dossier des rapports : " + info.ReportsFolder);
             if (lines.Count == 0)
             {
-                await ShowCustomDialogAsync("Profil d'équipe", "Ce profil ne contient aucun réglage à appliquer.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("Profil d'équipe"), Loc.T("Ce profil ne contient aucun réglage à appliquer."), "OK", null, false);
                 return;
             }
 
             string who = string.IsNullOrWhiteSpace(info.CreatedWith) ? "" : $" ({info.CreatedWith}, {info.Created:dd/MM/yyyy})";
-            bool ok = await ShowCustomDialogAsync($"👥 Appliquer « {info.Name} » ?",
-                $"Ce profil{who} contient :\n\n" + string.Join("\n", lines) +
-                "\n\nLes modèles personnels actuels éventuels sont mis de côté dans Templates\\_anciens.",
-                "Appliquer", "Annuler", false);
+            bool ok = await ShowCustomDialogAsync(Loc.F("👥 Appliquer « {0} » ?", info.Name),
+                Loc.F("Ce profil{0} contient :\n\n", who) + string.Join("\n", lines) +
+                Loc.T("\n\nLes modèles personnels actuels éventuels sont mis de côté dans Templates\\_anciens."),
+                Loc.T("Appliquer"), Loc.T("Annuler"), false);
             if (!ok) return;
 
             try
             {
                 TeamProfile.ApplySettingsAndFiles(pkg);
                 int added = pkg.LibraryJson != null ? MergeLibraryJson(pkg.LibraryJson) : 0;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 👥 Profil d'équipe « {info.Name} » appliqué" +
-                              (pkg.LibraryJson != null ? $" ({added} commande(s) ajoutée(s) à la bibliothèque)." : "."));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 👥 Profil d'équipe « {1} » appliqué", DateTime.Now, info.Name) +
+                              (pkg.LibraryJson != null ? Loc.F(" ({0} commande(s) ajoutée(s) à la bibliothèque).", added) : "."));
                 UpdateReportTemplateButtons();
                 UpdateTeamProfileUi();
                 if (!string.IsNullOrWhiteSpace(info.UpdateShareFolder)) _ = CheckAppUpdateAsync(true);
-                await ShowCustomDialogAsync("✅ Profil appliqué", $"Le profil « {info.Name} » est appliqué sur ce poste.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("✅ Profil appliqué"), Loc.F("Le profil « {0} » est appliqué sur ce poste.", info.Name), "OK", null, false);
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Profil non appliqué", "Une partie du profil n'a pas pu être appliquée : " + ex.Message, "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Profil non appliqué"), Loc.T("Une partie du profil n'a pas pu être appliquée : ") + ex.Message, "OK", null, true);
             }
         }
     }

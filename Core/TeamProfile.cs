@@ -102,13 +102,13 @@ namespace ADBToolsNew.Core
         {
             using (var zip = ZipFile.OpenRead(path))
             {
-                var infoEntry = zip.GetEntry(InfoEntry) ?? throw new InvalidDataException("Ce fichier n'est pas un profil d'équipe ADB Tools (profil.json manquant).");
+                var infoEntry = zip.GetEntry(InfoEntry) ?? throw new InvalidDataException(Loc.T("Ce fichier n'est pas un profil d'équipe ADB Tools (profil.json manquant)."));
                 var pkg = new TeamProfilePackage
                 {
                     Info = JsonSerializer.Deserialize<TeamProfileInfo>(ReadText(infoEntry)) ?? new TeamProfileInfo()
                 };
                 if (pkg.Info.Format > 1)
-                    throw new InvalidDataException("Ce profil a été créé par une version plus récente d'ADB Tools. Mettez ADB Tools à jour pour l'importer.");
+                    throw new InvalidDataException(Loc.T("Ce profil a été créé par une version plus récente d'ADB Tools. Mettez ADB Tools à jour pour l'importer."));
 
                 pkg.SavTemplate = ReadBytes(zip.GetEntry(SavEntry));
                 pkg.WifiTemplate = ReadBytes(zip.GetEntry(WifiEntry));
@@ -176,7 +176,7 @@ namespace ADBToolsNew.Core
         private static byte[] ReadBytes(ZipArchiveEntry e)
         {
             if (e == null) return null;
-            if (e.Length > 50L * 1024 * 1024) throw new InvalidDataException("Fichier trop volumineux dans le profil : " + e.FullName);
+            if (e.Length > 50L * 1024 * 1024) throw new InvalidDataException(Loc.T("Fichier trop volumineux dans le profil : ") + e.FullName);
             using (var src = e.Open())
             using (var ms = new MemoryStream())
             {

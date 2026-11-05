@@ -42,19 +42,19 @@ namespace ADBToolsNew
         private async Task RefreshToolsListAsync(bool checkOnline)
         {
             if (_toolsBusy) return;
-            SetToolsBusy(true, checkOnline ? "Vérification des versions disponibles…" : "");
+            SetToolsBusy(true, checkOnline ? Loc.T("Vérification des versions disponibles…") : "");
             try
             {
                 List<ToolStatus> statuses;
                 try
                 {
                     statuses = await ToolsManager.GetStatusesAsync(checkOnline);
-                    SetToolsStatusText(checkOnline ? $"Vérifié à {DateTime.Now:HH:mm}." : "");
+                    SetToolsStatusText(checkOnline ? Loc.F("Vérifié à {0:HH:mm}.", DateTime.Now) : "");
                 }
                 catch (Exception ex)
                 {
                     statuses = await ToolsManager.GetStatusesAsync(false);
-                    SetToolsStatusText("Impossible de vérifier les versions en ligne : " + ex.Message);
+                    SetToolsStatusText(Loc.T("Impossible de vérifier les versions en ligne : ") + ex.Message);
                 }
 
                 ToolsList.Children.Clear();
@@ -109,7 +109,7 @@ namespace ADBToolsNew
 
             var button = new Button
             {
-                Content = !s.Installed ? "Télécharger" : (s.UpdateAvailable ? "Mettre à jour" : "Réinstaller"),
+                Content = !s.Installed ? Loc.T("Télécharger") : (s.UpdateAvailable ? Loc.T("Mettre à jour") : Loc.T("Réinstaller")),
                 Height = 32,
                 Padding = new Thickness(14, 0, 14, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -163,11 +163,11 @@ namespace ADBToolsNew
             if (_toolsBusy) return false;
             if (component == ToolComponent.Scrcpy && _isRecording)
             {
-                await ShowCustomDialogAsync("⏹️ Enregistrement en cours", "Arrêtez l'enregistrement vidéo avant de mettre à jour scrcpy.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("⏹️ Enregistrement en cours"), Loc.T("Arrêtez l'enregistrement vidéo avant de mettre à jour scrcpy."), "OK", null, false);
                 return false;
             }
 
-            SetToolsBusy(true, $"{ToolsManager.DisplayName(component)} : préparation…");
+            SetToolsBusy(true, Loc.F("{0} : préparation…", ToolsManager.DisplayName(component)));
             var progress = new Progress<ToolProgress>(p =>
             {
                 SetToolsStatusText(p.Message);
@@ -182,13 +182,13 @@ namespace ADBToolsNew
             try
             {
                 string version = await ToolsManager.InstallAsync(component, progress);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ {ToolsManager.DisplayName(component)} {version} installé dans le dossier Tools.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ {1} {2} installé dans le dossier Tools.", DateTime.Now, ToolsManager.DisplayName(component), version));
                 ok = true;
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Installation de {ToolsManager.DisplayName(component)} impossible : {ex.Message}");
-                await ShowCustomDialogAsync("❌ Téléchargement impossible", ex.Message, "OK", null, false);
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Installation de {1} impossible : {2}", DateTime.Now, ToolsManager.DisplayName(component), ex.Message));
+                await ShowCustomDialogAsync(Loc.T("❌ Téléchargement impossible"), ex.Message, "OK", null, false);
             }
             finally
             {
@@ -208,7 +208,7 @@ namespace ADBToolsNew
                 var updates = await ToolsManager.CheckForUpdatesAsync();
                 foreach (var u in updates)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔔 Mise à jour disponible : {u.DisplayName} v{u.InstalledVersion} → v{u.LatestVersion} (Paramètres ▸ Outils tiers).");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔔 Mise à jour disponible : {1} v{2} → v{3} (Paramètres ▸ Outils tiers).", DateTime.Now, u.DisplayName, u.InstalledVersion, u.LatestVersion));
                 }
             }
             catch
@@ -220,9 +220,9 @@ namespace ADBToolsNew
         /// <summary>Propose de télécharger un outil manquant au moment où on en a besoin (ex. FFmpeg pour le filigrane).</summary>
         private async Task<bool> OfferToInstallToolAsync(ToolComponent component, string reason)
         {
-            bool yes = await ShowCustomDialogAsync($"🧰 {ToolsManager.DisplayName(component)} n'est pas installé",
-                reason + "\n\nLe télécharger maintenant depuis sa source officielle ?",
-                "Télécharger", "Plus tard", false);
+            bool yes = await ShowCustomDialogAsync(Loc.F("🧰 {0} n'est pas installé", ToolsManager.DisplayName(component)),
+                reason + Loc.T("\n\nLe télécharger maintenant depuis sa source officielle ?"),
+                Loc.T("Télécharger"), Loc.T("Plus tard"), false);
             if (!yes) return false;
             ToolsOverlay.Visibility = Visibility.Visible;
             await RefreshToolsListAsync(false);

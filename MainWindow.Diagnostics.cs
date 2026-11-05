@@ -58,8 +58,8 @@ namespace ADBToolsNew
         {
             if (_diagSerial != null && _diagSerial != serial)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Ce diagnostic contenait déjà des résultats pour {_diagSerial}. " +
-                                      "Cliquez sur « Nouveau test » avant de diagnostiquer un autre terminal pour ne pas mélanger les rapports.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Ce diagnostic contenait déjà des résultats pour {1}. ", DateTime.Now, _diagSerial) +
+                                      Loc.T("Cliquez sur « Nouveau test » avant de diagnostiquer un autre terminal pour ne pas mélanger les rapports."));
             }
             _diagSerial = serial;
         }
@@ -106,7 +106,7 @@ namespace ADBToolsNew
             if (DiagChecklistGrid.SelectedItem is DiagComponent item)
             {
                 TxtDiagTitle.Text = item.ComponentName;
-                TxtDiagDetails.Text = string.IsNullOrEmpty(item.Details) ? "Aucune donnée extraite." : item.Details;
+                TxtDiagDetails.Text = string.IsNullOrEmpty(item.Details) ? Loc.T("Aucune donnée extraite.") : item.Details;
                 TxtDiagComment.Text = item.Comment;
                 GridDiagValidation.Visibility = Visibility.Visible;
 
@@ -128,7 +128,7 @@ namespace ADBToolsNew
             _isInspectorCollapsed = collapsed;
             InspectorBody.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
             BtnToggleInspector.Content = collapsed ? "▸" : "▾";
-            BtnToggleInspector.ToolTip = collapsed ? "Afficher" : "Réduire";
+            BtnToggleInspector.ToolTip = collapsed ? Loc.T("Afficher") : Loc.T("Réduire");
         }
 
         private void BtnToggleLabCard_Click(object sender, RoutedEventArgs e) => SetLabCardCollapsed(!_isLabCardCollapsed);
@@ -145,7 +145,7 @@ namespace ADBToolsNew
             LabRowDefinition.Height = collapsed ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
 
             BtnToggleLabCard.Content = collapsed ? "▸" : "▾";
-            BtnToggleLabCard.ToolTip = collapsed ? "Afficher le Laboratoire" : "Réduire le Laboratoire";
+            BtnToggleLabCard.ToolTip = collapsed ? Loc.T("Afficher le Laboratoire") : Loc.T("Réduire le Laboratoire");
         }
 
         // --- VALIDATION MANUELLE ---
@@ -159,7 +159,7 @@ namespace ADBToolsNew
                 item.StatusIcon = status;
                 item.Comment = TxtDiagComment.Text;
                 DiagChecklistGrid.Items.Refresh(); // Rafraîchit visuellement le tableau
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🩺 {item.ComponentName} marqué comme {status}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🩺 {1} marqué comme {2}", DateTime.Now, item.ComponentName, status));
             }
         }
 
@@ -193,7 +193,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Capture visuelle impossible : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Capture visuelle impossible : {1}", DateTime.Now, ex.Message));
                 return "";
             }
         }
@@ -202,15 +202,15 @@ namespace ADBToolsNew
         private async void BtnResetDiagnostic_Click(object sender, RoutedEventArgs e)
         {
             bool confirm = await ShowCustomDialogAsync(
-                "🔄 Nouveau test",
-                "Réinitialiser entièrement le diagnostic pour repartir de zéro ?\n\nCeci efface les statuts et commentaires (Auto + Manuel), la grille tactile et le journal des touches. Le terminal sélectionné n'est pas affecté.",
-                "Réinitialiser", "Annuler", true);
+                Loc.T("🔄 Nouveau test"),
+                Loc.T("Réinitialiser entièrement le diagnostic pour repartir de zéro ?\n\nCeci efface les statuts et commentaires (Auto + Manuel), la grille tactile et le journal des touches. Le terminal sélectionné n'est pas affecté."),
+                Loc.T("Réinitialiser"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
             if (_isLabListening)
             {
                 ToggleLabListen.IsChecked = false;
-                ToggleLabListen.Content = "Démarrer l'écoute";
+                ToggleLabListen.Content = Loc.T("Démarrer l'écoute");
                 StopGetEventLab();
             }
 
@@ -243,9 +243,9 @@ namespace ADBToolsNew
             _diagSerial = null;
 
             GridDiagValidation.Visibility = Visibility.Collapsed;
-            TxtDiagTitle.Text = "Sélectionnez un composant à tester";
+            TxtDiagTitle.Text = Loc.T("Sélectionnez un composant à tester");
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔄 Nouveau diagnostic : réinitialisation complète (Auto + Manuel).");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 Nouveau diagnostic : réinitialisation complète (Auto + Manuel).", DateTime.Now));
         }
 
         // --- CHECK-UP AUTOMATIQUE ---
@@ -256,14 +256,14 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Branchez un terminal pour le Check-up.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Branchez un terminal pour le Check-up.", DateTime.Now));
                 return;
             }
 
             RememberDiagnosedDevice(dev.Serial);
 
             BtnRunAutoCheck.IsEnabled = false;
-            BtnRunAutoCheck.Content = "⏳ Analyse en cours...";
+            BtnRunAutoCheck.Content = Loc.T("⏳ Analyse en cours...");
 
             bool deviceLost = false;
 
@@ -294,7 +294,7 @@ namespace ADBToolsNew
                         item.StatusIcon = "🔌";
                         DiagChecklistGrid.Items.Refresh();
 
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Check-up interrompu : terminal déconnecté pendant l'analyse.");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Check-up interrompu : terminal déconnecté pendant l'analyse.", DateTime.Now));
                         continue;
                     }
 
@@ -315,10 +315,10 @@ namespace ADBToolsNew
             }
 
             BtnRunAutoCheck.IsEnabled = true;
-            BtnRunAutoCheck.Content = "▶️ Lancer le Check-up Auto";
+            BtnRunAutoCheck.Content = Loc.T("▶️ Lancer le Check-up Auto");
             AppendConsole(deviceLost
-                ? $"\n[{DateTime.Now:HH:mm:ss}] 🩺 Check-up interrompu (terminal déconnecté)."
-                : $"\n[{DateTime.Now:HH:mm:ss}] 🩺 Check-up Automatique terminé.");
+                ? Loc.F("\n[{0:HH:mm:ss}] 🩺 Check-up interrompu (terminal déconnecté).", DateTime.Now)
+                : Loc.F("\n[{0:HH:mm:ss}] 🩺 Check-up Automatique terminé.", DateTime.Now));
             if (DiagChecklistGrid.SelectedItem != null) DiagChecklistGrid_SelectionChanged(null, null); // Force le rafraichissement de l'inspecteur
         }
 
@@ -334,14 +334,14 @@ namespace ADBToolsNew
 
             if (ToggleLabListen.IsChecked == true)
             {
-                ToggleLabListen.Content = "⏹️ Arrêter l'écoute";
+                ToggleLabListen.Content = Loc.T("⏹️ Arrêter l'écoute");
                 if (_isLabCardCollapsed) SetLabCardCollapsed(false); // démarrer un test doit rendre le Laboratoire visible
                 RememberDiagnosedDevice(dev.Serial);
                 StartGetEventLab(dev.Serial);
             }
             else
             {
-                ToggleLabListen.Content = "Démarrer l'écoute";
+                ToggleLabListen.Content = Loc.T("Démarrer l'écoute");
                 StopGetEventLab();
             }
         }
@@ -417,7 +417,7 @@ namespace ADBToolsNew
                     }, System.Windows.Threading.DispatcherPriority.Background);
                 });
             }
-            catch (Exception ex) { AppendConsole($"\n❌ Erreur GetEvent : {ex.Message}"); }
+            catch (Exception ex) { AppendConsole(Loc.F("\n❌ Erreur GetEvent : {0}", ex.Message)); }
         }
 
         private void StopGetEventLab()
@@ -551,7 +551,7 @@ namespace ADBToolsNew
         private void UpdateTouchGridStats()
         {
             if (_touchZoneGrid == null) return;
-            TxtTouchGridStats.Text = $"Zones testées : {_touchZoneGrid.TouchedCount} / {_touchZoneGrid.TotalCount}";
+            TxtTouchGridStats.Text = Loc.F("Zones testées : {0} / {1}", _touchZoneGrid.TouchedCount, _touchZoneGrid.TotalCount);
         }
 
         private void BtnResetTouchGrid_Click(object sender, RoutedEventArgs e)
@@ -573,7 +573,7 @@ namespace ADBToolsNew
             KeyHistoryBorder.Height = height;
 
             BtnExpandTouchGrid.Content = _touchGridExpanded ? "⤡" : "⤢";
-            BtnExpandTouchGrid.ToolTip = _touchGridExpanded ? "Réduire la zone de test" : "Agrandir la zone de test (grille + historique)";
+            BtnExpandTouchGrid.ToolTip = _touchGridExpanded ? Loc.T("Réduire la zone de test") : Loc.T("Agrandir la zone de test (grille + historique)");
         }
 
         /// <summary>
@@ -613,7 +613,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Connectez un terminal pour le test d'écran.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Connectez un terminal pour le test d'écran.", DateTime.Now));
                 return;
             }
 
@@ -633,17 +633,17 @@ namespace ADBToolsNew
             try
             {
                 string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"adbtools_screentest_{colorName.ToLowerInvariant()}.png");
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖥️ Affichage de la mire {colorName}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🖥️ Affichage de la mire {1}...", DateTime.Now, colorName));
                 RememberDiagnosedDevice(dev.Serial);
                 string startError = await _screenTestService.ShowColorAsync(dev.Serial, colorName, color, tempPath);
                 if (!string.IsNullOrEmpty(startError))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ L'appareil n'a pas pu afficher l'image (probablement aucune visionneuse disponible) : {startError}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ L'appareil n'a pas pu afficher l'image (probablement aucune visionneuse disponible) : {1}", DateTime.Now, startError));
                 }
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur test d'écran : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur test d'écran : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -652,17 +652,17 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device") return;
 
-            bool confirm = await ShowCustomDialogAsync("🗑️ Nettoyer", "Supprimer les images de test d'écran envoyées sur le terminal ?", "Supprimer", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("🗑️ Nettoyer"), Loc.T("Supprimer les images de test d'écran envoyées sur le terminal ?"), Loc.T("Supprimer"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
             try
             {
                 await _screenTestService.CleanupAsync(dev.Serial);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗑️ Images de test d'écran supprimées du terminal.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗑️ Images de test d'écran supprimées du terminal.", DateTime.Now));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur nettoyage : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur nettoyage : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -680,13 +680,13 @@ namespace ADBToolsNew
                 string savePath = System.IO.Path.Combine(GetReportsFolderPath(), $"Rapport_RMA_{FileNameHelper.Sanitize(serial)}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
                 System.IO.File.WriteAllText(savePath, json);
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💾 Rapport JSON RMA généré : {savePath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💾 Rapport JSON RMA généré : {1}", DateTime.Now, savePath));
                 RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Rapport RMA", serial, "", "", _diagList), savePath);
                 ShowInExplorer(savePath);
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur génération du rapport JSON : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur génération du rapport JSON : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -698,10 +698,10 @@ namespace ADBToolsNew
             string serial = GetDiagReportSerial();
 
             string templatePath = ADBToolsNew.Core.ReportTemplates.GetTemplatePath(ADBToolsNew.Core.ReportKind.Sav); // modèle perso (Templates\) sinon modèle fourni
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Modèle Word utilisé : " + (ADBToolsNew.Core.ReportTemplates.HasUserTemplate(ADBToolsNew.Core.ReportKind.Sav) ? "personnel (" + System.IO.Path.GetFileName(templatePath) + ")" : "modèle fourni"));
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Modèle Word utilisé : ", DateTime.Now) + (ADBToolsNew.Core.ReportTemplates.HasUserTemplate(ADBToolsNew.Core.ReportKind.Sav) ? Loc.T("personnel (") + System.IO.Path.GetFileName(templatePath) + ")" : Loc.T("modèle fourni")));
             if (!System.IO.File.Exists(templatePath))
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Template Word introuvable : {templatePath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Template Word introuvable : {1}", DateTime.Now, templatePath));
                 return;
             }
 
@@ -710,30 +710,30 @@ namespace ADBToolsNew
             {
                 string list = string.Join("\n", untested.Select(name => $"• {name}"));
                 bool proceedAnyway = await ShowCustomDialogAsync(
-                    "⚠️ Tests incomplets",
-                    $"{untested.Count} test(s) n'ont pas encore été réalisés :\n\n{list}\n\nLe rapport sera généré avec ces tests marqués \"Non testé\". Générer quand même ?",
-                    "Générer quand même", "Annuler", false);
+                    Loc.T("⚠️ Tests incomplets"),
+                    Loc.F("{0} test(s) n'ont pas encore été réalisés :\n\n{1}\n\nLe rapport sera généré avec ces tests marqués \"Non testé\". Générer quand même ?", untested.Count, list),
+                    Loc.T("Générer quand même"), Loc.T("Annuler"), false);
                 if (!proceedAnyway) return;
             }
 
-            bool ok1 = await ShowCustomDialogAsync("📝 Export Word — Société", "Nom de la société / du client pour l'en-tête du rapport :", "Suivant", "Annuler", false, requiresInput: true, defaultInput: "");
+            bool ok1 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — Société"), Loc.T("Nom de la société / du client pour l'en-tête du rapport :"), Loc.T("Suivant"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
             if (!ok1) return;
             string societe = TxtDialogInput.Text.Trim();
 
-            bool ok2 = await ShowCustomDialogAsync("📝 Export Word — N° d'incident", "Numéro d'incident / de ticket SAV pour l'en-tête du rapport :", "Générer le rapport", "Annuler", false, requiresInput: true, defaultInput: "");
+            bool ok2 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — N° d'incident"), Loc.T("Numéro d'incident / de ticket SAV pour l'en-tête du rapport :"), Loc.T("Générer le rapport"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
             if (!ok2) return;
             string incident = TxtDialogInput.Text.Trim();
 
             try
             {
                 string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetReportsFolderPath(), serial, societe, incident, _diagList);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Rapport Word généré : {outputPath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Rapport Word généré : {1}", DateTime.Now, outputPath));
                 RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Diagnostic SAV", serial, societe, incident, _diagList), outputPath);
                 ShowInExplorer(outputPath);
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur génération du rapport Word : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur génération du rapport Word : {1}", DateTime.Now, ex.Message));
             }
         }
     }

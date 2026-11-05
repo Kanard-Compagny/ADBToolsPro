@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ADBToolsNew.Core;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -45,6 +46,8 @@ namespace ADBToolsNew
         {
             // Thème clair / sombre mémorisé : appliqué avant l'ouverture du splash.
             Core.ThemeManager.ApplySaved();
+            // Langue de l'interface (français / anglais), choisie dans Paramètres ▸ Général : appliquée au démarrage.
+            Core.Loc.Init();
             base.OnStartup(e);
         }
 
@@ -84,12 +87,12 @@ namespace ADBToolsNew
             try
             {
                 var answer = MessageBox.Show(
-                    $"Une erreur inattendue est survenue :\n\n{ex.Message}\n\n" +
-                    "Les détails sont enregistrés dans crash.log.\n\n" +
-                    "Voulez-vous fermer l'application ?\n" +
-                    "• Oui : quitter maintenant\n" +
-                    "• Non : continuer (si l'erreur se répète, elle ne sera plus affichée pendant 30 secondes)",
-                    "Erreur inattendue",
+                    Loc.F("Une erreur inattendue est survenue :\n\n{0}\n\n", ex.Message) +
+                    Loc.T("Les détails sont enregistrés dans crash.log.\n\n") +
+                    Loc.T("Voulez-vous fermer l'application ?\n") +
+                    Loc.T("• Oui : quitter maintenant\n") +
+                    Loc.T("• Non : continuer (si l'erreur se répète, elle ne sera plus affichée pendant 30 secondes)"),
+                    Loc.T("Erreur inattendue"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Error,
                     MessageBoxResult.No);

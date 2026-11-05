@@ -23,7 +23,7 @@ namespace ADBToolsNew
         {
             if (MainTabControl != null) MainTabControl.SelectedIndex = SettingsTabIndex;
             UpdateNavButtonsUI(BtnNavSettings);
-            if (TxtSettingsVersion != null) TxtSettingsVersion.Text = $"Version {App.VersionText}";
+            if (TxtSettingsVersion != null) TxtSettingsVersion.Text = Loc.F("Version {0}", App.VersionText);
             ShowSettingsPanel(CurrentSettingsTag());
         }
 
@@ -103,7 +103,7 @@ namespace ADBToolsNew
             try
             {
                 var mode = ThemeManager.Mode;
-                if (TxtThemeModeLabel != null) TxtThemeModeLabel.Text = "Thème : " + ThemeManager.ModeLabel(mode);
+                if (TxtThemeModeLabel != null) TxtThemeModeLabel.Text = Loc.T("Thème : ") + ThemeManager.ModeLabel(mode);
                 if (TxtThemeModeIcon != null)
                     TxtThemeModeIcon.Text = mode == AppThemeMode.Light ? "" : mode == AppThemeMode.Dark ? "" : "";
                 if (ThemeChoiceSystem != null) ThemeChoiceSystem.IsChecked = mode == AppThemeMode.System;
@@ -129,26 +129,26 @@ namespace ADBToolsNew
 
         private void UpdateReportTemplateButtons()
         {
-            if (BtnReportTemplateSav != null) BtnReportTemplateSav.Content = "⚙️ Modèle : " + (ReportTemplates.HasUserTemplate(ReportKind.Sav) ? "personnel" : "fourni");
-            if (BtnReportTemplateWifi != null) BtnReportTemplateWifi.Content = "⚙️ Modèle : " + (ReportTemplates.HasUserTemplate(ReportKind.Wifi) ? "personnel" : "fourni");
+            if (BtnReportTemplateSav != null) BtnReportTemplateSav.Content = Loc.T("⚙️ Modèle : ") + (ReportTemplates.HasUserTemplate(ReportKind.Sav) ? Loc.T("personnel") : Loc.T("fourni"));
+            if (BtnReportTemplateWifi != null) BtnReportTemplateWifi.Content = Loc.T("⚙️ Modèle : ") + (ReportTemplates.HasUserTemplate(ReportKind.Wifi) ? Loc.T("personnel") : Loc.T("fourni"));
         }
 
         private static void ShowTemplateState(ReportKind kind, Border badge, TextBlock badgeText, TextBlock state)
         {
             if (badge == null || badgeText == null || state == null) return;
             bool user = ReportTemplates.HasUserTemplate(kind);
-            badgeText.Text = user ? "Personnel" : "Fourni";
+            badgeText.Text = user ? Loc.T("Personnel") : Loc.T("Fourni");
             badge.SetResourceReference(Border.BackgroundProperty, user ? "BrandSoft" : "Surface2");
             badgeText.SetResourceReference(TextBlock.ForegroundProperty, user ? "BrandText" : "Muted");
 
             if (user)
             {
                 var info = new System.IO.FileInfo(ReportTemplates.UserTemplatePath(kind));
-                state.Text = $"Templates\\{info.Name} — modifié le {info.LastWriteTime:dd/MM/yyyy à HH:mm}";
+                state.Text = Loc.F("Templates\\{0} — modifié le {1:dd/MM/yyyy à HH:mm}", info.Name, info.LastWriteTime);
             }
             else
             {
-                state.Text = "Modèle neutre fourni avec ADB Tools, sans logo";
+                state.Text = Loc.T("Modèle neutre fourni avec ADB Tools, sans logo");
             }
             if (ReportTemplates.GetLogoPath() != null) state.Text += " · logo personnel ajouté";
         }
@@ -167,9 +167,9 @@ namespace ADBToolsNew
         {
             if (!(sender is Button button)) return;
             var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-            menu.Items.Add(MakeItem("Ouvrir le dossier des captures", () => BtnOpenCaptureFolder_Click(button, new RoutedEventArgs())));
+            menu.Items.Add(MakeItem(Loc.T("Ouvrir le dossier des captures"), () => BtnOpenCaptureFolder_Click(button, new RoutedEventArgs())));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MakeItem("Vider les captures…", () => BtnClearCaptureFolder_Click(button, new RoutedEventArgs())));
+            menu.Items.Add(MakeItem(Loc.T("Vider les captures…"), () => BtnClearCaptureFolder_Click(button, new RoutedEventArgs())));
             menu.IsOpen = true;
         }
 

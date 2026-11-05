@@ -39,7 +39,7 @@ namespace ADBToolsNew
                 return;
             }
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📦 Récupération de la liste complète des packages de {selectedDevice.Serial}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Récupération de la liste complète des packages de {1}...", DateTime.Now, selectedDevice.Serial));
 
             try
             {
@@ -52,7 +52,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[ERREUR PACKAGES] {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[ERREUR PACKAGES] {0}", ex.Message)); });
             }
         }
 
@@ -69,7 +69,7 @@ namespace ADBToolsNew
             // Affiche dans la console si l'action est manuelle
             if (!silent && ConsoleOutput != null)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔍 Filtre appliqué : {currentFilterName} -> {finalList.Count} package(s) trouvé(s).");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔍 Filtre appliqué : {1} -> {2} package(s) trouvé(s).", DateTime.Now, currentFilterName, finalList.Count));
                 if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
             }
         }
@@ -138,8 +138,8 @@ namespace ADBToolsNew
             if (BtnToggleEnabled != null)
             {
                 BtnToggleEnabled.Content = selected.Count == 1
-                    ? (selected[0].Status == "Désactivé" ? "🔌 Activer" : "🔌 Désactiver")
-                    : "🔌 Activer/Désactiver";
+                    ? (selected[0].Status == "Désactivé" ? Loc.T("🔌 Activer") : Loc.T("🔌 Désactiver"))
+                    : Loc.T("🔌 Activer/Désactiver");
             }
 
             await UpdatePackageDetailsPanelAsync(selected);
@@ -152,19 +152,19 @@ namespace ADBToolsNew
 
             if (selected.Count != 1)
             {
-                TxtPkgDetails.Text = "Sélectionnez un seul paquet pour voir ses détails.";
+                TxtPkgDetails.Text = Loc.T("Sélectionnez un seul paquet pour voir ses détails.");
                 return;
             }
 
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                TxtPkgDetails.Text = "Aucun terminal connecté.";
+                TxtPkgDetails.Text = Loc.T("Aucun terminal connecté.");
                 return;
             }
 
             var pkg = selected[0];
-            TxtPkgDetails.Text = "Chargement...";
+            TxtPkgDetails.Text = Loc.T("Chargement...");
             var details = await _packageManagerService.GetPackageDetailsAsync(dev.Serial, pkg.PackageName);
 
             // Le paquet sélectionné a pu changer pendant l'attente de la réponse ADB : on ignore le résultat
@@ -172,8 +172,8 @@ namespace ADBToolsNew
             if (GetSelectedPackages().Count != 1 || GetSelectedPackages()[0].PackageName != pkg.PackageName) return;
 
             TxtPkgDetails.Text = details == null
-                ? "Détails indisponibles."
-                : $"Version : {details.VersionName ?? "Inconnue"} (code {details.VersionCode ?? "?"})\nSDK cible : {details.TargetSdk ?? "Inconnu"}\nInstallé via : {details.InstallerPackage ?? "Inconnu"}";
+                ? Loc.T("Détails indisponibles.")
+                : Loc.F("Version : {0} (code {1})\nSDK cible : {2}\nInstallé via : {3}", details.VersionName ?? Loc.T("Inconnue"), details.VersionCode ?? "?", details.TargetSdk ?? Loc.T("Inconnu"), details.InstallerPackage ?? Loc.T("Inconnu"));
         }
 
         private async void PkgAction_Launch_Click(object sender, RoutedEventArgs e)
@@ -182,14 +182,14 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (pkg == null || dev == null || dev.State != "device") return;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🚀 Lancement de {pkg.PackageName}...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🚀 Lancement de {1}...", DateTime.Now, pkg.PackageName));
             try
             {
                 ReportAdbActionResult("Lancement", pkg.PackageName, await _packageManagerService.LaunchAsync(dev.Serial, pkg.PackageName));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur au lancement : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur au lancement : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -203,13 +203,13 @@ namespace ADBToolsNew
             {
                 foreach (var pkg in packages)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🛑 Arrêt forcé de {pkg.PackageName}...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🛑 Arrêt forcé de {1}...", DateTime.Now, pkg.PackageName));
                     ReportAdbActionResult("Arrêt forcé", pkg.PackageName, await _packageManagerService.ForceStopAsync(dev.Serial, pkg.PackageName));
                 }
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur à l'arrêt forcé : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur à l'arrêt forcé : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -220,12 +220,12 @@ namespace ADBToolsNew
             if (packages.Count == 0 || dev == null || dev.State != "device") return;
 
             bool isConfirmed = await ShowCustomDialogAsync(
-                "Vider Cache / Données",
+                Loc.T("Vider Cache / Données"),
                 packages.Count == 1
-                    ? $"Voulez-vous vraiment effacer toutes les données de l'application suivante ?\n\n{packages[0].PackageName}"
-                    : $"Voulez-vous vraiment effacer toutes les données de ces {packages.Count} applications ?\n\n{string.Join("\n", packages.Select(p => p.PackageName))}",
-                "Vider",
-                "Annuler",
+                    ? Loc.F("Voulez-vous vraiment effacer toutes les données de l'application suivante ?\n\n{0}", packages[0].PackageName)
+                    : Loc.F("Voulez-vous vraiment effacer toutes les données de ces {0} applications ?\n\n{1}", packages.Count, string.Join("\n", packages.Select(p => p.PackageName))),
+                Loc.T("Vider"),
+                Loc.T("Annuler"),
                 true
             );
             if (!isConfirmed) return;
@@ -234,13 +234,13 @@ namespace ADBToolsNew
             {
                 foreach (var pkg in packages)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🧹 Vidage du cache et des données de {pkg.PackageName}...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧹 Vidage du cache et des données de {1}...", DateTime.Now, pkg.PackageName));
                     ReportAdbActionResult("Vidage des données", pkg.PackageName, await _packageManagerService.ClearDataAsync(dev.Serial, pkg.PackageName));
                 }
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur au vidage : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur au vidage : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -265,7 +265,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur activer/désactiver : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur activer/désactiver : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -276,12 +276,12 @@ namespace ADBToolsNew
             if (packages.Count == 0 || dev == null || dev.State != "device") return;
 
             bool isConfirmed = await ShowCustomDialogAsync(
-                "Désinstallation",
+                Loc.T("Désinstallation"),
                 packages.Count == 1
-                    ? $"Voulez-vous vraiment désinstaller l'application suivante du terminal ?\n\n{packages[0].PackageName}"
-                    : $"Voulez-vous vraiment désinstaller ces {packages.Count} applications du terminal ?\n\n{string.Join("\n", packages.Select(p => p.PackageName))}",
-                "Désinstaller",
-                "Annuler",
+                    ? Loc.F("Voulez-vous vraiment désinstaller l'application suivante du terminal ?\n\n{0}", packages[0].PackageName)
+                    : Loc.F("Voulez-vous vraiment désinstaller ces {0} applications du terminal ?\n\n{1}", packages.Count, string.Join("\n", packages.Select(p => p.PackageName))),
+                Loc.T("Désinstaller"),
+                Loc.T("Annuler"),
                 true // true = bouton rouge
             );
 
@@ -291,14 +291,14 @@ namespace ADBToolsNew
                 {
                     foreach (var pkg in packages)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗑️ Désinstallation de {pkg.PackageName}...");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗑️ Désinstallation de {1}...", DateTime.Now, pkg.PackageName));
                         ReportAdbActionResult("Désinstallation", pkg.PackageName, await _packageManagerService.UninstallAsync(dev.Serial, pkg.PackageName));
                     }
                     _ = LoadDevicePackagesAsync();
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur à la désinstallation : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur à la désinstallation : {1}", DateTime.Now, ex.Message));
                 }
             }
         }
@@ -311,12 +311,12 @@ namespace ADBToolsNew
 
             try
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📥 Récupération du chemin APK pour {pkg.PackageName}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📥 Récupération du chemin APK pour {1}...", DateTime.Now, pkg.PackageName));
                 List<string> remotePaths = await _packageManagerService.GetApkPathsAsync(dev.Serial, pkg.PackageName);
 
                 if (remotePaths.Count == 0)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Chemin APK introuvable pour {pkg.PackageName}.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Chemin APK introuvable pour {1}.", DateTime.Now, pkg.PackageName));
                     return;
                 }
 
@@ -329,17 +329,17 @@ namespace ADBToolsNew
                 if (dlg.ShowDialog() != true) return;
 
                 // 1. APK principal (base.apk, toujours en tête de liste) vers le fichier choisi.
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📥 Téléchargement de l'APK vers {dlg.FileName}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📥 Téléchargement de l'APK vers {1}...", DateTime.Now, dlg.FileName));
                 var baseRes = await _packageManagerService.PullApkAsync(dev.Serial, remotePaths[0], dlg.FileName);
                 if (!baseRes.IsSuccess || !System.IO.File.Exists(dlg.FileName))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec de l'extraction : {(baseRes.StandardError ?? baseRes.StandardOutput)?.Trim()}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Échec de l'extraction : {1}", DateTime.Now, (baseRes.StandardError ?? baseRes.StandardOutput)?.Trim()));
                     return;
                 }
 
                 if (remotePaths.Count == 1)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ APK extrait avec succès sur le PC !");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ APK extrait avec succès sur le PC !", DateTime.Now));
                     return;
                 }
 
@@ -359,12 +359,12 @@ namespace ADBToolsNew
                 }
 
                 AppendConsole(failed == 0
-                    ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ APK extrait (app en {remotePaths.Count} parties) : base dans {dlg.FileName}, {remotePaths.Count - 1} partie(s) complémentaire(s) dans {splitFolder}. Réinstallation : adb install-multiple avec tous ces fichiers."
-                    : $"\n[{DateTime.Now:HH:mm:ss}] ⚠️ APK principal extrait, mais {failed} partie(s) complémentaire(s) sur {remotePaths.Count - 1} n'ont pas pu être récupérées ({splitFolder}).");
+                    ? Loc.F("\n[{0:HH:mm:ss}] ✅ APK extrait (app en {1} parties) : base dans {2}, {3} partie(s) complémentaire(s) dans {4}. Réinstallation : adb install-multiple avec tous ces fichiers.", DateTime.Now, remotePaths.Count, dlg.FileName, remotePaths.Count - 1, splitFolder)
+                    : Loc.F("\n[{0:HH:mm:ss}] ⚠️ APK principal extrait, mais {1} partie(s) complémentaire(s) sur {2} n'ont pas pu être récupérées ({3}).", DateTime.Now, failed, remotePaths.Count - 1, splitFolder));
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur extraction APK : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur extraction APK : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -391,7 +391,7 @@ namespace ADBToolsNew
             if (!failed) return;
 
             string detail = !string.IsNullOrEmpty(error) ? error : (!string.IsNullOrEmpty(output) ? output : $"code {res.ExitCode}");
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ {action} impossible ({target}) : {detail}");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ {1} impossible ({2}) : {3}", DateTime.Now, action, target, detail));
         }
 
         private void DropZone_PreviewDragOver(object sender, System.Windows.DragEventArgs e)
@@ -410,7 +410,7 @@ namespace ADBToolsNew
                 var installSets = BuildApkInstallSets(files);
                 if (installSets.Count == 0)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Aucun fichier .apk trouvé dans ce qui a été déposé.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Aucun fichier .apk trouvé dans ce qui a été déposé.", DateTime.Now));
                     return;
                 }
 
@@ -420,7 +420,7 @@ namespace ADBToolsNew
                         ? $"{System.IO.Path.GetFileName(set[0])} + {set.Count - 1} partie(s) complémentaire(s)"
                         : System.IO.Path.GetFileName(set[0]);
 
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📦 Installation de {label} en cours (patientez)...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Installation de {1} en cours (patientez)...", DateTime.Now, label));
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll1) scroll1.ScrollToEnd();
 
                     try
@@ -430,8 +430,8 @@ namespace ADBToolsNew
                         var res = await _packageManagerService.InstallApkSetAsync(dev.Serial, set);
                         var (ok, message) = InterpretInstallResult(res);
                         AppendConsole(ok
-                            ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ Succès : application installée."
-                            : $"\n[{DateTime.Now:HH:mm:ss}] ❌ Échec de l'installation : {message}");
+                            ? Loc.F("\n[{0:HH:mm:ss}] ✅ Succès : application installée.", DateTime.Now)
+                            : Loc.F("\n[{0:HH:mm:ss}] ❌ Échec de l'installation : {1}", DateTime.Now, message));
 
                         if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll2) scroll2.ScrollToEnd();
 
@@ -441,7 +441,7 @@ namespace ADBToolsNew
                     }
                     catch (Exception ex)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur d'installation ({label}) : {ex.Message}");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur d'installation ({1}) : {2}", DateTime.Now, label, ex.Message));
                     }
                 }
             }
@@ -513,7 +513,7 @@ namespace ADBToolsNew
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "Fichiers APK (*.apk)|*.apk",
-                Title = "Choisir l'APK à installer sur plusieurs appareils"
+                Title = Loc.T("Choisir l'APK à installer sur plusieurs appareils")
             };
             if (dlg.ShowDialog() != true) return;
 
@@ -549,7 +549,7 @@ namespace ADBToolsNew
             _isSnifferActive = BtnToggleSniffer.IsChecked == true;
             if (_isSnifferActive)
             {
-                BtnToggleSniffer.Content = "Désactiver Sniffer";
+                BtnToggleSniffer.Content = Loc.T("Désactiver Sniffer");
                 StartPackageSniffer();
 
                 // 🚀 LANCE LA PULSATION SUR L'ONGLET "PACKAGE MANAGER"
@@ -557,9 +557,9 @@ namespace ADBToolsNew
             }
             else
             {
-                BtnToggleSniffer.Content = "Activer le Sniffer";
+                BtnToggleSniffer.Content = Loc.T("Activer le Sniffer");
                 _snifferTimer?.Stop();
-                TxtForegroundPackage.Text = "Sniffer désactivé.";
+                TxtForegroundPackage.Text = Loc.T("Sniffer désactivé.");
 
                 // 🛑 ARRÊTE LA PULSATION
                 AnimateNavButton(BtnNavPackages, false);
@@ -595,7 +595,7 @@ namespace ADBToolsNew
                             }
                             else
                             {
-                                TxtForegroundPackage.Text = "Écran Système / Verrouillé";
+                                TxtForegroundPackage.Text = Loc.T("Écran Système / Verrouillé");
                             }
                         });
                     }

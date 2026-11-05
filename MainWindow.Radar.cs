@@ -51,7 +51,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                await ShowCustomDialogAsync("❌ ERREUR", "Veuillez connecter un terminal avant de lancer le Radar.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("❌ ERREUR"), Loc.T("Veuillez connecter un terminal avant de lancer le Radar."), "OK", null, false);
                 return;
             }
 
@@ -67,10 +67,10 @@ namespace ADBToolsNew
                 {
                     // Affichage de ta pop-up d'avertissement avec la DA du logiciel
                     bool continueRadar = await ShowCustomDialogAsync(
-                        "⚠️ AVERTISSEMENT WI-FI",
-                        "Vous auditez le Wi-Fi via une connexion Wi-Fi (ADB sans fil).\n\nEn cas de coupure réseau, l'analyse Wi-Fi sera déconnectée et l'analyse s'arrêtera.\n\nPour un audit de mobilité complet (Roaming), privilégiez une connexion USB.",
-                        "Continuer l'analyse",
-                        "Annuler",
+                        Loc.T("⚠️ AVERTISSEMENT WI-FI"),
+                        Loc.T("Vous auditez le Wi-Fi via une connexion Wi-Fi (ADB sans fil).\n\nEn cas de coupure réseau, l'analyse Wi-Fi sera déconnectée et l'analyse s'arrêtera.\n\nPour un audit de mobilité complet (Roaming), privilégiez une connexion USB."),
+                        Loc.T("Continuer l'analyse"),
+                        Loc.T("Annuler"),
                         true
                     );
 
@@ -104,7 +104,7 @@ namespace ADBToolsNew
         {
             _radarSerial = serial;
             _radarSessionId++;
-            BtnToggleRadar.Content = "⏹ ARRÊTER";
+            BtnToggleRadar.Content = Loc.T("⏹ ARRÊTER");
             BtnToggleRadar.ClearValue(Button.BackgroundProperty);
             AnimateNavButton(BtnNavRadar, true);
 
@@ -117,7 +117,7 @@ namespace ADBToolsNew
             _isFetchingHeavyData = false;
             _isPolling = false;
 
-            TxtWifiLogcat.Text = "--- Début du Sniffing Wi-Fi ---\n";
+            TxtWifiLogcat.Text = Loc.T("--- Début du Sniffing Wi-Fi ---\n");
 
             // 1. MOTEUR POLLING (Ultra-Rapide & Découplé)
             _radarTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.0) };
@@ -134,12 +134,12 @@ namespace ADBToolsNew
                     {
                         // MISE À JOUR INSTANTANÉE DES JAUGES
                         TxtWifiSsid.Text = snapshot.Ssid;
-                        TxtWifiBssid.Text = $"BSSID : {snapshot.Bssid}";
+                        TxtWifiBssid.Text = Loc.F("BSSID : {0}", snapshot.Bssid);
 
                         if (snapshot.Rssi.HasValue)
                         {
                             int rssiVal = snapshot.Rssi.Value;
-                            TxtWifiRssi.Text = $"{rssiVal} dBm";
+                            TxtWifiRssi.Text = Loc.F("{0} dBm", rssiVal);
                             if (rssiVal >= -65) TxtWifiRssi.Foreground = BrushSuccess;
                             else if (rssiVal >= -75) TxtWifiRssi.Foreground = BrushWarning;
                             else TxtWifiRssi.Foreground = BrushDanger;
@@ -149,14 +149,14 @@ namespace ADBToolsNew
                             if (_rssiHistory.Count < ReportHistoryLimit) _rssiHistory.Add(rssiVal);
 
                             var rStats = _radarService.Stats;
-                            TxtRssiMinMaxAvg.Text = $"Min/Moy/Max : {rStats.MinRssiText} / {rStats.AverageRssi} / {rStats.MaxRssiText} dBm";
+                            TxtRssiMinMaxAvg.Text = Loc.F("Min/Moy/Max : {0} / {1} / {2} dBm", rStats.MinRssiText, rStats.AverageRssi, rStats.MaxRssiText);
                         }
 
                         TxtWifiSpeed.Text = snapshot.LinkSpeed;
 
                         if (!string.IsNullOrEmpty(snapshot.Band))
                         {
-                            TxtWifiFreq.Text = $"Bande : {snapshot.Band} / Canal : {snapshot.Channel}";
+                            TxtWifiFreq.Text = Loc.F("Bande : {0} / Canal : {1}", snapshot.Band, snapshot.Channel);
                         }
 
                         // --- LE DÉCLENCHEUR DÉCOUPLÉ (Fini les freezes de 20 sec !) ---
@@ -166,9 +166,9 @@ namespace ADBToolsNew
                             _lastBssid = snapshot.Bssid;
                             _isFetchingHeavyData = true;
 
-                            TxtWifiIp.Text = "IP : Récupération...";
-                            TxtWifiGateway.Text = "Passerelle : Récupération...";
-                            TxtWifiDns.Text = "DNS : Récupération...";
+                            TxtWifiIp.Text = Loc.T("IP : Récupération...");
+                            TxtWifiGateway.Text = Loc.T("Passerelle : Récupération...");
+                            TxtWifiDns.Text = Loc.T("DNS : Récupération...");
 
                             // Processus orphelin (Ne bloque pas le timer principal)
                             int fetchSessionId = _radarSessionId;
@@ -190,11 +190,11 @@ namespace ADBToolsNew
                                     {
                                         if (fetchSessionId != _radarSessionId) return;
 
-                                        TxtWifiMac.Text = $"MAC : {macTask.Result}";
+                                        TxtWifiMac.Text = Loc.F("MAC : {0}", macTask.Result);
                                         var mIp = System.Text.RegularExpressions.Regex.Match(ipTask.Result.StandardOutput ?? "", @"inet\s+([0-9\.]+)/\d+");
                                         TxtWifiIp.Text = mIp.Success ? $"IP : {mIp.Groups[1].Value}" : "IP : ---.---.---.---";
-                                        TxtWifiGateway.Text = $"Passerelle : {gwTask.Result}";
-                                        TxtWifiDns.Text = $"DNS : {dnsTask.Result}";
+                                        TxtWifiGateway.Text = Loc.F("Passerelle : {0}", gwTask.Result);
+                                        TxtWifiDns.Text = Loc.F("DNS : {0}", dnsTask.Result);
                                     });
                                 }
                                 catch { }
@@ -206,16 +206,16 @@ namespace ADBToolsNew
                     {
                         // DÉCONNECTÉ
                         _lastBssid = ""; // On réinitialise pour forcer la récup au retour du Wi-Fi
-                        TxtWifiSsid.Text = "Déconnecté";
-                        TxtWifiBssid.Text = "BSSID : --:--:--:--:--:--";
-                        TxtWifiRssi.Text = "- dBm";
+                        TxtWifiSsid.Text = Loc.T("Déconnecté");
+                        TxtWifiBssid.Text = Loc.T("BSSID : --:--:--:--:--:--");
+                        TxtWifiRssi.Text = Loc.T("- dBm");
                         TxtWifiRssi.Foreground = BrushDanger;
-                        TxtWifiSpeed.Text = "- Mbps";
-                        TxtWifiFreq.Text = "Bande : -- / Canal : --";
+                        TxtWifiSpeed.Text = Loc.T("- Mbps");
+                        TxtWifiFreq.Text = Loc.T("Bande : -- / Canal : --");
 
                         TxtWifiIp.Text = "IP : ---.---.---.---";
-                        TxtWifiGateway.Text = "Passerelle : ---.---.---.---";
-                        TxtWifiDns.Text = "DNS : ---.---.---.---";
+                        TxtWifiGateway.Text = Loc.T("Passerelle : ---.---.---.---");
+                        TxtWifiDns.Text = Loc.T("DNS : ---.---.---.---");
                     }
                 }
                 catch { }
@@ -245,7 +245,7 @@ namespace ADBToolsNew
                         if (sample.Success)
                         {
                             // --- MISE À JOUR LATENCE TEMPS RÉEL ---
-                            TxtPingLatency.Text = $"Latence : {sample.LatencyMs} ms";
+                            TxtPingLatency.Text = Loc.F("Latence : {0} ms", sample.LatencyMs);
                             if (sample.LatencyMs <= 50) TxtPingLatency.Foreground = BrushSuccess; // Vert
                             else if (sample.LatencyMs <= 100) TxtPingLatency.Foreground = BrushWarning; // Jaune/Orange
                             else TxtPingLatency.Foreground = BrushDanger; // Rouge (Lag)
@@ -253,7 +253,7 @@ namespace ADBToolsNew
                         else
                         {
                             // --- LATENCE EN ERREUR ---
-                            TxtPingLatency.Text = "Latence : Échec";
+                            TxtPingLatency.Text = Loc.T("Latence : Échec");
                             TxtPingLatency.Foreground = BrushDanger; // Rouge
                         }
 
@@ -261,13 +261,13 @@ namespace ADBToolsNew
                         {
                             // --- MISE À JOUR DU COMPTEUR ---
                             var pStats = _radarService.Stats;
-                            TxtPingCount.Text = $"Envoyés : {pStats.PingTotal}";
+                            TxtPingCount.Text = Loc.F("Envoyés : {0}", pStats.PingTotal);
 
                             double lossPercent = pStats.LossPercent;
-                            TxtPacketLoss.Text = $"Perte : {lossPercent} %";
+                            TxtPacketLoss.Text = Loc.F("Perte : {0} %", lossPercent);
                             TxtPacketLoss.Foreground = lossPercent > 5 ? BrushDanger : BrushSuccess;
 
-                            TxtPingMinMaxAvg.Text = $"Min/Moy/Max : {pStats.MinPingText} / {pStats.AveragePingMs} / {pStats.MaxPingText} ms";
+                            TxtPingMinMaxAvg.Text = Loc.F("Min/Moy/Max : {0} / {1} / {2} ms", pStats.MinPingText, pStats.AveragePingMs, pStats.MaxPingText);
                         }
                     });
                 },
@@ -282,16 +282,16 @@ namespace ADBToolsNew
                         // 2. LE PONT : Si on capte une coupure en direct, on force les jauges à "Déconnecté" immédiatement !
                         if (line.Contains("DISCONNECTED"))
                         {
-                            TxtWifiSsid.Text = "Micro-coupure...";
-                            TxtWifiRssi.Text = "- dBm";
+                            TxtWifiSsid.Text = Loc.T("Micro-coupure...");
+                            TxtWifiRssi.Text = Loc.T("- dBm");
                             TxtWifiRssi.Foreground = BrushDanger; // Rouge flash
-                            TxtWifiSpeed.Text = "- Mbps";
+                            TxtWifiSpeed.Text = Loc.T("- Mbps");
                         }
 
                         // 3. Si on capte une reconnexion, on remet "Connexion en cours..."
                         if (line.Contains("CONNECTED") && !line.Contains("DISCONNECTED"))
                         {
-                            TxtWifiSsid.Text = "Reconnexion...";
+                            TxtWifiSsid.Text = Loc.T("Reconnexion...");
                             TxtWifiRssi.Foreground = BrushWarning; // Orange
                         }
                     });
@@ -308,7 +308,7 @@ namespace ADBToolsNew
             {
                 string text = TxtWifiLogcat.Text;
                 int cut = text.IndexOf('\n', text.Length - WifiLogcatMaxChars * 3 / 4);
-                TxtWifiLogcat.Text = "[... début du journal tronqué ...]\n" + (cut >= 0 ? text.Substring(cut + 1) : text);
+                TxtWifiLogcat.Text = Loc.T("[... début du journal tronqué ...]\n") + (cut >= 0 ? text.Substring(cut + 1) : text);
             }
             TxtWifiLogcat.ScrollToEnd();
         }
@@ -316,7 +316,7 @@ namespace ADBToolsNew
         private void StopRadar()
         {
             _radarSessionId++;
-            BtnToggleRadar.Content = "▶ DÉMARRER";
+            BtnToggleRadar.Content = Loc.T("▶ DÉMARRER");
             BtnToggleRadar.ClearValue(Button.BackgroundProperty);
             AnimateNavButton(BtnNavRadar, false);
 
@@ -346,7 +346,7 @@ namespace ADBToolsNew
             string serial = GetRadarReportSerial();
             if (serial == null)
             {
-                await ShowCustomDialogAsync("❌ ERREUR", "Aucun terminal connecté pour générer un rapport.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("❌ ERREUR"), Loc.T("Aucun terminal connecté pour générer un rapport."), "OK", null, false);
                 return;
             }
 
@@ -387,13 +387,13 @@ namespace ADBToolsNew
 
                 report.AppendLine("[ 2. CONFIGURATION DU TERMINAL ET ROUTAGE ]");
                 report.AppendLine($"Dernier Réseau (SSID) : {TxtWifiSsid.Text}");
-                report.AppendLine($"Dernière Antenne      : {TxtWifiBssid.Text.Replace("BSSID : ", "")}");
+                report.AppendLine($"Dernière Antenne      : {ValueAfterLabel(TxtWifiBssid.Text)}");
                 report.AppendLine($"Fréquence / Canal     : {TxtWifiFreq.Text}");
                 report.AppendLine($"Vitesse de Liaison    : {TxtWifiSpeed.Text}");
-                report.AppendLine($"Adresse MAC Matérielle: {TxtWifiMac.Text.Replace("MAC : ", "")}");
-                report.AppendLine($"Configuration IP      : {TxtWifiIp.Text.Replace("IP : ", "")}");
-                report.AppendLine($"Passerelle (Gateway)  : {TxtWifiGateway.Text.Replace("Passerelle : ", "")}");
-                report.AppendLine($"Serveur DNS primaire  : {TxtWifiDns.Text.Replace("DNS : ", "")}\n");
+                report.AppendLine($"Adresse MAC Matérielle: {ValueAfterLabel(TxtWifiMac.Text)}");
+                report.AppendLine($"Configuration IP      : {ValueAfterLabel(TxtWifiIp.Text)}");
+                report.AppendLine($"Passerelle (Gateway)  : {ValueAfterLabel(TxtWifiGateway.Text)}");
+                report.AppendLine($"Serveur DNS primaire  : {ValueAfterLabel(TxtWifiDns.Text)}\n");
 
                 report.AppendLine("[ 3. JOURNAL BRUT DES ÉVÉNEMENTS (LOGCAT) ]");
                 report.AppendLine("-------------------------------------------------");
@@ -420,10 +420,10 @@ namespace ADBToolsNew
                 File.WriteAllText(fullPath, report.ToString());
 
                 bool openFolder = await ShowCustomDialogAsync(
-                    "💾 EXPORT RÉUSSI",
-                    $"L'audit complet a été généré avec succès dans le dossier Captures :\n\n📄 {fileName}\n\nVoulez-vous l'ouvrir maintenant ?",
-                    "📂 OUVRIR",
-                    "Fermer",
+                    Loc.T("💾 EXPORT RÉUSSI"),
+                    Loc.F("L'audit complet a été généré avec succès dans le dossier Captures :\n\n📄 {0}\n\nVoulez-vous l'ouvrir maintenant ?", fileName),
+                    Loc.T("📂 OUVRIR"),
+                    Loc.T("Fermer"),
                     true
                 );
 
@@ -434,8 +434,16 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ ERREUR", $"Erreur lors de la génération du rapport : {ex.Message}", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("❌ ERREUR"), Loc.F("Erreur lors de la génération du rapport : {0}", ex.Message), "OK", null, false);
             }
+        }
+
+        /// <summary>Valeur après « Libellé : » (« BSSID : 18:49:… » → « 18:49:… »), quelle que soit la langue du libellé.</summary>
+        private static string ValueAfterLabel(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            int i = text.IndexOf(':');
+            return i < 0 ? text.Trim() : text.Substring(i + 1).Trim();
         }
 
         private async void BtnExportRadarWordReport_Click(object sender, RoutedEventArgs e)
@@ -443,23 +451,23 @@ namespace ADBToolsNew
             string serial = GetRadarReportSerial();
             if (serial == null)
             {
-                await ShowCustomDialogAsync("❌ ERREUR", "Aucun terminal connecté pour générer un rapport.", "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("❌ ERREUR"), Loc.T("Aucun terminal connecté pour générer un rapport."), "OK", null, false);
                 return;
             }
 
             string templatePath = ADBToolsNew.Core.ReportTemplates.GetTemplatePath(ADBToolsNew.Core.ReportKind.Wifi); // modèle perso (Templates\) sinon modèle fourni
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Modèle Word utilisé : " + (ADBToolsNew.Core.ReportTemplates.HasUserTemplate(ADBToolsNew.Core.ReportKind.Wifi) ? "personnel (" + System.IO.Path.GetFileName(templatePath) + ")" : "modèle fourni"));
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Modèle Word utilisé : ", DateTime.Now) + (ADBToolsNew.Core.ReportTemplates.HasUserTemplate(ADBToolsNew.Core.ReportKind.Wifi) ? Loc.T("personnel (") + System.IO.Path.GetFileName(templatePath) + ")" : Loc.T("modèle fourni")));
             if (!System.IO.File.Exists(templatePath))
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Template Word introuvable : {templatePath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Template Word introuvable : {1}", DateTime.Now, templatePath));
                 return;
             }
 
-            bool ok1 = await ShowCustomDialogAsync("📝 Export Word — Société", "Nom de la société / du client pour l'en-tête du rapport :", "Suivant", "Annuler", false, requiresInput: true, defaultInput: "");
+            bool ok1 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — Société"), Loc.T("Nom de la société / du client pour l'en-tête du rapport :"), Loc.T("Suivant"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
             if (!ok1) return;
             string societe = TxtDialogInput.Text.Trim();
 
-            bool ok2 = await ShowCustomDialogAsync("📝 Export Word — N° d'incident", "Numéro d'incident / de ticket pour l'en-tête du rapport :", "Générer le rapport", "Annuler", false, requiresInput: true, defaultInput: "");
+            bool ok2 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — N° d'incident"), Loc.T("Numéro d'incident / de ticket pour l'en-tête du rapport :"), Loc.T("Générer le rapport"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
             if (!ok2) return;
             string incident = TxtDialogInput.Text.Trim();
 
@@ -478,16 +486,16 @@ namespace ADBToolsNew
                 string outputPath = ADBToolsNew.Core.WifiReportService.GenerateReport(
                     templatePath, GetReportsFolderPath(), serial, deviceModel, societe, incident,
                     TxtWifiSsid.Text,
-                    TxtWifiBssid.Text.Replace("BSSID : ", ""),
+                    ValueAfterLabel(TxtWifiBssid.Text),
                     TxtWifiFreq.Text,
                     TxtWifiSpeed.Text,
-                    TxtWifiMac.Text.Replace("MAC : ", ""),
-                    TxtWifiIp.Text.Replace("IP : ", ""),
-                    TxtWifiGateway.Text.Replace("Passerelle : ", ""),
-                    TxtWifiDns.Text.Replace("DNS : ", ""),
+                    ValueAfterLabel(TxtWifiMac.Text),
+                    ValueAfterLabel(TxtWifiIp.Text),
+                    ValueAfterLabel(TxtWifiGateway.Text),
+                    ValueAfterLabel(TxtWifiDns.Text),
                     stats, duration, pingChartPath, rssiChartPath, TxtWifiLogcat.Text);
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Rapport Word Wi-Fi généré : {outputPath}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Rapport Word Wi-Fi généré : {1}", DateTime.Now, outputPath));
                 RecordHistory(new ADBToolsNew.Core.HistoryEntry
                 {
                     Type = "Analyse Wi-Fi",
@@ -508,13 +516,13 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur génération du rapport Word : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur génération du rapport Word : {1}", DateTime.Now, ex.Message));
             }
         }
 
         private async void BtnResetRadar_Click(object sender, RoutedEventArgs e)
         {
-            bool confirm = await ShowCustomDialogAsync("🔄 Réinitialiser", "Effacer les statistiques et le graphique de la session Wi-Fi en cours (RSSI, latence, pertes de paquets) ?\n\nCette action est irréversible.", "Réinitialiser", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("🔄 Réinitialiser"), Loc.T("Effacer les statistiques et le graphique de la session Wi-Fi en cours (RSSI, latence, pertes de paquets) ?\n\nCette action est irréversible."), Loc.T("Réinitialiser"), Loc.T("Annuler"), true);
             if (!confirm) return;
 
             // 1. Sécurité : On arrête le radar s'il est encore en train de tourner
@@ -537,29 +545,29 @@ namespace ADBToolsNew
             if (PingChart.AxisY.Count > 0) PingChart.AxisY[0].MaxValue = 200;
 
             // 4. Nettoyage de l'interface (Remise à l'état par défaut)
-            TxtWifiSsid.Text = "En attente...";
-            TxtWifiBssid.Text = "BSSID : --:--:--:--:--:--";
+            TxtWifiSsid.Text = Loc.T("En attente...");
+            TxtWifiBssid.Text = Loc.T("BSSID : --:--:--:--:--:--");
             TxtWifiIp.Text = "IP : ---.---.---.---";
-            TxtWifiMac.Text = "MAC : --:--:--:--:--:--";
+            TxtWifiMac.Text = Loc.T("MAC : --:--:--:--:--:--");
 
-            TxtWifiRssi.Text = "- dBm";
+            TxtWifiRssi.Text = Loc.T("- dBm");
             TxtWifiRssi.Foreground = BrushAccent; // Couleur par défaut (Accent)
 
-            TxtWifiSpeed.Text = "- Mbps";
-            TxtWifiFreq.Text = "Bande : -- / Canal : --";
-            TxtWifiGateway.Text = "Passerelle : ---.---.---.---";
-            TxtWifiDns.Text = "DNS : ---.---.---.---";
+            TxtWifiSpeed.Text = Loc.T("- Mbps");
+            TxtWifiFreq.Text = Loc.T("Bande : -- / Canal : --");
+            TxtWifiGateway.Text = Loc.T("Passerelle : ---.---.---.---");
+            TxtWifiDns.Text = Loc.T("DNS : ---.---.---.---");
 
-            TxtPacketLoss.Text = "Perte de paquets : 0%";
+            TxtPacketLoss.Text = Loc.T("Perte de paquets : 0%");
             TxtPacketLoss.Foreground = BrushDanger; // Rouge par défaut
-            TxtPingCount.Text = "Envoyés : 0";
-            TxtPingLatency.Text = "Latence : -- ms";
+            TxtPingCount.Text = Loc.T("Envoyés : 0");
+            TxtPingLatency.Text = Loc.T("Latence : -- ms");
             TxtPingLatency.Foreground = BrushNeutral; // Gris neutre
-            TxtPingMinMaxAvg.Text = "Min/Moy/Max : -- / -- / -- ms";
-            TxtRssiMinMaxAvg.Text = "Min/Moy/Max : -- / -- / -- dBm";
+            TxtPingMinMaxAvg.Text = Loc.T("Min/Moy/Max : -- / -- / -- ms");
+            TxtRssiMinMaxAvg.Text = Loc.T("Min/Moy/Max : -- / -- / -- dBm");
 
             // 5. Vidage de la console Logcat
-            TxtWifiLogcat.Text = "--- Prêt pour une nouvelle analyse ---\n";
+            TxtWifiLogcat.Text = Loc.T("--- Prêt pour une nouvelle analyse ---\n");
         }
     }
 }

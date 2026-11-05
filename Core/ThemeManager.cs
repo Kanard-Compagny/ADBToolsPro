@@ -42,9 +42,9 @@ namespace ADBToolsNew.Core
         {
             switch (mode)
             {
-                case AppThemeMode.Light: return "Clair";
-                case AppThemeMode.Dark: return "Sombre";
-                default: return "Système";
+                case AppThemeMode.Light: return Loc.T("Clair");
+                case AppThemeMode.Dark: return Loc.T("Sombre");
+                default: return Loc.T("Système");
             }
         }
 

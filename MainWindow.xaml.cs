@@ -155,7 +155,7 @@ namespace ADBToolsNew
                 // On ne garde que les trois derniers quarts, coupés sur un début de ligne.
                 string current = ConsoleOutput.Text;
                 int cut = current.IndexOf('\n', Math.Max(0, current.Length - ConsoleMaxChars * 3 / 4));
-                ConsoleOutput.Text = "[... début de la console tronqué ...]" + (cut >= 0 ? current.Substring(cut) : current);
+                ConsoleOutput.Text = Loc.T("[... début de la console tronqué ...]") + (cut >= 0 ? current.Substring(cut) : current);
                 _consoleLength = ConsoleOutput.Text.Length;
             }
 
@@ -195,6 +195,7 @@ namespace ADBToolsNew
         public MainWindow()
         {
             InitializeComponent();
+            Core.Loc.TranslateTree(this); // interface en anglais si choisi (Paramètres ▸ Général ▸ Langue)
             _adbManager = new AdbManager();
             _radarService = new RadarService(_adbManager);
             _fileExplorerService = new FileExplorerService(_adbManager);
@@ -223,7 +224,7 @@ namespace ADBToolsNew
         {
             if (!File.Exists(_adbExePath))
             {
-                throw new FileNotFoundException($"Le binaire ADB est introuvable au chemin : {_adbExePath}");
+                throw new FileNotFoundException(Loc.F("Le binaire ADB est introuvable au chemin : {0}", _adbExePath));
             }
 
             using (var process = new Process
@@ -272,7 +273,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Ouverture impossible de « {displayedPath} » : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Ouverture impossible de « {1} » : {2}", DateTime.Now, displayedPath, ex.Message));
             }
         }
 
@@ -282,10 +283,10 @@ namespace ADBToolsNew
         private async void ConfirmCloseDuringSideloadAsync()
         {
             bool confirmed = await ShowCustomDialogAsync(
-                "⚠️ Sideload en cours",
-                "Un Sideload (flashage OS) est en cours !\n\nFermer l'application maintenant peut endommager le terminal de façon irréversible.\n\nVoulez-vous vraiment quitter ?",
-                "Quitter quand même",
-                "Annuler",
+                Loc.T("⚠️ Sideload en cours"),
+                Loc.T("Un Sideload (flashage OS) est en cours !\n\nFermer l'application maintenant peut endommager le terminal de façon irréversible.\n\nVoulez-vous vraiment quitter ?"),
+                Loc.T("Quitter quand même"),
+                Loc.T("Annuler"),
                 true);
 
             if (confirmed)
@@ -310,7 +311,7 @@ namespace ADBToolsNew
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateThemeUi();
-            TxtTitleVersion.Text = $"version {App.VersionText}";
+            TxtTitleVersion.Text = Loc.F("version {0}", App.VersionText);
             UpdateWindowFrame();
             UpdateReportTemplateButtons();
             _ = CheckToolUpdatesInBackgroundAsync(); // mises à jour des outils tiers, une fois par jour
@@ -360,12 +361,12 @@ namespace ADBToolsNew
                     }
                     catch { }
 
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Profil utilisateur corrompu ({exCorrupt.GetType().Name}), réinitialisé aux valeurs par défaut. Ancien fichier conservé en .bak.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Profil utilisateur corrompu ({1}), réinitialisé aux valeurs par défaut. Ancien fichier conservé en .bak.", DateTime.Now, exCorrupt.GetType().Name));
                 }
             }
             else
             {
-                AppendConsole("\n[INFO] Initialisation du profil utilisateur...");
+                AppendConsole(Loc.T("\n[INFO] Initialisation du profil utilisateur..."));
             }
 
             // Centrage manuel (WindowStartupLocation="Manual") : fait ici, une fois la taille définitive
@@ -382,12 +383,12 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Erreur Fatale", $"Erreur critique d'initialisation ADB : {ex.Message}", "OK", null, true);
+                await ShowCustomDialogAsync(Loc.T("❌ Erreur Fatale"), Loc.F("Erreur critique d'initialisation ADB : {0}", ex.Message), "OK", null, true);
             }
 
             if (ChildProcessTracker.DisabledReason != null)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Nettoyage automatique des processus indisponible sur ce PC ({ChildProcessTracker.DisabledReason}). L'application fonctionne normalement, mais adb/scrcpy pourraient rester ouverts après un plantage.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Nettoyage automatique des processus indisponible sur ce PC ({1}). L'application fonctionne normalement, mais adb/scrcpy pourraient rester ouverts après un plantage.", DateTime.Now, ChildProcessTracker.DisabledReason));
             }
 
             // --- Surveillance des terminaux : seulement après le démarrage du démon ---
@@ -663,14 +664,14 @@ namespace ADBToolsNew
                                 {
                                     DeviceComboBox.ItemsSource = currentDevices;
                                     SelectDeviceOrFirst(currentDevices, previousSerial);
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER] {currentDevices.Count} appareil(s) branché(s).");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] {1} appareil(s) branché(s).", DateTime.Now, currentDevices.Count));
                                 }
                                 else
                                 {
                                     var emptyList = new List<AndroidDevice> { new AndroidDevice { Serial = "Aucun appareil détecté...", State = "" } };
                                     DeviceComboBox.ItemsSource = emptyList;
                                     DeviceComboBox.SelectedIndex = 0;
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER] Appareils débranchés.");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] Appareils débranchés.", DateTime.Now));
                                 }
                                 _isRefreshingDeviceList = false;
                                 if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scrollViewer) scrollViewer.ScrollToEnd();
@@ -680,7 +681,7 @@ namespace ADBToolsNew
                 }
                 catch (Exception ex)
                 {
-                    Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER ERROR] {ex.Message}"); });
+                    Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER ERROR] {1}", DateTime.Now, ex.Message)); });
 
                     _consecutiveWatcherFailures++;
                     if (_consecutiveWatcherFailures >= MaxConsecutiveWatcherFailuresBeforeRestart)
@@ -702,16 +703,16 @@ namespace ADBToolsNew
         {
             try
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER] ⚠️ Le démon ADB semble bloqué, tentative de relance automatique..."); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] ⚠️ Le démon ADB semble bloqué, tentative de relance automatique...", DateTime.Now)); });
 
                 await _adbManager.ExecuteAsync("kill-server", TimeSpan.FromSeconds(5));
                 await _adbManager.ExecuteAsync("start-server", TimeSpan.FromSeconds(10));
 
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER] ✅ Démon ADB relancé."); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] ✅ Démon ADB relancé.", DateTime.Now)); });
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] [WATCHER] ❌ Échec de la relance automatique du démon ADB : {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] ❌ Échec de la relance automatique du démon ADB : {1}", DateTime.Now, ex.Message)); });
             }
         }
 
@@ -757,16 +758,16 @@ namespace ADBToolsNew
                 if (StatusIndicator != null)
                 {
                     StatusIndicator.Fill = (SolidColorBrush)FindResource("DangerColor");
-                    StatusIndicator.ToolTip = "Déconnecté";
+                    StatusIndicator.ToolTip = Loc.T("Déconnecté");
                 }
 
-                TxtModel.Text = "En attente...";
-                TxtOsVersion.Text = "En attente...";
-                TxtBuild.Text = "En attente...";
-                TxtSdkApi.Text = "En attente...";
-                TxtSerial.Text = "En attente...";
-                TxtUptime.Text = "En attente...";
-                TxtScreenInfo.Text = "En attente...";
+                TxtModel.Text = Loc.T("En attente...");
+                TxtOsVersion.Text = Loc.T("En attente...");
+                TxtBuild.Text = Loc.T("En attente...");
+                TxtSdkApi.Text = Loc.T("En attente...");
+                TxtSerial.Text = Loc.T("En attente...");
+                TxtUptime.Text = Loc.T("En attente...");
+                TxtScreenInfo.Text = Loc.T("En attente...");
                 return;
             }
 
@@ -776,10 +777,10 @@ namespace ADBToolsNew
                 if (StatusIndicator != null)
                 {
                     StatusIndicator.Fill = (SolidColorBrush)FindResource("AccentColor");
-                    StatusIndicator.ToolTip = $"Attention : {selectedDevice.State.ToUpper()}";
+                    StatusIndicator.ToolTip = Loc.F("Attention : {0}", selectedDevice.State.ToUpper());
                 }
 
-                TxtModel.Text = "Autorisation requise";
+                TxtModel.Text = Loc.T("Autorisation requise");
                 TxtOsVersion.Text = "--";
                 TxtBuild.Text = "--";
                 TxtSdkApi.Text = "--";
@@ -792,14 +793,14 @@ namespace ADBToolsNew
             if (StatusIndicator != null)
             {
                 StatusIndicator.Fill = (SolidColorBrush)FindResource("StatusSuccess");
-                StatusIndicator.ToolTip = "Connecté et Prêt";
+                StatusIndicator.ToolTip = Loc.T("Connecté et Prêt");
             }
 
             string deviceKey = selectedDevice.Serial + "|" + selectedDevice.State;
             if (deviceKey == _lastLoadedDeviceKey) return; // Même terminal resélectionné : infos déjà affichées
             _lastLoadedDeviceKey = deviceKey;
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] Nouvel appareil détecté ({selectedDevice.Serial}). Extraction auto des infos système...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] Nouvel appareil détecté ({1}). Extraction auto des infos système...", DateTime.Now, selectedDevice.Serial));
             if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
 
             await LoadStaticDeviceInfoAsync(selectedDevice);
@@ -870,13 +871,13 @@ namespace ADBToolsNew
                     TxtSerial.Text = serial;
                     TxtUptime.Text = uptimeDisplay;
                     TxtScreenInfo.Text = screenDisplay;
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Appareil {fullModelDisplay} configuré et prêt !");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Appareil {1} configuré et prêt !", DateTime.Now, fullModelDisplay));
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scrollViewer) scrollViewer.ScrollToEnd();
                 });
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() => { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur d'extraction : {ex.Message}"); });
+                Application.Current.Dispatcher.Invoke(() => { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur d'extraction : {1}", DateTime.Now, ex.Message)); });
             }
         }
 
@@ -893,7 +894,7 @@ namespace ADBToolsNew
             var selectedDevice = DeviceComboBox.SelectedItem as AndroidDevice;
             if (selectedDevice == null || string.IsNullOrEmpty(selectedDevice.State) || selectedDevice.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez sélectionner un appareil valide et autorisé.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez sélectionner un appareil valide et autorisé.", DateTime.Now));
                 return;
             }
 
@@ -1023,7 +1024,7 @@ namespace ADBToolsNew
                                "• DocumentFormat.OpenXml (Génération des rapports Word)\n\n" +
                                "© 2026 - Mr.Kanard";
 
-            await ShowCustomDialogAsync("ℹ️ À propos", aboutText, "Fermer", "", false);
+            await ShowCustomDialogAsync(Loc.T("ℹ️ À propos"), aboutText, Loc.T("Fermer"), "", false);
         }
 
         private void BtnToggleSidebar_Click(object sender, RoutedEventArgs e)
@@ -1052,7 +1053,7 @@ namespace ADBToolsNew
                 ConsoleFooterRow.Visibility = Visibility.Collapsed;
                 ConsoleSplitter.IsEnabled = false;
                 BtnToggleConsole.Content = "▸";
-                BtnToggleConsole.ToolTip = "Afficher la console";
+                BtnToggleConsole.ToolTip = Loc.T("Afficher la console");
             }
             else
             {
@@ -1064,7 +1065,7 @@ namespace ADBToolsNew
                 ConsoleFooterRow.Visibility = Visibility.Visible;
                 ConsoleSplitter.IsEnabled = true;
                 BtnToggleConsole.Content = "▾";
-                BtnToggleConsole.ToolTip = "Réduire la console";
+                BtnToggleConsole.ToolTip = Loc.T("Réduire la console");
             }
         }
 

@@ -23,6 +23,7 @@ namespace ADBToolsNew
         public DocumentWindow()
         {
             InitializeComponent();
+            Core.Loc.TranslateTree(this); // interface en anglais si choisi (Paramètres ▸ Général ▸ Langue)
             StateChanged += (s, e) =>
             {
                 BtnDocMaximize.Content = WindowState == WindowState.Maximized ? "" : "";
@@ -40,7 +41,7 @@ namespace ADBToolsNew
 
         private static DocumentWindow Create(Window owner, string windowTitle, string heading, string intro)
         {
-            var w = new DocumentWindow { Owner = owner, Title = windowTitle + " — ADB Tools" };
+            var w = new DocumentWindow { Owner = owner, Title = windowTitle + Loc.T(" — ADB Tools") };
             w.TxtWindowTitle.Text = windowTitle;
             if (!string.IsNullOrEmpty(heading)) w.ContentHost.Children.Add(H1(heading));
             if (!string.IsNullOrEmpty(intro)) w.ContentHost.Children.Add(Paragraph(intro, "Ink"));
@@ -83,7 +84,7 @@ namespace ADBToolsNew
                 new[] { "System.Text.Json et bibliothèques .NET", "https://github.com/dotnet/runtime", "10.0.12", "Lecture des données (JSON), compatibilité .NET", "MIT" }
             };
             w.ContentHost.Children.Add(BuildTable(new[] { "Composant", "Version", "Usage", "Licence" }, rows));
-            w.ContentHost.Children.Add(Paragraph("Le détail complet des licences est dans le fichier Docs\\THIRD_PARTY_NOTICES.txt.", "Muted", new Thickness(0, 14, 0, 0)));
+            w.ContentHost.Children.Add(Paragraph(Loc.T("Le détail complet des licences est dans le fichier Docs\\THIRD_PARTY_NOTICES.txt."), "Muted", new Thickness(0, 14, 0, 0)));
             w.Show();
         }
 
@@ -96,14 +97,14 @@ namespace ADBToolsNew
                 "visible dans le rapport, pour la repérer facilement.");
             var host = w.ContentHost;
 
-            host.Children.Add(H2("Créer votre modèle"));
-            host.Children.Add(Bullet("Paramètres ▸ Rapports Word ▸ « Gérer le modèle » ▸ « Créer mon modèle à partir du modèle fourni ».", 0));
-            host.Children.Add(Bullet("Modifiez-le dans Word ou LibreOffice (mise en page, couleurs, textes) en gardant le format .docx.", 0));
-            host.Children.Add(Bullet("Votre logo, votre société, vos coordonnées et votre nom se règlent dans Paramètres ▸ Rapports Word ▸ En-tête des rapports.", 0));
-            host.Children.Add(Bullet("Une ligne qui ne contient qu'une balise sans valeur disparaît du rapport : pas de trou si un champ est vide.", 0));
-            host.Children.Add(Bullet("Pour revenir au modèle fourni : « Gérer le modèle » ▸ « Revenir au modèle fourni ». Votre modèle est rangé dans Templates\\_anciens, rien n'est supprimé.", 0));
+            host.Children.Add(H2(Loc.T("Créer votre modèle")));
+            host.Children.Add(Bullet(Loc.T("Paramètres ▸ Rapports Word ▸ « Gérer le modèle » ▸ « Créer mon modèle à partir du modèle fourni »."), 0));
+            host.Children.Add(Bullet(Loc.T("Modifiez-le dans Word ou LibreOffice (mise en page, couleurs, textes) en gardant le format .docx."), 0));
+            host.Children.Add(Bullet(Loc.T("Votre logo, votre société, vos coordonnées et votre nom se règlent dans Paramètres ▸ Rapports Word ▸ En-tête des rapports."), 0));
+            host.Children.Add(Bullet(Loc.T("Une ligne qui ne contient qu'une balise sans valeur disparaît du rapport : pas de trou si un champ est vide."), 0));
+            host.Children.Add(Bullet(Loc.T("Pour revenir au modèle fourni : « Gérer le modèle » ▸ « Revenir au modèle fourni ». Votre modèle est rangé dans Templates\\_anciens, rien n'est supprimé."), 0));
 
-            host.Children.Add(H2("Balises communes (les deux rapports)"));
+            host.Children.Add(H2(Loc.T("Balises communes (les deux rapports)")));
             host.Children.Add(BuildSimpleTable(new[] { "Balise", "Contenu" }, new[] { 1.0, 2.2 }, new List<string[]>
             {
                 new[] { "{{LOGO}}", "Votre logo (Paramètres ▸ Rapports Word ▸ En-tête)" },
@@ -119,21 +120,21 @@ namespace ADBToolsNew
                 new[] { "{{PIED_DE_PAGE}}", "Mention « Rapport généré par ADB Tools » et la date" }
             }));
 
-            host.Children.Add(H2("Rapport SAV (Diagnostics SAV)"));
+            host.Children.Add(H2(Loc.T("Rapport SAV (Diagnostics SAV)")));
             host.Children.Add(BuildSimpleTable(new[] { "Balise", "Contenu" }, new[] { 1.0, 2.2 }, new List<string[]>
             {
                 new[] { "{{VERSION_ANDROID}}", "Version d'Android du terminal" },
                 new[] { "{{BUILD_OS}}", "Numéro de build du système" },
                 new[] { "{{IMAGE_TACTILE}}", "Capture de la grille du test tactile" }
             }));
-            host.Children.Add(Paragraph("Pour chaque test, trois balises : informations relevées (_DETAILS), verdict (_STATUT : Conforme, À surveiller, Non conforme… la case du tableau est colorée automatiquement) et commentaire (_COMMENTAIRE).", "Ink", new Thickness(0, 12, 0, 8)));
+            host.Children.Add(Paragraph(Loc.T("Pour chaque test, trois balises : informations relevées (_DETAILS), verdict (_STATUT : Conforme, À surveiller, Non conforme… la case du tableau est colorée automatiquement) et commentaire (_COMMENTAIRE)."), "Ink", new Thickness(0, 12, 0, 8)));
             var tests = new[] { new[] { "Wi-Fi", "WIFI" }, new[] { "Ping réseau", "PING" }, new[] { "Batterie", "BATTERIE" }, new[] { "Stockage", "STOCKAGE" },
                                 new[] { "Capteurs", "CAPTEURS" }, new[] { "Thermique", "THERMIQUE" }, new[] { "Boutons physiques", "BOUTONS" },
                                 new[] { "Dalle tactile", "TACTILE" }, new[] { "Scanner", "SCANNER" }, new[] { "Écran", "ECRAN" } };
             host.Children.Add(BuildSimpleTable(new[] { "Test", "Détails", "Statut", "Commentaire" }, new[] { 0.9, 1.2, 1.2, 1.4 },
                 tests.Select(t => new[] { t[0], "{{" + t[1] + "_DETAILS}}", "{{" + t[1] + "_STATUT}}", "{{" + t[1] + "_COMMENTAIRE}}" }).ToList(), monoFrom: 1));
 
-            host.Children.Add(H2("Rapport Wi-Fi (Analyse Wi-Fi)"));
+            host.Children.Add(H2(Loc.T("Rapport Wi-Fi (Analyse Wi-Fi)")));
             host.Children.Add(BuildSimpleTable(new[] { "Balise", "Contenu" }, new[] { 1.0, 2.2 }, new List<string[]>
             {
                 new[] { "{{SSID}}", "Nom du réseau" },
@@ -167,16 +168,16 @@ namespace ADBToolsNew
             var w = Create(owner, "Historique", title, null);
             var host = w.ContentHost;
 
-            host.Children.Add(Paragraph($"Dossier : {DiagHistory.Folder}", "Muted", new Thickness(0, 0, 0, 12)));
+            host.Children.Add(Paragraph(Loc.F("Dossier : {0}", DiagHistory.Folder), "Muted", new Thickness(0, 0, 0, 12)));
 
-            var search = new TextBox { Height = 34, Margin = new Thickness(0, 0, 0, 14), ToolTip = "Rechercher : numéro de série, modèle, client, incident, technicien" };
+            var search = new TextBox { Height = 34, Margin = new Thickness(0, 0, 0, 14), ToolTip = Loc.T("Rechercher : numéro de série, modèle, client, incident, technicien") };
             search.Padding = new Thickness(8, 0, 8, 0);
             search.VerticalContentAlignment = VerticalAlignment.Center;
             search.SetResourceReference(Control.BackgroundProperty, "Surface");
             search.SetResourceReference(Control.ForegroundProperty, "Ink");
             search.SetResourceReference(Control.BorderBrushProperty, "Line");
             search.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, "Ink");
-            var hint = Paragraph("Rechercher (numéro de série, modèle, client, incident, technicien) :", "Muted", new Thickness(0, 0, 0, 4));
+            var hint = Paragraph(Loc.T("Rechercher (numéro de série, modèle, client, incident, technicien) :"), "Muted", new Thickness(0, 0, 0, 4));
             var list = new StackPanel();
             if (entries.Count > 0) { host.Children.Add(hint); host.Children.Add(search); }
             host.Children.Add(list);
@@ -188,8 +189,8 @@ namespace ADBToolsNew
                 if (shown.Count == 0)
                 {
                     list.Children.Add(Paragraph(entries.Count == 0
-                        ? "Aucun diagnostic enregistré pour le moment. Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est ajouté automatiquement à l'historique."
-                        : "Aucune fiche ne correspond à cette recherche.", "Muted"));
+                        ? Loc.T("Aucun diagnostic enregistré pour le moment. Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est ajouté automatiquement à l'historique.")
+                        : Loc.T("Aucune fiche ne correspond à cette recherche."), "Muted"));
                     return;
                 }
                 foreach (var group in shown.GroupBy(e => e.Serial ?? ""))
@@ -197,7 +198,7 @@ namespace ADBToolsNew
                     var first = group.First();
                     string model = group.Select(e => e.Model).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
                     list.Children.Add(H2(string.IsNullOrWhiteSpace(model) ? group.Key : $"{group.Key}  ·  {model}"));
-                    list.Children.Add(Paragraph($"{group.Count()} fiche(s) — dernière le {first.Date:dd/MM/yyyy à HH:mm}", "Muted", new Thickness(0, 0, 0, 8)));
+                    list.Children.Add(Paragraph(Loc.F("{0} fiche(s) — dernière le {1:dd/MM/yyyy à HH:mm}", group.Count(), first.Date), "Muted", new Thickness(0, 0, 0, 8)));
                     foreach (var e in group) list.Children.Add(HistoryCard(e));
                 }
             }

@@ -23,38 +23,38 @@ namespace ADBToolsNew
 
             menu.Items.Add(new MenuItem
             {
-                Header = hasUser ? "Modèle utilisé : le vôtre (dossier Templates)" : "Modèle utilisé : modèle fourni (neutre)",
+                Header = hasUser ? Loc.T("Modèle utilisé : le vôtre (dossier Templates)") : Loc.T("Modèle utilisé : modèle fourni (neutre)"),
                 IsEnabled = false
             });
             menu.Items.Add(new Separator());
-            menu.Items.Add(MakeItem("Ouvrir le modèle utilisé dans Word", () => OpenWithShell(ReportTemplates.GetTemplatePath(kind))));
-            menu.Items.Add(MakeItem(hasUser ? "Modifier mon modèle dans Word" : "Créer mon modèle à partir du modèle fourni", () =>
+            menu.Items.Add(MakeItem(Loc.T("Ouvrir le modèle utilisé dans Word"), () => OpenWithShell(ReportTemplates.GetTemplatePath(kind))));
+            menu.Items.Add(MakeItem(hasUser ? Loc.T("Modifier mon modèle dans Word") : Loc.T("Créer mon modèle à partir du modèle fourni"), () =>
             {
                 string path = ReportTemplates.CopyDefaultForEditing(kind);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Modèle {ReportTemplates.DisplayName(kind)} prêt à être modifié : {path}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Modèle {1} prêt à être modifié : {2}", DateTime.Now, ReportTemplates.DisplayName(kind), path));
                 UpdateReportTemplateStates();
                 OpenWithShell(path);
             }));
-            menu.Items.Add(MakeItem("Importer mon propre modèle (.docx)…", () => ImportReportTemplate(kind)));
+            menu.Items.Add(MakeItem(Loc.T("Importer mon propre modèle (.docx)…"), () => ImportReportTemplate(kind)));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MakeItem("Ouvrir le dossier des modèles (logo, balises…)", () =>
+            menu.Items.Add(MakeItem(Loc.T("Ouvrir le dossier des modèles (logo, balises…)"), () =>
             {
                 ReportTemplates.EnsureUserFolder();
                 OpenFolder(ReportTemplates.UserFolder);
             }));
-            menu.Items.Add(MakeItem("Liste des balises disponibles", () =>
+            menu.Items.Add(MakeItem(Loc.T("Liste des balises disponibles"), () =>
             {
                 ReportTemplates.EnsureUserFolder();
                 DocumentWindow.ShowTemplateTags(this);
             }));
-            var reset = MakeItem("Revenir au modèle fourni", async () =>
+            var reset = MakeItem(Loc.T("Revenir au modèle fourni"), async () =>
             {
-                bool ok = await ShowCustomDialogAsync("🔄 Modèle par défaut",
-                    "Votre modèle sera rangé dans Templates\\_anciens (rien n'est supprimé) et le modèle fourni sera de nouveau utilisé.",
-                    "Revenir au modèle fourni", "Annuler", false);
+                bool ok = await ShowCustomDialogAsync(Loc.T("🔄 Modèle par défaut"),
+                    Loc.T("Votre modèle sera rangé dans Templates\\_anciens (rien n'est supprimé) et le modèle fourni sera de nouveau utilisé."),
+                    Loc.T("Revenir au modèle fourni"), Loc.T("Annuler"), false);
                 if (!ok) return;
                 ReportTemplates.ResetToDefault(kind);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔄 {ReportTemplates.DisplayName(kind)} : retour au modèle fourni.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 {1} : retour au modèle fourni.", DateTime.Now, ReportTemplates.DisplayName(kind)));
                 UpdateReportTemplateStates();
             });
             reset.IsEnabled = hasUser;
@@ -74,8 +74,8 @@ namespace ADBToolsNew
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title = $"Choisir votre modèle Word — {ReportTemplates.DisplayName(kind)}",
-                Filter = "Document Word (*.docx)|*.docx",
+                Title = Loc.F("Choisir votre modèle Word — {0}", ReportTemplates.DisplayName(kind)),
+                Filter = Loc.T("Document Word (*.docx)|*.docx"),
                 CheckFileExists = true
             };
             if (dlg.ShowDialog(this) != true) return;
@@ -91,19 +91,19 @@ namespace ADBToolsNew
                 }
                 catch { /* fichier illisible : signalé ci-dessous */ }
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Modèle {ReportTemplates.DisplayName(kind)} importé : {dest}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Modèle {1} importé : {2}", DateTime.Now, ReportTemplates.DisplayName(kind), dest));
                 UpdateReportTemplateStates();
                 if (!hasTags)
                 {
-                    await ShowCustomDialogAsync("⚠️ Aucune balise trouvée",
-                        "Ce modèle ne contient aucune balise comme {{SOCIETE}} ou {{NUMERO_SERIE}} : les informations ne pourront pas y être placées.\n\n" +
-                        "Ouvrez la « Liste des balises disponibles » depuis le bouton Modèle, ajoutez-les dans votre document, puis réimportez-le.",
+                    await ShowCustomDialogAsync(Loc.T("⚠️ Aucune balise trouvée"),
+                        Loc.T("Ce modèle ne contient aucune balise comme {{SOCIETE}} ou {{NUMERO_SERIE}} : les informations ne pourront pas y être placées.\n\n") +
+                        Loc.T("Ouvrez la « Liste des balises disponibles » depuis le bouton Modèle, ajoutez-les dans votre document, puis réimportez-le."),
                         "OK", null, false);
                 }
             }
             catch (Exception ex)
             {
-                await ShowCustomDialogAsync("❌ Import impossible", ex.Message, "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("❌ Import impossible"), ex.Message, "OK", null, false);
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ADBToolsNew.Core;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,14 +12,15 @@ namespace ADBToolsNew
         public SplashWindow()
         {
             InitializeComponent();
-            TxtVersion.Text = $"version {App.VersionText}";
+            Core.Loc.TranslateTree(this); // interface en anglais si choisi (Paramètres ▸ Général ▸ Langue)
+            TxtVersion.Text = Loc.F("version {0}", App.VersionText);
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
-                TxtStatus.Text = "Vérification des dépendances (ADB, Scrcpy)...";
+                TxtStatus.Text = Loc.T("Vérification des dépendances (ADB, Scrcpy)...");
 
                 // Court délai pour que le Splash Screen soit lisible (auparavant 2 s + 0,8 s fixes à chaque lancement)
                 await Task.Delay(700);
@@ -36,7 +38,7 @@ namespace ADBToolsNew
                     }
                 }
 
-                TxtStatus.Text = "Lancement du moteur...";
+                TxtStatus.Text = Loc.T("Lancement du moteur...");
                 await Task.Delay(200); // Petit délai final
 
                 // Ouvre la fenêtre principale
@@ -48,7 +50,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur au démarrage : {ex.Message}");
+                MessageBox.Show(Loc.F("Erreur au démarrage : {0}", ex.Message));
                 Application.Current.Shutdown();
             }
         }
@@ -99,18 +101,18 @@ namespace ADBToolsNew
         private async Task<bool> InstallMissingToolsAsync(System.Collections.Generic.List<Core.ToolComponent> missing)
         {
             bool yes = await AskAsync(
-                "Bienvenue dans ADB Tools",
-                "Pour fonctionner, ADB Tools a besoin de ces outils, téléchargés depuis leurs sites officiels (environ 20 Mo) :",
+                Loc.T("Bienvenue dans ADB Tools"),
+                Loc.T("Pour fonctionner, ADB Tools a besoin de ces outils, téléchargés depuis leurs sites officiels (environ 20 Mo) :"),
                 missing.Select(c => Core.ToolsManager.DisplayName(c)).ToArray(),
-                "Ils sont installés dans le dossier Tools, à côté du programme. Rien n'est installé dans Windows.",
-                "Télécharger", "Quitter");
+                Loc.T("Ils sont installés dans le dossier Tools, à côté du programme. Rien n'est installé dans Windows."),
+                Loc.T("Télécharger"), Loc.T("Quitter"));
 
             if (!yes)
             {
                 await AskAsync(
-                    "Outils manquants",
-                    "Sans ADB, le programme ne peut pas communiquer avec les terminaux. Vous pouvez aussi placer vous-même " +
-                    "adb.exe, fastboot.exe, AdbWinApi.dll et AdbWinUsbApi.dll (Android SDK Platform-Tools de Google) dans le dossier :",
+                    Loc.T("Outils manquants"),
+                    Loc.T("Sans ADB, le programme ne peut pas communiquer avec les terminaux. Vous pouvez aussi placer vous-même ") +
+                    Loc.T("adb.exe, fastboot.exe, AdbWinApi.dll et AdbWinUsbApi.dll (Android SDK Platform-Tools de Google) dans le dossier :"),
                     new[] { Core.ToolsManager.ToolsFolder }, null, "Fermer", null);
                 return false;
             }
@@ -136,11 +138,11 @@ namespace ADBToolsNew
                 {
                     allOk = false;
                     await AskAsync(
-                        "Téléchargement impossible",
-                        $"Le téléchargement de {Core.ToolsManager.DisplayName(component)} a échoué : {ex.Message}",
+                        Loc.T("Téléchargement impossible"),
+                        Loc.F("Le téléchargement de {0} a échoué : {1}", Core.ToolsManager.DisplayName(component), ex.Message),
                         null,
-                        "Vérifiez la connexion Internet. Vous pourrez réessayer depuis Paramètres ▸ Outils tiers.",
-                        "Continuer", null);
+                        Loc.T("Vérifiez la connexion Internet. Vous pourrez réessayer depuis Paramètres ▸ Outils tiers."),
+                        Loc.T("Continuer"), null);
                 }
             }
 

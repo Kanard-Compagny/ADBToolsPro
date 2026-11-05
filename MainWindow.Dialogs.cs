@@ -30,9 +30,9 @@ namespace ADBToolsNew
 
         private Task<bool> ShowCustomDialogAsync(string title, string message, string confirmText = "Confirmer", string cancelText = "Annuler", bool isDanger = true, bool requiresInput = false, string defaultInput = "")
         {
-            DialogTitle.Text = title;
-            DialogMessage.Text = message;
-            BtnDialogConfirm.Content = confirmText;
+            DialogTitle.Text = Loc.T(title);
+            DialogMessage.Text = Loc.T(message);
+            BtnDialogConfirm.Content = Loc.T(confirmText);
 
             // --- NOUVELLE GESTION DU BOUTON ANNULER ---
             if (string.IsNullOrEmpty(cancelText))
@@ -42,7 +42,7 @@ namespace ADBToolsNew
             else
             {
                 BtnDialogCancel.Visibility = Visibility.Visible;
-                BtnDialogCancel.Content = cancelText;
+                BtnDialogCancel.Content = Loc.T(cancelText);
             }
             // ------------------------------------------
 
@@ -94,7 +94,7 @@ namespace ADBToolsNew
             if (!string.IsNullOrEmpty(textToCopy) && textToCopy != "En attente de connexion..." && textToCopy != "Sniffer désactivé.")
             {
                 Clipboard.SetText(textToCopy);
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📋 Copié dans le presse-papier : {textToCopy}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📋 Copié dans le presse-papier : {1}", DateTime.Now, textToCopy));
                 if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
             }
         }

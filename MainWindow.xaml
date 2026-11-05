@@ -2857,6 +2857,16 @@
                                     <TextBlock Text="Apparence et ce qui s'affiche au démarrage." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
+                                            <TextBlock Text="Langue / Language" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Langue de l'interface. Le changement s'applique après le redémarrage d'ADB Tools. / Interface language, applied after restarting ADB Tools." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <WrapPanel x:Name="LanguageChoices">
+                                                <RadioButton GroupName="Language" Tag="fr" Content="Français" Style="{StaticResource SettingsPillStyle}" Checked="Language_Checked"/>
+                                                <RadioButton GroupName="Language" Tag="en" Content="English" Style="{StaticResource SettingsPillStyle}" Checked="Language_Checked"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
                                         <TextBlock Text="Thème" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock Text="Le choix est mémorisé. « Système » suit le réglage clair ou sombre de Windows." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
                                             <WrapPanel>

@@ -114,6 +114,7 @@
     <Compile Include="Core\DiagHistory.cs" />
     <Compile Include="Core\ReportChartRenderer.cs" />
     <Compile Include="Core\FolderPicker.cs" />
+    <Compile Include="Core\Loc.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -253,6 +254,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="packages.config" />
+    <EmbeddedResource Include="Lang\en.json">
+      <LogicalName>ADBToolsNew.Lang.en.json</LogicalName>
+    </EmbeddedResource>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

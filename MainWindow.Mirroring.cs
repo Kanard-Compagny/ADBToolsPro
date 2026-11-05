@@ -45,22 +45,22 @@ namespace ADBToolsNew
             if (!mirroringActive && !recordingActive)
             {
                 MirroringStatusDot.Fill = (Brush)FindResource("TextSecondary");
-                TxtMirroringStatus.Text = "Aucune session active";
+                TxtMirroringStatus.Text = Loc.T("Aucune session active");
             }
             else if (mirroringActive && recordingActive)
             {
                 MirroringStatusDot.Fill = (Brush)FindResource("DangerColor");
-                TxtMirroringStatus.Text = "🖥️ Mirroring + 🔴 Enregistrement en cours";
+                TxtMirroringStatus.Text = Loc.T("🖥️ Mirroring + 🔴 Enregistrement en cours");
             }
             else if (recordingActive)
             {
                 MirroringStatusDot.Fill = (Brush)FindResource("DangerColor");
-                TxtMirroringStatus.Text = "🔴 Enregistrement en cours";
+                TxtMirroringStatus.Text = Loc.T("🔴 Enregistrement en cours");
             }
             else
             {
                 MirroringStatusDot.Fill = (Brush)FindResource("StatusSuccess");
-                TxtMirroringStatus.Text = "🖥️ Mirroring en cours";
+                TxtMirroringStatus.Text = Loc.T("🖥️ Mirroring en cours");
             }
         }
 
@@ -70,7 +70,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez connecter un appareil pour le Mirroring.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez connecter un appareil pour le Mirroring.", DateTime.Now));
                 return;
             }
 
@@ -79,12 +79,12 @@ namespace ADBToolsNew
 
             if (scrcpyPath == null)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ scrcpy n'est pas installé.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ scrcpy n'est pas installé.", DateTime.Now));
                 _ = OfferToInstallToolAsync(ADBToolsNew.Core.ToolComponent.Scrcpy, "scrcpy sert à afficher et contrôler l'écran du terminal.");
                 return;
             }
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📺 Préparation du Mirroring...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📺 Préparation du Mirroring...", DateTime.Now));
 
             bool showTouches = ChkScrcpyShowTouches.IsChecked == true;
 
@@ -107,13 +107,13 @@ namespace ADBToolsNew
                     showTouches: showTouches,
                     windowTitle: $"ADB Tools Pro - {dev.DisplayName}");
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚙️ Paramètres : {args}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚙️ Paramètres : {1}", DateTime.Now, args));
 
                 var process = _mirroringService.StartScrcpy(scrcpyPath, args);
 
                 if (process != null)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Mirroring démarré !");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Mirroring démarré !", DateTime.Now));
 
                     _scrcpyProcess = process;
                     UpdateMirroringStatusIndicator();
@@ -131,13 +131,13 @@ namespace ADBToolsNew
                                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell settings put system show_touches 0");
 
                                 _ = Application.Current.Dispatcher.InvokeAsync(() => {
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🧹 Mirroring fermé. Nettoyage effectué.");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧹 Mirroring fermé. Nettoyage effectué.", DateTime.Now));
                                 });
                             }
                             catch (Exception ex)
                             {
                                 _ = Application.Current.Dispatcher.InvokeAsync(() => {
-                                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Info : Désactivation des touchers ignorée ({ex.Message}).");
+                                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Info : Désactivation des touchers ignorée ({1}).", DateTime.Now, ex.Message));
                                 });
                             }
                         }
@@ -153,7 +153,7 @@ namespace ADBToolsNew
             }
             catch (Exception ex)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur au lancement de scrcpy : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur au lancement de scrcpy : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -167,7 +167,7 @@ namespace ADBToolsNew
             string scrcpyPath = MirroringService.ResolveScrcpyPath(baseFolder);
             if (scrcpyPath == null)
             {
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ scrcpy n'est pas installé.");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ scrcpy n'est pas installé.", DateTime.Now));
                 _ = OfferToInstallToolAsync(ADBToolsNew.Core.ToolComponent.Scrcpy, "scrcpy sert à afficher et contrôler l'écran du terminal.");
                 return;
             }
@@ -247,7 +247,7 @@ namespace ADBToolsNew
                 dev = DeviceComboBox.SelectedItem as AndroidDevice;
                 if (dev == null || dev.State != "device")
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Veuillez connecter un terminal valide pour enregistrer.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Veuillez connecter un terminal valide pour enregistrer.", DateTime.Now));
                     return;
                 }
             }
@@ -259,10 +259,10 @@ namespace ADBToolsNew
             {
                 _isRecording = false;
                 UpdateMirroringStatusIndicator();
-                BtnStartRecording.Content = "⏳ Traitement de la vidéo...";
+                BtnStartRecording.Content = Loc.T("⏳ Traitement de la vidéo...");
                 BtnStartRecording.IsEnabled = false;
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🛑 Arrêt de l'enregistrement en cours sur {dev.Serial}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🛑 Arrêt de l'enregistrement en cours sur {1}...", DateTime.Now, dev.Serial));
 
                 try
                 {
@@ -291,7 +291,7 @@ namespace ADBToolsNew
 
                     if (DateTime.Now - _recordingStartedAt > ScreenRecordMaxDuration)
                     {
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Android limite screenrecord à 3 minutes : seules les 3 premières minutes ont été enregistrées.");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Android limite screenrecord à 3 minutes : seules les 3 premières minutes ont été enregistrées.", DateTime.Now));
                     }
 
                     // ==========================================
@@ -313,7 +313,7 @@ namespace ADBToolsNew
                             FileName = defaultVideoName,
                             DefaultExt = ".mp4",
                             Filter = "Fichiers Vidéo MP4 (*.mp4)|*.mp4",
-                            Title = "Enregistrer la vidéo de démonstration"
+                            Title = Loc.T("Enregistrer la vidéo de démonstration")
                         };
 
                         if (dlg.ShowDialog() == true)
@@ -325,7 +325,7 @@ namespace ADBToolsNew
                             // Annuler ne doit pas perdre l'enregistrement (auparavant la vidéo restait sur le
                             // terminal et n'était jamais récupérée) : repli sur le dossier Captures.
                             finalVideoPath = System.IO.Path.Combine(GetCaptureFolderPath(), defaultVideoName);
-                            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ℹ️ Emplacement non choisi : la vidéo est conservée dans le dossier Captures.");
+                            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ℹ️ Emplacement non choisi : la vidéo est conservée dans le dossier Captures.", DateTime.Now));
                         }
                     }
 
@@ -334,13 +334,13 @@ namespace ADBToolsNew
                     // ==========================================
                     string localRawPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "raw_capture.mp4");
 
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📥 Téléchargement du flux brut...");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📥 Téléchargement du flux brut...", DateTime.Now));
                     if (System.IO.File.Exists(localRawPath)) System.IO.File.Delete(localRawPath); // Pas de reste d'un enregistrement précédent
                     var pullResult = await _adbManager.ExecuteAsync($"-s {dev.Serial} pull {_recordingRemotePath} {AdbManager.QuoteLocalArg(localRawPath)}", TimeSpan.FromMinutes(5));
                     if (!pullResult.IsSuccess || !System.IO.File.Exists(localRawPath))
                     {
                         // On laisse la vidéo sur le terminal pour pouvoir la récupérer à la main.
-                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Récupération de la vidéo impossible ({pullResult.StandardError?.Trim()}). Le fichier reste sur le terminal : {_recordingRemotePath}");
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Récupération de la vidéo impossible ({1}). Le fichier reste sur le terminal : {2}", DateTime.Now, pullResult.StandardError?.Trim(), _recordingRemotePath));
                         return;
                     }
                     await _adbManager.ExecuteAsync($"-s {dev.Serial} shell rm {_recordingRemotePath}");
@@ -353,12 +353,12 @@ namespace ADBToolsNew
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur : {1}", DateTime.Now, ex.Message));
                 }
                 finally
                 {
                     // Remise à zéro du bouton
-                    BtnStartRecording.Content = "🔴 Démarrer l'enregistrement";
+                    BtnStartRecording.Content = Loc.T("🔴 Démarrer l'enregistrement");
                     BtnStartRecording.IsEnabled = true;
                     if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scroll) scroll.ScrollToEnd();
 
@@ -383,12 +383,12 @@ namespace ADBToolsNew
                 _isRecording = true;
                 _recordingDevice = dev;
                 UpdateMirroringStatusIndicator();
-                BtnStartRecording.Content = "⏹️ Arrêter l'enregistrement";
+                BtnStartRecording.Content = Loc.T("⏹️ Arrêter l'enregistrement");
 
                 // 🚀 LANCE LA PULSATION SUR L'ONGLET "MIRRORING"
                 AnimateNavButton(BtnNavMirroring, true);
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🎬 Préparation de la capture vidéo sur {dev.Serial}...");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎬 Préparation de la capture vidéo sur {1}...", DateTime.Now, dev.Serial));
 
                 // 1. Activation des clics temporaires
                 if (ChkRecordShowTouches.IsChecked == true)
@@ -409,21 +409,21 @@ namespace ADBToolsNew
                 if (CmbRecordOrientation.SelectedIndex == 1) sizeArg = "--size 720x1280 "; // Force Portrait
                 else if (CmbRecordOrientation.SelectedIndex == 2) sizeArg = "--size 1280x720 "; // Force Paysage
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚙️ Options vidéo : {sizeArg.Trim()} à {int.Parse(bitRate) / 1000000} Mbps");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚙️ Options vidéo : {1} à {2} Mbps", DateTime.Now, sizeArg.Trim(), int.Parse(bitRate) / 1000000));
 
                 _recordingProcess = _mirroringService.StartScreenRecord(_adbExePath, dev.Serial, _recordingRemotePath, bitRate, sizeArg);
                 _recordingStartedAt = DateTime.Now;
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⏺️ Enregistrement actif... (Cliquez à nouveau pour stopper)");
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ℹ️ Limite Android : l'enregistrement s'arrête automatiquement après 3 minutes (vers {(_recordingStartedAt + ScreenRecordMaxDuration):HH:mm:ss}).");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⏺️ Enregistrement actif... (Cliquez à nouveau pour stopper)", DateTime.Now));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ℹ️ Limite Android : l'enregistrement s'arrête automatiquement après 3 minutes (vers {1:HH:mm:ss}).", DateTime.Now, (_recordingStartedAt + ScreenRecordMaxDuration)));
             }
             catch (Exception ex)
             {
                 _isRecording = false;
                 _recordingDevice = null;
                 UpdateMirroringStatusIndicator();
-                BtnStartRecording.Content = "🔴 Démarrer l'enregistrement";
+                BtnStartRecording.Content = Loc.T("🔴 Démarrer l'enregistrement");
                 AnimateNavButton(BtnNavMirroring, false); // <-- Ajoute ça ici aussi
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur au démarrage de la vidéo : {ex.Message}");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur au démarrage de la vidéo : {1}", DateTime.Now, ex.Message));
             }
         }
 
@@ -465,13 +465,13 @@ namespace ADBToolsNew
             });
             string positionConfig = MirroringService.BuildWatermarkPosition(positionIndex);
 
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🎨 Incrustation du filigrane...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎨 Incrustation du filigrane...", DateTime.Now));
 
             bool watermarkOk = await _mirroringService.ApplyWatermarkAsync(ffmpegPath, rawVideoPath, outputVideoPath, watermarkText, positionConfig);
 
             AppendConsole(watermarkOk
-                ? $"\n[{DateTime.Now:HH:mm:ss}] ✅ Vidéo finale générée avec succès !"
-                : $"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Échec de l'incrustation du filigrane (ffmpeg) : la vidéo est conservée sans filigrane.");
+                ? Loc.F("\n[{0:HH:mm:ss}] ✅ Vidéo finale générée avec succès !", DateTime.Now)
+                : Loc.F("\n[{0:HH:mm:ss}] ⚠️ Échec de l'incrustation du filigrane (ffmpeg) : la vidéo est conservée sans filigrane.", DateTime.Now));
             if (System.IO.File.Exists(outputVideoPath)) OpenWithShell(outputVideoPath);
         }
 
@@ -495,8 +495,8 @@ namespace ADBToolsNew
             }
 
             BtnTakeScreenshot.IsEnabled = false;
-            BtnTakeScreenshot.Content = "⏳ Capture en cours...";
-            AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📸 Prise de la capture d'écran...");
+            BtnTakeScreenshot.Content = Loc.T("⏳ Capture en cours...");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📸 Prise de la capture d'écran...", DateTime.Now));
 
             try
             {
@@ -504,15 +504,15 @@ namespace ADBToolsNew
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} pull /sdcard/screen_tmp.png {AdbManager.QuoteLocalArg(savePath)}");
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell rm /sdcard/screen_tmp.png");
 
-                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ✅ Capture sauvegardée avec succès !");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Capture sauvegardée avec succès !", DateTime.Now));
 
                 UpdateCaptureFolderStats(); // Mettre à jour les stats
 
                 // On ouvre la photo uniquement si ce n'est pas en sauvegarde auto massive
                 if (ChkAutoSaveCaptures.IsChecked == false) OpenWithShell(savePath);
             }
-            catch (Exception ex) { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur : {ex.Message}"); }
-            finally { BtnTakeScreenshot.IsEnabled = true; BtnTakeScreenshot.Content = "📷 Capturer l'écran maintenant"; }
+            catch (Exception ex) { AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur : {1}", DateTime.Now, ex.Message)); }
+            finally { BtnTakeScreenshot.IsEnabled = true; BtnTakeScreenshot.Content = Loc.T("📷 Capturer l'écran maintenant"); }
         }
 
         // ==========================================
@@ -532,7 +532,7 @@ namespace ADBToolsNew
                 // Met à jour le texte dans ton XAML
                 if (TxtCaptureStats != null)
                 {
-                    TxtCaptureStats.Text = $"{stats.Count} fichier(s)  -  {stats.Megabytes:0.00} Mo";
+                    TxtCaptureStats.Text = Loc.F("{0} fichier(s)  -  {1:0.00} Mo", stats.Count, stats.Megabytes);
                 }
             }
             catch { }
@@ -547,7 +547,7 @@ namespace ADBToolsNew
         // Méthode manquante 2 : Vider le dossier
         private async void BtnClearCaptureFolder_Click(object sender, RoutedEventArgs e)
         {
-            bool confirm = await ShowCustomDialogAsync("Vider les captures", "Voulez-vous vraiment supprimer tous les fichiers de ce dossier ?\nCette action est irréversible.", "Supprimer", "Annuler", true);
+            bool confirm = await ShowCustomDialogAsync(Loc.T("Vider les captures"), Loc.T("Voulez-vous vraiment supprimer tous les fichiers de ce dossier ?\nCette action est irréversible."), Loc.T("Supprimer"), Loc.T("Annuler"), true);
             if (confirm)
             {
                 try
@@ -555,11 +555,11 @@ namespace ADBToolsNew
                     MirroringService.ClearCaptureFolder(GetCaptureFolderPath());
 
                     UpdateCaptureFolderStats();
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🗑️ Dossier des captures vidé avec succès.");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗑️ Dossier des captures vidé avec succès.", DateTime.Now));
                 }
                 catch (Exception ex)
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Erreur lors de la suppression : {ex.Message}");
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur lors de la suppression : {1}", DateTime.Now, ex.Message));
                 }
             }
         }
