@@ -32,6 +32,12 @@ namespace ADBToolsNew
         public ChartValues<int> PingValues { get; set; }
         public ChartValues<int> RssiValues { get; set; }
 
+        // Toute la session, pour les graphiques du rapport Word (l'écran n'affiche que les 40 derniers points).
+        // Ping perdu = null. Plafond de sécurité pour les très longues sessions.
+        private readonly List<int?> _pingHistory = new List<int?>();
+        private readonly List<int> _rssiHistory = new List<int>();
+        private const int ReportHistoryLimit = 20000;
+
         private bool _isPolling = false; // Le cadenas anti-embouteillage
         private string _lastBssid = ""; // Mémoire de la dernière antenne connue
         private bool _isFetchingHeavyData = false; // Cadenas pour les infos lourdes (IP/DNS)
@@ -140,6 +146,7 @@ namespace ADBToolsNew
 
                             RssiValues.Add(rssiVal);
                             if (RssiValues.Count > 40) RssiValues.RemoveAt(0);
+                            if (_rssiHistory.Count < ReportHistoryLimit) _rssiHistory.Add(rssiVal);
 
                             var rStats = _radarService.Stats;
                             TxtRssiMinMaxAvg.Text = $"Min/Moy/Max : {rStats.MinRssiText} / {rStats.AverageRssi} / {rStats.MaxRssiText} dBm";
@@ -227,6 +234,13 @@ namespace ADBToolsNew
                     {
                         PingValues.Add(sample.LatencyMs);
                         if (PingValues.Count > 40) PingValues.RemoveAt(0);
+                        if (_pingHistory.Count < ReportHistoryLimit) _pingHistory.Add(sample.Success ? (int?)sample.LatencyMs : null);
+                        // Échelle qui suit les mesures : un pic au-delà de 200 ms n'est plus coupé.
+                        if (PingChart.AxisY.Count > 0)
+                        {
+                            int peak = PingValues.Count > 0 ? PingValues.Max() : 0;
+                            PingChart.AxisY[0].MaxValue = Math.Max(200, Math.Ceiling(peak * 1.1 / 50.0) * 50);
+                        }
 
                         if (sample.Success)
                         {
@@ -453,8 +467,10 @@ namespace ADBToolsNew
             {
                 string deviceModel = await GetBrandModelAsync(serial);
 
-                string pingChartPath = CaptureVisualToFile(PingChart, "wifi_ping");
-                string rssiChartPath = CaptureVisualToFile(RssiChart, "wifi_rssi");
+                // Graphiques dessinés pour l'impression (fond blanc, échelle adaptée, toute la session).
+                string chartBase = System.IO.Path.Combine(GetCaptureFolderPath(), $"Diag_wifi_{FileNameHelper.Sanitize(serial)}_{DateTime.Now:yyyyMMdd_HHmmss}");
+                string pingChartPath = _pingHistory.Count > 0 ? ADBToolsNew.Core.ReportChartRenderer.RenderPing(_pingHistory, chartBase + "_ping.png") : "";
+                string rssiChartPath = _rssiHistory.Count > 0 ? ADBToolsNew.Core.ReportChartRenderer.RenderRssi(_rssiHistory, chartBase + "_rssi.png") : "";
 
                 var stats = _radarService.Stats;
                 TimeSpan duration = stats.Duration;
@@ -516,6 +532,9 @@ namespace ADBToolsNew
             // 3. Vidage des courbes des Graphiques LiveCharts
             if (PingValues != null) PingValues.Clear();
             if (RssiValues != null) RssiValues.Clear();
+            _pingHistory.Clear();
+            _rssiHistory.Clear();
+            if (PingChart.AxisY.Count > 0) PingChart.AxisY[0].MaxValue = 200;
 
             // 4. Nettoyage de l'interface (Remise à l'état par défaut)
             TxtWifiSsid.Text = "En attente...";
