@@ -109,6 +109,7 @@
     <Compile Include="Core\ReportTemplates.cs" />
     <Compile Include="Core\ToolsManager.cs" />
     <Compile Include="Core\AppUpdater.cs" />
+    <Compile Include="Core\AppSettings.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -188,6 +189,9 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.Updates.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.SettingsGeneral.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.ReportTemplates.cs">

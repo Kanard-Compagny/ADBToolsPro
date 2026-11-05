@@ -1,0 +1,274 @@
+﻿using ADBToolsNew.Core;
+using Microsoft.Win32;
+using System;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+
+namespace ADBToolsNew
+{
+    /// <summary>
+    /// Paramètres ▸ Général (page ouverte au démarrage, taille de l'interface, console), ▸ À propos (diagnostic,
+    /// dossier des données) et ▸ Désinstaller. Les réglages sont enregistrés par <see cref="AppSettings"/>.
+    /// </summary>
+    public partial class MainWindow
+    {
+        private bool _updatingGeneralUi;
+
+        // --------------------------------------------------------------- Démarrage
+
+        /// <summary>Applique les réglages d'affichage au démarrage (après le chargement des préférences).</summary>
+        private void ApplyDisplaySettingsAtStartup()
+        {
+            ApplyUiScale(AppSettings.Current.UiScale);
+            if (!AppSettings.Current.ConsoleExpandedAtStartup && !_isConsoleCollapsed)
+                BtnToggleConsole_Click(null, null);
+        }
+
+        /// <summary>Ouvre la page choisie dans Paramètres ▸ Général (Device Info par défaut).</summary>
+        private void OpenStartPage()
+        {
+            try
+            {
+                switch (AppSettings.Current.StartPage)
+                {
+                    case "Mirroring": NavMirroring_Click(null, null); break;
+                    case "Packages": NavPackages_Click(null, null); break;
+                    case "Explorer": NavExplorer_Click(null, null); break;
+                    case "Tools": NavTools_Click(null, null); break;
+                    case "Diag": NavDiag_Click(null, null); break;
+                    case "Radar": NavRadar_Click(null, null); break;
+                    case "Library": NavLibrary_Click(null, null); break;
+                    case "Logs": NavLogs_Click(null, null); break;
+                    default: break; // Device Info : déjà affiché
+                }
+            }
+            catch
+            {
+                // Une page qui n'arrive pas à s'ouvrir au démarrage ne doit jamais bloquer l'application.
+            }
+        }
+
+        // --------------------------------------------------------------- Général
+
+        private void UpdateGeneralUi()
+        {
+            _updatingGeneralUi = true;
+            try
+            {
+                foreach (var child in StartPageChoices.Children)
+                    if (child is RadioButton rb) rb.IsChecked = (rb.Tag as string) == AppSettings.Current.StartPage;
+                foreach (var child in UiScaleChoices.Children)
+                    if (child is RadioButton rb) rb.IsChecked = Math.Abs(ParseScale(rb.Tag) - AppSettings.Current.UiScale) < 0.01;
+                ChkConsoleAtStartup.IsChecked = AppSettings.Current.ConsoleExpandedAtStartup;
+            }
+            finally { _updatingGeneralUi = false; }
+        }
+
+        private void StartPage_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_updatingGeneralUi || !IsLoaded || !(sender is RadioButton rb)) return;
+            AppSettings.Current.StartPage = rb.Tag as string ?? "Dashboard";
+            AppSettings.Save();
+        }
+
+        private void UiScale_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_updatingGeneralUi || !IsLoaded || !(sender is RadioButton rb)) return;
+            AppSettings.Current.UiScale = ParseScale(rb.Tag);
+            AppSettings.Save();
+            ApplyUiScale(AppSettings.Current.UiScale);
+        }
+
+        private void ChkConsoleAtStartup_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_updatingGeneralUi || !IsLoaded) return;
+            AppSettings.Current.ConsoleExpandedAtStartup = ChkConsoleAtStartup.IsChecked == true;
+            AppSettings.Save();
+        }
+
+        private static double ParseScale(object tag) =>
+            double.TryParse(tag as string, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : 1.0;
+
+        /// <summary>Agrandit tout le contenu de la fenêtre (100 %, 115 % ou 130 %), comme le réglage de Scanalyse.</summary>
+        private void ApplyUiScale(double scale)
+        {
+            if (AppContentGrid == null) return;
+            AppContentGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01 ? Transform.Identity : new ScaleTransform(scale, scale);
+        }
+
+        /// <summary>
+        /// Sélecteur de dossier moderne : WPF n'a pas de « FolderBrowserDialog » natif, on détourne OpenFileDialog
+        /// en ne gardant que le dossier choisi (même astuce que l'Explorateur). Renvoie null si annulé.
+        /// </summary>
+        private static string PickFolder(string title, string initialFolder)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = title,
+                CheckFileExists = false,
+                CheckPathExists = true,
+                ValidateNames = false,
+                FileName = "Choisir ce dossier",
+                Filter = "Dossiers|no.such.file.exists.abcxyz"
+            };
+            try { if (!string.IsNullOrWhiteSpace(initialFolder) && Directory.Exists(initialFolder)) dlg.InitialDirectory = initialFolder; } catch { }
+            if (dlg.ShowDialog() != true) return null;
+            return Path.GetDirectoryName(dlg.FileName);
+        }
+
+        // --------------------------------------------------------------- À propos : diagnostic
+
+        private void UpdateDiagnosticUi()
+        {
+            if (TxtDiagnostic != null) TxtDiagnostic.Text = BuildDiagnosticText();
+        }
+
+        /// <summary>Versions et emplacements utiles pour une demande d'aide (rien de personnel hormis les chemins).</summary>
+        private string BuildDiagnosticText()
+        {
+            string Tool(ToolComponent c)
+            {
+                if (!ToolsManager.IsInstalled(c)) return "non installé";
+                string v = ToolsManager.GetInstalledVersion(c);
+                return string.IsNullOrEmpty(v) ? "installé" : v;
+            }
+
+            var sb = new StringBuilder();
+            void Line(string label, string value) => sb.AppendLine(label.PadRight(12) + value);
+
+            Line("ADB Tools", App.VersionText);
+            Line("Windows", $"{Environment.OSVersion.Version} ({(Environment.Is64BitOperatingSystem ? "64" : "32")} bits)");
+            Line(".NET", DotNetFrameworkVersion());
+            Line("ADB", Tool(ToolComponent.PlatformTools) + "  —  " + _adbExePath);
+            Line("scrcpy", Tool(ToolComponent.Scrcpy));
+            Line("FFmpeg", Tool(ToolComponent.FFmpeg));
+            Line("Programme", Process.GetCurrentProcess().MainModule?.FileName ?? AppDomain.CurrentDomain.BaseDirectory);
+            Line("Outils", ToolsManager.ToolsFolder);
+            Line("Captures", GetCaptureFolderPath());
+            Line("Réglages", AppSettings.DataFolder);
+            string share = AppUpdater.ShareFolder;
+            if (!string.IsNullOrWhiteSpace(share)) Line("Diffusion", share);
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>Version du .NET Framework installée (lue dans le registre, comme le recommande Microsoft).</summary>
+        private static string DotNetFrameworkVersion()
+        {
+            try
+            {
+                using (var key = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32)
+                                            .OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full\"))
+                {
+                    if (key?.GetValue("Release") is int release)
+                    {
+                        string v = release >= 533320 ? "4.8.1" : release >= 528040 ? "4.8" : release >= 461808 ? "4.7.2" :
+                                   release >= 461308 ? "4.7.1" : release >= 460798 ? "4.7" : "4.6.2 ou antérieur";
+                        return $"Framework {v} (release {release})";
+                    }
+                }
+            }
+            catch { }
+            return "Framework " + Environment.Version;
+        }
+
+        private void BtnCopyDiagnostic_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Clipboard.SetText(BuildDiagnosticText());
+                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📋 Diagnostic copié dans le presse-papiers.");
+            }
+            catch (Exception ex)
+            {
+                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Copie impossible : {ex.Message}");
+            }
+        }
+
+        private void BtnOpenDataFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try { Process.Start(new ProcessStartInfo(AppSettings.DataFolder) { UseShellExecute = true }); } catch { }
+        }
+
+        // --------------------------------------------------------------- Désinstaller
+
+        private async void BtnUninstall_Click(object sender, RoutedEventArgs e)
+        {
+            bool withData = ChkUninstallData.IsChecked == true;
+            if (_isSideloading)
+            {
+                await ShowCustomDialogAsync("⏳ Opération en cours", "Une mise à jour du terminal (Sideload) est en cours. Attendez qu'elle soit terminée.", "OK", null, false);
+                return;
+            }
+
+            string detail = withData
+                ? "Les réglages de ce poste ET vos données (captures, vidéos, logs, rapports, modèles personnels, bibliothèque de commandes, outils téléchargés) seront définitivement supprimés."
+                : "Les réglages de ce poste seront supprimés. Vos données (captures, rapports, modèles, outils téléchargés) restent dans le dossier du programme.";
+            bool ok = await ShowCustomDialogAsync("🗑️ Désinstaller ADB Tools ?",
+                detail + "\n\nADB Tools va se fermer, puis l'Explorateur s'ouvrira sur le dossier du programme : il ne restera qu'à le supprimer.",
+                "Désinstaller", "Annuler", true);
+            if (!ok) return;
+
+            try
+            {
+                try { ToolsManager.StopAdbServer(); } catch { }
+                StartUninstallScript(withData);
+                await Task.Delay(300);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                await ShowCustomDialogAsync("❌ Désinstallation impossible", ex.Message, "OK", null, true);
+            }
+        }
+
+        /// <summary>
+        /// Le nettoyage se fait APRÈS la fermeture (les préférences sont réécrites à la fermeture et certains
+        /// fichiers sont verrouillés tant que l'application tourne) : un petit script attend la fin du processus,
+        /// supprime les réglages (et les données si demandé), puis ouvre l'Explorateur sur le programme.
+        /// </summary>
+        private void StartUninstallScript(bool withData)
+        {
+            string appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+            string exe = Process.GetCurrentProcess().MainModule.FileName;
+            int pid = Process.GetCurrentProcess().Id;
+            string script = Path.Combine(Path.GetTempPath(), $"ADBToolsPro-desinstaller-{pid}.cmd");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("@echo off");
+            sb.AppendLine("chcp 65001 >nul");
+            sb.AppendLine(":attente");
+            sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul");
+            sb.AppendLine("if not errorlevel 1 (");
+            sb.AppendLine("  timeout /t 1 /nobreak >nul");
+            sb.AppendLine("  goto attente");
+            sb.AppendLine(")");
+            // Réglages : dossier %AppData%\ADBToolsPro (préférences, réglages, profil) + fichiers à côté du programme.
+            sb.AppendLine($"rmdir /s /q \"{AppSettings.DataFolder}\" 2>nul");
+            sb.AppendLine($"del /q \"{Path.Combine(appDir, "theme.txt")}\" 2>nul");
+            sb.AppendLine($"del /q \"{Path.Combine(appDir, "crash.log")}*\" 2>nul");
+            if (withData)
+            {
+                sb.AppendLine($"rmdir /s /q \"{GetCaptureFolderPath().TrimEnd('\\')}\" 2>nul");
+                sb.AppendLine($"rmdir /s /q \"{ReportTemplates.UserFolder}\" 2>nul");
+                sb.AppendLine($"rmdir /s /q \"{ToolsManager.ToolsFolder}\" 2>nul");
+                sb.AppendLine($"del /q \"{Path.Combine(appDir, "AdbLibrary.json")}\" 2>nul");
+            }
+            sb.AppendLine($"start \"\" explorer.exe /select,\"{exe}\"");
+            sb.AppendLine("(goto) 2>nul & del \"%~f0\"");
+            File.WriteAllText(script, sb.ToString(), new UTF8Encoding(false));
+
+            Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"\"{script}\"\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetTempPath()
+            });
+        }
+    }
+}

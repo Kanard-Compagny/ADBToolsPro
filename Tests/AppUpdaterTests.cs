@@ -62,6 +62,40 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void FindInShare_GardeLaVersionLaPlusRecente()
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "adbtools_test_" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(dir);
+            try
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "ADBToolsPro-1.1.1.zip"), "a");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "ADBToolsPro-1.10.0.zip"), "b");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "ADBToolsPro-1.10.0.zip.sha256"), "x");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "ADBToolsPro-1.2.0-dev.3.zip"), "c"); // ignorée
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "ADBToolsPro-1.10.0.md"), "## Notes");
+
+                var r = AppUpdater.FindInShare(dir);
+
+                Assert.IsNotNull(r);
+                Assert.AreEqual(new Version(1, 10, 0), r.Version);
+                Assert.IsTrue(r.FromShare);
+                Assert.IsNotNull(r.Sha256Url);
+                Assert.AreEqual("## Notes", r.Notes);
+                Assert.IsTrue(AppUpdater.CanInstall(r));
+            }
+            finally { System.IO.Directory.Delete(dir, true); }
+        }
+
+        [TestMethod]
+        public void FindInShare_DossierVide_Null()
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "adbtools_test_" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(dir);
+            try { Assert.IsNull(AppUpdater.FindInShare(dir)); }
+            finally { System.IO.Directory.Delete(dir, true); }
+        }
+
+        [TestMethod]
         public void IsUpdate_ComparaisonNumerique()
         {
             var v = AppUpdater.CurrentVersion;

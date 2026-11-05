@@ -31,7 +31,9 @@ namespace ADBToolsNew
             }
         }
 
-        /// <summary>Interroge GitHub et met à jour l'affichage (page Paramètres + bouton de la barre du haut).</summary>
+        private UpdateCheck _lastUpdateCheck;
+
+        /// <summary>Interroge le dossier de l'équipe et GitHub, puis met à jour l'affichage (Paramètres + barre du haut).</summary>
         private async Task CheckAppUpdateAsync(bool userAsked)
         {
             if (_updateBusy) return;
@@ -39,16 +41,17 @@ namespace ADBToolsNew
             if (userAsked) SetUpdateStatus("Recherche d'une nouvelle version…", null);
             try
             {
-                _latestRelease = await AppUpdater.GetLatestAsync();
+                _lastUpdateCheck = await AppUpdater.CheckAsync();
+                _latestRelease = _lastUpdateCheck.Latest;
                 UpdateAppUpdateUi();
                 if (AppUpdater.IsUpdate(_latestRelease))
                 {
-                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔔 Nouvelle version d'ADB Tools disponible : {_latestRelease.VersionText} (Paramètres ▸ Mises à jour).");
+                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🔔 Nouvelle version d'ADB Tools disponible : {_latestRelease.VersionText} ({_latestRelease.SourceLabel}) — Paramètres ▸ Mises à jour.");
                 }
             }
             catch (Exception ex)
             {
-                if (userAsked) SetUpdateStatus("Impossible de joindre GitHub pour le moment (" + ex.Message + "). Vérifiez la connexion Internet et réessayez.", "BadFg");
+                if (userAsked) SetUpdateStatus("La recherche a échoué (" + ex.Message + "). Réessayez plus tard.", "BadFg");
                 else throw;
             }
             finally
@@ -64,6 +67,9 @@ namespace ADBToolsNew
             if (TxtUpdCurrent == null) return;
             TxtUpdCurrent.Text = $"Version installée : {App.VersionText}";
             if (ChkUpdAuto != null) ChkUpdAuto.IsChecked = AppUpdater.AutoCheckEnabled;
+            string share = AppUpdater.ShareFolder;
+            TxtUpdShare.Text = string.IsNullOrWhiteSpace(share) ? "Aucun (GitHub seulement, si le dépôt est public)" : share;
+            BtnUpdShareClear.Visibility = string.IsNullOrWhiteSpace(share) ? Visibility.Collapsed : Visibility.Visible;
 
             bool available = AppUpdater.IsUpdate(_latestRelease);
             BtnUpdateAvailable.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
@@ -72,17 +78,33 @@ namespace ADBToolsNew
             BtnUpdNotes.Visibility = _latestRelease != null && !string.IsNullOrWhiteSpace(_latestRelease.Notes) ? Visibility.Visible : Visibility.Collapsed;
             BtnUpdNotes.Content = available ? $"Nouveautés de la {_latestRelease.VersionText}" : "Nouveautés de cette version";
 
+            // Détail des sources qui n'ont pas répondu (dépôt privé, partage introuvable...), en petit sous l'état.
+            var problems = new System.Collections.Generic.List<string>();
+            if (_lastUpdateCheck?.ShareProblem != null) problems.Add("Dossier de l'équipe : " + _lastUpdateCheck.ShareProblem + ".");
+            if (_lastUpdateCheck?.GitHubProblem != null) problems.Add("GitHub : " + _lastUpdateCheck.GitHubProblem + ".");
+            TxtUpdSources.Text = string.Join("\n", problems);
+            TxtUpdSources.Visibility = problems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_lastUpdateCheck == null)
+            {
+                BtnUpdInstall.Visibility = Visibility.Collapsed;
+                SetUpdateStatus("Aucune vérification pour le moment. Cliquez sur « Rechercher maintenant ».", null);
+                return;
+            }
+
             if (_latestRelease == null)
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
-                SetUpdateStatus("Aucune vérification pour le moment. Cliquez sur « Rechercher » pour vérifier.", null);
+                SetUpdateStatus(string.IsNullOrWhiteSpace(share)
+                    ? "Aucune version trouvée. Si le dépôt GitHub est privé, choisissez le dossier de diffusion de l'équipe ci-dessous."
+                    : "Aucune version trouvée pour le moment.", "WarnFg");
                 return;
             }
 
             if (!available)
             {
                 BtnUpdInstall.Visibility = Visibility.Collapsed;
-                SetUpdateStatus($"ADB Tools est à jour (dernière version publiée : {_latestRelease.VersionText}).", "OkFg");
+                SetUpdateStatus($"ADB Tools {App.VersionText} est à jour (dernière version disponible : {_latestRelease.VersionText}, {_latestRelease.SourceLabel}).", "OkFg");
                 return;
             }
 
@@ -92,7 +114,7 @@ namespace ADBToolsNew
                 BtnUpdInstall.Content = $"Installer la version {_latestRelease.VersionText}";
                 BtnUpdInstall.Visibility = Visibility.Visible;
                 double mo = _latestRelease.ZipSize / 1024.0 / 1024.0;
-                SetUpdateStatus($"Nouvelle version disponible : {_latestRelease.VersionText}{date} ({mo:0.0} Mo). " +
+                SetUpdateStatus($"Nouvelle version disponible : {_latestRelease.VersionText}{date} ({mo:0.0} Mo, {_latestRelease.SourceLabel}). " +
                                 "L'installation remplace uniquement les fichiers du programme : vos modèles, outils, captures et réglages sont conservés.", "Ink");
             }
             else
@@ -128,6 +150,24 @@ namespace ADBToolsNew
             AppUpdater.AutoCheckEnabled = ChkUpdAuto.IsChecked == true;
         }
 
+        private async void BtnUpdShareChoose_Click(object sender, RoutedEventArgs e)
+        {
+            string folder = PickFolder("Dossier de diffusion de l'équipe (où l'on dépose ADBToolsPro-X.Y.Z.zip)", AppUpdater.ShareFolder);
+            if (folder == null) return;
+            AppUpdater.ShareFolder = folder;
+            UpdateAppUpdateUi();
+            BtnUpdCheck.IsEnabled = false;
+            await CheckAppUpdateAsync(true);
+        }
+
+        private async void BtnUpdShareClear_Click(object sender, RoutedEventArgs e)
+        {
+            AppUpdater.ShareFolder = "";
+            UpdateAppUpdateUi();
+            BtnUpdCheck.IsEnabled = false;
+            await CheckAppUpdateAsync(true);
+        }
+
         private void BtnUpdNotes_Click(object sender, RoutedEventArgs e)
         {
             if (_latestRelease == null) return;
@@ -139,7 +179,7 @@ namespace ADBToolsNew
 
         private void BtnUpdPage_Click(object sender, RoutedEventArgs e)
         {
-            string url = _latestRelease?.PageUrl ?? AppUpdater.ReleasesPage;
+            string url = _latestRelease != null && !_latestRelease.FromShare ? _latestRelease.PageUrl : AppUpdater.ReleasesPage;
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
         }
 

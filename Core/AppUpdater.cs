@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -8,12 +9,13 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace ADBToolsNew.Core
 {
-    /// <summary>Une version publiée sur GitHub (page « Releases » du dépôt).</summary>
+    /// <summary>Une version disponible : publiée sur GitHub ou déposée dans le dossier de diffusion de l'équipe.</summary>
     public sealed class AppRelease
     {
         public Version Version { get; set; }
@@ -25,16 +27,33 @@ namespace ADBToolsNew.Core
         public long ZipSize { get; set; }
         public string Sha256Url { get; set; }
         public DateTime? PublishedAt { get; set; }
+
+        /// <summary>Vrai si la version vient du dossier de diffusion de l'équipe (ZipUrl/Sha256Url sont alors des chemins).</summary>
+        public bool FromShare { get; set; }
+
         public string VersionText => $"{Version.Major}.{Version.Minor}.{Version.Build}";
+        public string SourceLabel => FromShare ? "dossier de l'équipe" : "GitHub";
+    }
+
+    /// <summary>Résultat d'une recherche de mise à jour, avec l'état de chaque source pour l'affichage.</summary>
+    public sealed class UpdateCheck
+    {
+        /// <summary>Version la plus récente trouvée (toutes sources confondues), ou null.</summary>
+        public AppRelease Latest { get; set; }
+        /// <summary>Message sur GitHub (dépôt privé, pas de connexion...), null si tout va bien.</summary>
+        public string GitHubProblem { get; set; }
+        /// <summary>Message sur le dossier de l'équipe (introuvable...), null si tout va bien ou non configuré.</summary>
+        public string ShareProblem { get; set; }
     }
 
     /// <summary>
-    /// Mise à jour du programme lui-même, depuis les versions publiées sur GitHub (Kanard-Compagny/ADBToolsPro).
-    /// Le programme est portable : la mise à jour télécharge l'archive ADBToolsPro-X.Y.Z.zip, vérifie son empreinte
-    /// SHA-256 (fichier .sha256 publié à côté), la décompresse dans un dossier temporaire, puis un petit script
-    /// attend la fermeture d'ADB Tools, recopie les nouveaux fichiers par-dessus et relance le programme.
-    /// Les données de l'utilisateur ne sont jamais touchées : l'archive ne contient que les fichiers du programme
-    /// (Tools\, Templates\, Captures\, theme.txt... ne sont ni remplacés ni supprimés).
+    /// Mise à jour du programme lui-même. Deux sources, comme Scanalyse :
+    /// - le dossier de diffusion de l'équipe (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip et son .sha256) ;
+    /// - les versions publiées sur GitHub (Kanard-Compagny/ADBToolsPro), lisibles seulement si le dépôt est public.
+    /// La plus récente des deux est proposée. L'installation vérifie l'empreinte SHA-256, décompresse l'archive dans
+    /// un dossier temporaire, puis un petit script attend la fermeture d'ADB Tools, recopie les nouveaux fichiers et
+    /// relance le programme. Les données de l'utilisateur ne sont jamais touchées : l'archive ne contient que les
+    /// fichiers du programme (Tools\, Templates\, Captures\, theme.txt... ne sont ni remplacés ni supprimés).
     /// </summary>
     public static class AppUpdater
     {
@@ -62,15 +81,69 @@ namespace ADBToolsNew.Core
             }
         }
 
-        /// <summary>Dernière version publiée (null si aucune ou si GitHub ne répond pas correctement).</summary>
-        public static async Task<AppRelease> GetLatestAsync(CancellationToken ct = default)
+        /// <summary>Vérification automatique au démarrage (activée par défaut).</summary>
+        public static bool AutoCheckEnabled
+        {
+            get => AppSettings.Current.CheckUpdatesAtStartup;
+            set { AppSettings.Current.CheckUpdatesAtStartup = value; AppSettings.Save(); }
+        }
+
+        /// <summary>Dossier de diffusion de l'équipe (vide : GitHub seulement).</summary>
+        public static string ShareFolder
+        {
+            get => AppSettings.Current.UpdateShareFolder ?? "";
+            set { AppSettings.Current.UpdateShareFolder = value ?? ""; AppSettings.Save(); }
+        }
+
+        // ------------------------------------------------------------------ Recherche
+
+        /// <summary>Interroge le dossier de l'équipe (s'il est configuré) et GitHub, et garde la version la plus récente.</summary>
+        public static async Task<UpdateCheck> CheckAsync(CancellationToken ct = default)
+        {
+            var result = new UpdateCheck();
+            var found = new List<AppRelease>();
+
+            string share = ShareFolder;
+            if (!string.IsNullOrWhiteSpace(share))
+            {
+                try
+                {
+                    var r = await Task.Run(() => FindInShare(share), ct).ConfigureAwait(false);
+                    if (r != null) found.Add(r);
+                    else result.ShareProblem = "aucune archive ADBToolsPro-X.Y.Z.zip dans le dossier de l'équipe";
+                }
+                catch (Exception ex)
+                {
+                    result.ShareProblem = "dossier de l'équipe inaccessible (" + ex.Message + ")";
+                }
+            }
+
+            try
+            {
+                var r = await GetLatestFromGitHubAsync(ct).ConfigureAwait(false);
+                if (r != null) found.Add(r);
+                else result.GitHubProblem = "versions GitHub non accessibles (dépôt privé ou aucune version publiée)";
+            }
+            catch (Exception ex)
+            {
+                result.GitHubProblem = "GitHub injoignable (" + ex.Message + ")";
+            }
+
+            // À version égale, on préfère le dossier de l'équipe (réseau local, plus rapide).
+            result.Latest = found.OrderByDescending(r => r.Version).ThenByDescending(r => r.FromShare).FirstOrDefault();
+            return result;
+        }
+
+        /// <summary>Dernière version publiée sur GitHub (null si aucune, ou si le dépôt est privé).</summary>
+        public static async Task<AppRelease> GetLatestFromGitHubAsync(CancellationToken ct = default)
         {
             using (var req = new HttpRequestMessage(HttpMethod.Get, LatestApi))
             {
                 req.Headers.Accept.ParseAdd("application/vnd.github+json");
                 using (var resp = await Http.SendAsync(req, ct).ConfigureAwait(false))
                 {
-                    if (resp.StatusCode == HttpStatusCode.NotFound) return null; // aucune version publiée
+                    // 404 : aucune version publiée, ou dépôt privé (invisible sans compte).
+                    if (resp.StatusCode == HttpStatusCode.NotFound) return null;
                     resp.EnsureSuccessStatusCode();
                     string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                     return ParseRelease(json);
@@ -124,6 +197,43 @@ namespace ADBToolsNew.Core
             }
         }
 
+        private static readonly Regex ShareZipName = new Regex(@"^ADBToolsPro-(\d+\.\d+\.\d+)\.zip$", RegexOptions.IgnoreCase);
+
+        /// <summary>Version la plus récente déposée dans le dossier de l'équipe (null si aucune).</summary>
+        public static AppRelease FindInShare(string folder)
+        {
+            if (!Directory.Exists(folder)) throw new DirectoryNotFoundException("dossier introuvable");
+            AppRelease best = null;
+            foreach (var path in Directory.GetFiles(folder, "ADBToolsPro-*.zip"))
+            {
+                var m = ShareZipName.Match(Path.GetFileName(path));
+                if (!m.Success || !TryParseVersion(m.Groups[1].Value, out var v)) continue;
+                if (best != null && best.Version >= v) continue;
+                string sha = path + ".sha256";
+                string notes = Path.Combine(folder, $"ADBToolsPro-{m.Groups[1].Value}.md");
+                var fi = new FileInfo(path);
+                best = new AppRelease
+                {
+                    Version = v,
+                    Tag = "v" + m.Groups[1].Value,
+                    ZipName = fi.Name,
+                    ZipUrl = path,
+                    ZipSize = fi.Length,
+                    Sha256Url = File.Exists(sha) ? sha : null,
+                    PublishedAt = fi.LastWriteTime,
+                    PageUrl = folder,
+                    Notes = File.Exists(notes) ? SafeRead(notes) : "",
+                    FromShare = true
+                };
+            }
+            return best;
+        }
+
+        private static string SafeRead(string path)
+        {
+            try { return File.ReadAllText(path); } catch { return ""; }
+        }
+
         public static bool TryParseVersion(string text, out Version version)
         {
             version = null;
@@ -136,48 +246,26 @@ namespace ADBToolsNew.Core
             return true;
         }
 
-        /// <summary>Vrai si la version publiée est plus récente que celle en cours et installable automatiquement.</summary>
+        /// <summary>Vrai si la version trouvée est plus récente que celle en cours.</summary>
         public static bool IsUpdate(AppRelease release) =>
             release != null && release.Version > CurrentVersion;
 
+        /// <summary>
+        /// Installable automatiquement : archive présente, et empreinte SHA-256 publiée à côté (obligatoire pour
+        /// GitHub ; facultative dans le dossier de l'équipe, qui est un emplacement de confiance choisi par l'équipe).
+        /// </summary>
         public static bool CanInstall(AppRelease release) =>
-            release != null && !string.IsNullOrEmpty(release.ZipUrl) && !string.IsNullOrEmpty(release.Sha256Url);
-
-        // ------------------------------------------------------------------ Vérification au démarrage
-
-        private static string SettingsFolder
-        {
-            get
-            {
-                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ADBToolsPro");
-                Directory.CreateDirectory(folder);
-                return folder;
-            }
-        }
-
-        private static string AutoCheckPath => Path.Combine(SettingsFolder, "maj_auto.txt");
-
-        /// <summary>Vérification automatique au démarrage (activée par défaut).</summary>
-        public static bool AutoCheckEnabled
-        {
-            get
-            {
-                try { return !File.Exists(AutoCheckPath) || File.ReadAllText(AutoCheckPath).Trim() != "non"; }
-                catch { return true; }
-            }
-            set
-            {
-                try { File.WriteAllText(AutoCheckPath, value ? "oui" : "non"); } catch { }
-            }
-        }
+            release != null && !string.IsNullOrEmpty(release.ZipUrl) &&
+            (release.FromShare || !string.IsNullOrEmpty(release.Sha256Url));
 
         // ------------------------------------------------------------------ Téléchargement et installation
 
         private static string WorkFolder => Path.Combine(Path.GetTempPath(), "ADBToolsPro-maj");
 
         /// <summary>
-        /// Télécharge l'archive, vérifie son empreinte SHA-256 et la décompresse. Renvoie le dossier contenant les
-        /// nouveaux fichiers du programme, prêt à être recopié par <see cref="StartInstallAndExit"/>.
+        /// Récupère l'archive (téléchargement ou copie depuis le dossier de l'équipe), vérifie son empreinte SHA-256
+        /// et la décompresse. Renvoie le dossier contenant les nouveaux fichiers du programme, prêt à être recopié
+        /// par <see cref="StartInstallAndExit"/>.
         /// </summary>
         public static async Task<string> DownloadAsync(AppRelease release, IProgress<double> progress, CancellationToken ct = default)
         {
@@ -188,36 +276,44 @@ namespace ADBToolsNew.Core
             string zipPath = Path.Combine(WorkFolder, release.ZipName);
 
             // Empreinte attendue (format sha256sum : "<hash>  <nom>")
-            string shaText = await Http.GetStringAsync(release.Sha256Url).ConfigureAwait(false);
-            string expected = shaText.Trim().Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant();
-            if (string.IsNullOrEmpty(expected) || expected.Length != 64)
-                throw new InvalidDataException("Empreinte SHA-256 de la mise à jour illisible.");
-
-            using (var resp = await Http.GetAsync(release.ZipUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+            string expected = null;
+            if (!string.IsNullOrEmpty(release.Sha256Url))
             {
-                resp.EnsureSuccessStatusCode();
-                long total = resp.Content.Headers.ContentLength ?? release.ZipSize;
-                using (var src = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                string shaText = release.FromShare
+                    ? File.ReadAllText(release.Sha256Url)
+                    : await Http.GetStringAsync(release.Sha256Url).ConfigureAwait(false);
+                expected = shaText.Trim().Split(new[] { ' ', '\t', '\r', '\n', '*' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant();
+                if (string.IsNullOrEmpty(expected) || expected.Length != 64)
+                    throw new InvalidDataException("Empreinte SHA-256 de la mise à jour illisible.");
+            }
+
+            if (release.FromShare)
+            {
+                using (var src = File.OpenRead(release.ZipUrl))
                 using (var dst = File.Create(zipPath))
+                    await CopyWithProgressAsync(src, dst, src.Length, progress, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                using (var resp = await Http.GetAsync(release.ZipUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
                 {
-                    var buffer = new byte[81920];
-                    long done = 0;
-                    int read;
-                    while ((read = await src.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
-                    {
-                        await dst.WriteAsync(buffer, 0, read, ct).ConfigureAwait(false);
-                        done += read;
-                        if (total > 0) progress?.Report(done * 100.0 / total);
-                    }
+                    resp.EnsureSuccessStatusCode();
+                    long total = resp.Content.Headers.ContentLength ?? release.ZipSize;
+                    using (var src = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    using (var dst = File.Create(zipPath))
+                        await CopyWithProgressAsync(src, dst, total, progress, ct).ConfigureAwait(false);
                 }
             }
 
-            string actual;
-            using (var sha = SHA256.Create())
-            using (var fs = File.OpenRead(zipPath))
-                actual = BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
-            if (actual != expected)
-                throw new InvalidDataException("L'archive téléchargée est incomplète ou modifiée (empreinte SHA-256 différente). Rien n'a été installé.");
+            if (expected != null)
+            {
+                string actual;
+                using (var sha = SHA256.Create())
+                using (var fs = File.OpenRead(zipPath))
+                    actual = BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
+                if (actual != expected)
+                    throw new InvalidDataException("L'archive est incomplète ou modifiée (empreinte SHA-256 différente). Rien n'a été installé.");
+            }
 
             string extractFolder = Path.Combine(WorkFolder, "fichiers");
             ZipFile.ExtractToDirectory(zipPath, extractFolder);
@@ -227,6 +323,19 @@ namespace ADBToolsNew.Core
             string exe = Directory.GetFiles(extractFolder, exeName, SearchOption.AllDirectories).FirstOrDefault();
             if (exe == null) throw new InvalidDataException($"{exeName} introuvable dans l'archive de mise à jour.");
             return Path.GetDirectoryName(exe);
+        }
+
+        private static async Task CopyWithProgressAsync(Stream src, Stream dst, long total, IProgress<double> progress, CancellationToken ct)
+        {
+            var buffer = new byte[81920];
+            long done = 0;
+            int read;
+            while ((read = await src.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
+            {
+                await dst.WriteAsync(buffer, 0, read, ct).ConfigureAwait(false);
+                done += read;
+                if (total > 0) progress?.Report(done * 100.0 / total);
+            }
         }
 
         /// <summary>
@@ -246,8 +355,6 @@ namespace ADBToolsNew.Core
             var sb = new StringBuilder();
             sb.AppendLine("@echo off");
             sb.AppendLine("chcp 65001 >nul");
-            sb.AppendLine("title Mise a jour d'ADB Tools Pro");
-            sb.AppendLine("echo Mise a jour d'ADB Tools Pro en cours, veuillez patienter...");
             sb.AppendLine(":attente");
             sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul");
             sb.AppendLine("if not errorlevel 1 (");

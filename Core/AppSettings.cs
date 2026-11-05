@@ -1,0 +1,104 @@
+﻿using System;
+using System.IO;
+using System.Xml.Serialization;
+
+namespace ADBToolsNew.Core
+{
+    /// <summary>
+    /// Réglages de ce poste (page Paramètres), enregistrés dans %AppData%\ADBToolsPro\reglages.xml.
+    /// Lecture tolérante : un fichier absent ou abîmé donne simplement les valeurs par défaut.
+    /// </summary>
+    public sealed class AppSettings
+    {
+        // --- Général : démarrage et affichage
+        /// <summary>Page ouverte au démarrage : Dashboard, Mirroring, Packages, Explorer, Tools, Diag, Radar, Library, Logs.</summary>
+        public string StartPage { get; set; } = "Dashboard";
+        /// <summary>Taille de l'interface : 1.0, 1.15 ou 1.3.</summary>
+        public double UiScale { get; set; } = 1.0;
+        /// <summary>Console dépliée au démarrage.</summary>
+        public bool ConsoleExpandedAtStartup { get; set; } = true;
+
+        // --- Mises à jour
+        public bool CheckUpdatesAtStartup { get; set; } = true;
+        /// <summary>Dossier de diffusion de l'équipe (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip). Vide : GitHub seulement.</summary>
+        public string UpdateShareFolder { get; set; } = "";
+
+        // ------------------------------------------------------------------ Lecture / écriture
+
+        public static string DataFolder
+        {
+            get
+            {
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ADBToolsPro");
+                try { Directory.CreateDirectory(folder); } catch { }
+                return folder;
+            }
+        }
+
+        private static string FilePath => Path.Combine(DataFolder, "reglages.xml");
+
+        private static AppSettings _current;
+
+        /// <summary>Réglages en cours (chargés au premier accès).</summary>
+        public static AppSettings Current => _current ?? (_current = Load());
+
+        private static AppSettings Load()
+        {
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    using (var fs = File.OpenRead(FilePath))
+                    {
+                        var s = (AppSettings)new XmlSerializer(typeof(AppSettings)).Deserialize(fs);
+                        if (s != null) { s.Normalize(); return s; }
+                    }
+                }
+            }
+            catch
+            {
+                // Fichier abîmé : on repart des valeurs par défaut (il sera réécrit au prochain changement).
+            }
+            var d = new AppSettings();
+            MigrateOldFiles(d);
+            return d;
+        }
+
+        /// <summary>Reprend le choix « vérifier au démarrage » de la 1.1.1 (ancien fichier maj_auto.txt).</summary>
+        private static void MigrateOldFiles(AppSettings s)
+        {
+            try
+            {
+                string old = Path.Combine(DataFolder, "maj_auto.txt");
+                if (File.Exists(old)) s.CheckUpdatesAtStartup = File.ReadAllText(old).Trim() != "non";
+            }
+            catch { }
+        }
+
+        private void Normalize()
+        {
+            if (UiScale < 1.0 || UiScale > 1.5) UiScale = 1.0;
+            if (string.IsNullOrWhiteSpace(StartPage)) StartPage = "Dashboard";
+            if (UpdateShareFolder == null) UpdateShareFolder = "";
+        }
+
+        public static void Save()
+        {
+            try
+            {
+                string tmp = FilePath + ".tmp";
+                using (var fs = File.Create(tmp))
+                    new XmlSerializer(typeof(AppSettings)).Serialize(fs, Current);
+                if (File.Exists(FilePath)) File.Delete(FilePath);
+                File.Move(tmp, FilePath);
+            }
+            catch
+            {
+                // Dossier en lecture seule... : le réglage reste valable pour cette session.
+            }
+        }
+
+        /// <summary>Supprime les réglages de ce poste (désinstallation).</summary>
+        public static void ResetForUninstall() => _current = new AppSettings();
+    }
+}

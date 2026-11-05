@@ -544,12 +544,23 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border x:Name="Border" Width="20" Height="20" CornerRadius="4" BorderThickness="2" BorderBrush="{DynamicResource BorderColor}" Background="{DynamicResource Check}" VerticalAlignment="Center">
+                        <!-- Grille (et non StackPanel horizontal) : un long libellé passe à la ligne au lieu de déborder. -->
+                        <Grid VerticalAlignment="Center" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Border" Width="20" Height="20" CornerRadius="4" BorderThickness="2" BorderBrush="{DynamicResource BorderColor}" Background="{DynamicResource Check}" VerticalAlignment="Top">
                                 <Path x:Name="CheckMark" Visibility="Collapsed" Width="10" Height="10" Stretch="Fill" Fill="{DynamicResource OnBrand}" Data="M 0,5 L 4,9 L 11,0 L 12,1 L 4,11 L -1,6 Z"/>
                             </Border>
-                            <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
+                            <ContentPresenter Grid.Column="1" Margin="12,1,0,0" VerticalAlignment="Center">
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="{DynamicResource Brand}"/>
@@ -701,6 +712,83 @@
         </Style>
 
         <!-- Carte de choix (ex. thème Système / Clair / Sombre) -->
+        <!-- Choix en pastilles (page de démarrage, taille de l'interface), comme Scanalyse -->
+        <Style x:Key="SettingsPillStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="15" Padding="13,6">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Muted}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brand}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brand}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnBrand}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Lien texte (« Ouvrir le dossier des données ») -->
+        <Style x:Key="SettingsLinkStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource BrandText}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" Padding="8,6">
+                            <ContentPresenter x:Name="Cp" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Entrée « Désinstaller » du sous-menu Paramètres (rouge) -->
+        <Style x:Key="SettingsNavDangerStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource BadFg}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BadBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BadBg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BadFg}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="SettingsChoiceStyle" TargetType="RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -737,7 +825,7 @@
         </Border.Effect>
     </Border>
     <Border x:Name="RootBorder" Margin="12" CornerRadius="10" Background="{DynamicResource BgPrimary}" BorderBrush="{DynamicResource Line}" BorderThickness="1" SizeChanged="RootBorder_SizeChanged">
-        <Grid>
+        <Grid x:Name="AppContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="35"/>
                 <RowDefinition Height="Auto"/>
@@ -2730,6 +2818,13 @@
                                                 <TextBlock Text="À propos" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </RadioButton>
+                                        <Border Height="1" Background="{DynamicResource Line}" Margin="12,14,12,10"/>
+                                        <RadioButton x:Name="SetNavUninstall" GroupName="SettingsNav" Tag="Uninstall" Style="{StaticResource SettingsNavDangerStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Désinstaller" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                     </StackPanel>
                                     </Border>
 
@@ -2739,7 +2834,7 @@
                                 <!-- Général -->
                                 <StackPanel x:Name="SettingsPanelGeneral">
                                     <TextBlock Text="Général" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
-                                    <TextBlock Text="Apparence de l'application." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <TextBlock Text="Apparence et ce qui s'affiche au démarrage." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
                                         <TextBlock Text="Thème" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
@@ -2764,6 +2859,30 @@
                                                 </StackPanel>
                                             </RadioButton>
                                             </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Démarrage et affichage" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Page ouverte au démarrage" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,10,0,6"/>
+                                            <WrapPanel x:Name="StartPageChoices">
+                                                <RadioButton GroupName="StartPage" Tag="Dashboard" Content="Device Info" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Mirroring" Content="Mirroring" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Packages" Content="Package Manager" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Explorer" Content="Explorer" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Tools" Content="Outils avancés" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Diag" Content="Diagnostics SAV" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Radar" Content="Analyse Wi-Fi" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Library" Content="Bibliothèque ADB" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Logs" Content="Logs" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                            </WrapPanel>
+                                            <TextBlock Text="Taille de l'interface" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,6,0,6"/>
+                                            <WrapPanel x:Name="UiScaleChoices">
+                                                <RadioButton GroupName="UiScale" Tag="1" Content="100 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
+                                                <RadioButton GroupName="UiScale" Tag="1.15" Content="115 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
+                                                <RadioButton GroupName="UiScale" Tag="1.3" Content="130 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
+                                            </WrapPanel>
+                                            <CheckBox x:Name="ChkConsoleAtStartup" Content="Console dépliée au démarrage" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkConsoleAtStartup_Changed" Unchecked="ChkConsoleAtStartup_Changed" Margin="0,6,0,0"/>
                                         </StackPanel>
                                     </Border>
                                     <Border Style="{StaticResource SettingsCardStyle}">
@@ -2846,10 +2965,10 @@
                                 <!-- Mises à jour -->
                                 <StackPanel x:Name="SettingsPanelUpdates" Visibility="Collapsed">
                                     <TextBlock Text="Mises à jour" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
-                                    <TextBlock Text="Nouvelles versions d'ADB Tools, publiées sur GitHub." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <TextBlock Text="Recherche des nouvelles versions d'ADB Tools." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
-                                            <Grid Margin="0,0,0,10">
+                                            <Grid Margin="0,0,0,12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
@@ -2860,11 +2979,12 @@
                                                     <TextBlock x:Name="TxtUpdCurrent" Text="Version installée" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
                                                 </StackPanel>
                                             </Grid>
-                                            <TextBlock x:Name="TxtUpdStatus" Text="" FontSize="12.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                            <ProgressBar x:Name="UpdProgress" Style="{StaticResource ModernProgressBarStyle}" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,12"/>
-                                            <WrapPanel>
+                                            <TextBlock x:Name="TxtUpdStatus" Text="" FontSize="12.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                            <TextBlock x:Name="TxtUpdSources" Text="" FontSize="11.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4" Visibility="Collapsed"/>
+                                            <ProgressBar x:Name="UpdProgress" Style="{StaticResource ModernProgressBarStyle}" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,6,0,6"/>
+                                            <WrapPanel Margin="0,8,0,0">
                                                 <Button x:Name="BtnUpdInstall" Content="Installer" Click="BtnUpdInstall_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8" Visibility="Collapsed"/>
-                                                <Button x:Name="BtnUpdCheck" Content="🔄 Rechercher les mises à jour" Click="BtnUpdCheck_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button x:Name="BtnUpdCheck" Content="Rechercher maintenant" Click="BtnUpdCheck_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
                                                 <Button x:Name="BtnUpdNotes" Content="Nouveautés" Click="BtnUpdNotes_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8" Visibility="Collapsed"/>
                                                 <Button Content="Page des versions" Click="BtnUpdPage_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
                                             </WrapPanel>
@@ -2872,9 +2992,18 @@
                                     </Border>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
-                                            <TextBlock Text="Vérification automatique" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                            <TextBlock Text="À chaque ouverture, ADB Tools regarde discrètement si une nouvelle version est sortie et l'indique en haut à droite. Rien n'est installé sans votre accord." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                                            <CheckBox x:Name="ChkUpdAuto" Content="Rechercher les nouvelles versions au démarrage" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkUpdAuto_Changed" Unchecked="ChkUpdAuto_Changed"/>
+                                            <TextBlock Text="Sources des mises à jour" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="ADB Tools cherche une version plus récente dans le dossier de diffusion de l'équipe (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip et son fichier .sha256) et sur GitHub si le dépôt est public. Rien n'est installé sans votre accord."
+                                                       FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <CheckBox x:Name="ChkUpdAuto" Content="Rechercher au démarrage" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkUpdAuto_Changed" Unchecked="ChkUpdAuto_Changed" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Dossier de diffusion de l'équipe" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10,7" Margin="0,0,0,10">
+                                                <TextBlock x:Name="TxtUpdShare" Text="Aucun" FontFamily="{DynamicResource FontMono}" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                            </Border>
+                                            <WrapPanel>
+                                                <Button Content="Choisir…" Click="BtnUpdShareChoose_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button x:Name="BtnUpdShareClear" Content="Retirer" Click="BtnUpdShareClear_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Visibility="Collapsed"/>
+                                            </WrapPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -2916,6 +3045,36 @@
                                                 <Button Content="Licence GPL v3" Click="BtnShowLicense_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
                                                 <Button Content="Composants tiers et licences" Click="BtnShowThirdParty_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
                                                 <Button Content="Aide et dépannage" Click="BtnHelp_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
+                                                <Button Content="Ouvrir le dossier des données" Click="BtnOpenDataFolder_Click" Style="{StaticResource SettingsLinkStyle}" Margin="0,0,8,8"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Diagnostic" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Versions et emplacements utiles à joindre à une demande d'aide (ticket GitHub, e-mail)." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="12,10" Margin="0,0,0,12">
+                                                <TextBlock x:Name="TxtDiagnostic" Text="" FontFamily="{DynamicResource FontMono}" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                            </Border>
+                                            <WrapPanel>
+                                                <Button Content="Copier le diagnostic" Click="BtnCopyDiagnostic_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Désinstaller -->
+                                <StackPanel x:Name="SettingsPanelUninstall" Visibility="Collapsed">
+                                    <TextBlock Text="Désinstaller" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Retirer ADB Tools de ce poste." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border Style="{StaticResource SettingsCardStyle}" BorderBrush="{DynamicResource BadFg}">
+                                        <StackPanel>
+                                            <TextBlock Text="Désinstaller ADB Tools" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Efface les réglages de ce poste et, si vous le cochez, vos données, puis ferme ADB Tools. L'Explorateur s'ouvre ensuite sur le dossier du programme : il ne reste qu'à le supprimer (Suppr)."
+                                                       FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <CheckBox x:Name="ChkUninstallData" Content="Supprimer aussi mes données : captures, vidéos, logs et rapports, modèles de rapport personnels, outils téléchargés (adb, scrcpy, FFmpeg)" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,14"/>
+                                            <WrapPanel>
+                                                <Button Content="Désinstaller…" Click="BtnUninstall_Click" Style="{StaticResource DangerButtonStyle}" Height="32" Padding="14,0"/>
                                             </WrapPanel>
                                         </StackPanel>
                                     </Border>

@@ -495,7 +495,7 @@ namespace ADBToolsNew.Core
         }
 
         /// <summary>Arrête le serveur adb lancé depuis notre dossier Tools (libère adb.exe pour la mise à jour).</summary>
-        private static void StopAdbServer()
+        internal static void StopAdbServer()
         {
             string adb = Path.Combine(ToolsFolder, "adb.exe");
             if (File.Exists(adb)) RunAndCapture(adb, "kill-server", 5000);

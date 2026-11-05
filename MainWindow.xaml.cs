@@ -373,6 +373,7 @@ namespace ADBToolsNew
             // la taille ne change — ce qui décalait la fenêtre — et pour contourner un bug WPF connu où
             // AllowsTransparency="True" fausse légèrement le centrage natif "CenterScreen".
             CenterOnScreen();
+            ApplyDisplaySettingsAtStartup(); // taille de l'interface, console (Paramètres ▸ Général)
 
             // --- Initialisation du moteur ADB (démarrage du démon) ---
             try
@@ -392,6 +393,8 @@ namespace ADBToolsNew
             // --- Surveillance des terminaux : seulement après le démarrage du démon ---
             StartDeviceWatcher();
             StartStatsWatcher();
+
+            OpenStartPage(); // page choisie dans Paramètres ▸ Général
         }
 
         /// <summary>Centre la fenêtre sur l'écran de travail actuel, en tenant compte de la taille réelle
