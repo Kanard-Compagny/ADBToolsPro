@@ -10,7 +10,7 @@ namespace ADBToolsNew.Tests
     public class ScanTestTests
     {
         private static string Line(string source, string sym, string data, long ms = 1762370000000) =>
-            $"I/ADBToolsScan( 1234): SCAN\t{ms}\t{source}\t{sym}\t{Convert.ToBase64String(Encoding.UTF8.GetBytes(data))}";
+            $"I/ADBToolsDiag( 1234): SCAN\t{ms}\t{source}\t{sym}\t{Convert.ToBase64String(Encoding.UTF8.GetBytes(data))}";
 
         [TestMethod]
         public void Journal_LectureDecodee()
@@ -21,7 +21,7 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual("EAN-13", r.Symbology);
             Assert.AreEqual("DataWedge", r.SourceText);
             Assert.AreEqual(1762370000000, r.DeviceMs);
-            Assert.IsNull(ScanText.ParseLogLine("I/ADBToolsScan( 1234): READY\tZebra\tTC52\t11", t0));
+            Assert.IsNull(ScanText.ParseLogLine("I/ADBToolsDiag( 1234): READY\tZebra\tTC52\t11", t0));
             Assert.IsNull(ScanText.ParseLogLine("I/Autre( 1): SCAN\t1\tk\t\tAAAA", t0));
         }
 

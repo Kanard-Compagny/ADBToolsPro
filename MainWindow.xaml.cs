@@ -468,6 +468,7 @@ namespace ADBToolsNew
             try { StopRadar(); } catch { }
             try { StopGetEventLab(); } catch { }
             try { StopScanTestOnExit(); } catch { }
+            try { StopDeviceTestsOnExit(); } catch { }
 
             if (_isRecording)
             {

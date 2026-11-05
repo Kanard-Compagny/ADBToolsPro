@@ -2498,6 +2498,7 @@
                                                         <TextBlock Text="Détection matérielle des boutons physiques, de la gâchette et de la dalle tactile." Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                        <Button Content="🧪 Tests du terminal…" Click="BtnOpenDeviceTests_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35" Padding="12,0" Margin="0,0,8,0" ToolTip="Caméras, flash, son, micro, vibreur, capteurs, NFC, GPS, Bluetooth, clavier, mémoire : chaque test est facultatif"/>
                                                         <Button Content="🔫 Test du lecteur…" Click="BtnOpenScanTest_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit réellement des codes-barres avec le lecteur du terminal (appli de test temporaire) : données, symbologie, cadence, taux de réussite"/>
                                                         <ToggleButton x:Name="ToggleLabListen" Content="Démarrer l'écoute" Click="ToggleLabListen_Click" Style="{StaticResource ModernToggleStyle}" Width="140" Height="35" Margin="0,0,8,0"/>
                                                         <Button x:Name="BtnToggleLabCard" Content="▾" ToolTip="Réduire le Laboratoire" Click="BtnToggleLabCard_Click" Style="{StaticResource SidebarToggleStyle}" Width="26" Height="26" FontSize="13"/>
@@ -3732,6 +3733,119 @@
 
                         <TextBlock Grid.Row="3" x:Name="TxtScanTestHint" FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,12,0,0"
                                    Text="Zebra et Honeywell : la symbologie est transmise. Autres marques : lecture en mode clavier, symbologie estimée. La gâchette est détectée pour mesurer le délai et les lectures ratées."/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Tests du terminal (Diagnostics SAV) : appli de diagnostic temporaire, chaque test est facultatif. -->
+            <Grid x:Name="DeviceTestsOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1000">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Margin="40,30" MaxWidth="1200" Padding="22,18">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="🧪 Tests du terminal" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                <TextBlock x:Name="TxtDevTestsStatus" Text="Faites seulement les tests utiles : un test non fait n'apparaît pas dans le rapport." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button x:Name="BtnDevTestsStart" Content="▶ Préparer le terminal" Click="BtnDevTestsStart_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,0" ToolTip="Installe l'appli de diagnostic et détecte le matériel présent"/>
+                                <Button x:Name="BtnDevTestsStop" Content="⏹ Terminer" Click="BtnDevTestsStop_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Désinstalle l'appli de diagnostic (les résultats restent affichés)"/>
+                                <Button Content="✖" Click="BtnDevTestsClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="34" Height="34" ToolTip="Fermer (l'appli de diagnostic est retirée du terminal)"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="300"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="0,0,16,0">
+                                <ListBox x:Name="DevTestsList" Background="Transparent" BorderThickness="0" SelectionChanged="DevTestsList_SelectionChanged"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="10,7"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}" Margin="4,2">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface2}"/></Trigger>
+                                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSoft}"/></Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Opacity="{Binding Opacity}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" FontSize="16" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding SubText}" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Status}" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+
+                            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="DevTestPanel" Margin="0,0,8,0">
+                                    <TextBlock x:Name="TxtDevTestTitle" Text="Choisissez un test dans la liste" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                    <TextBlock x:Name="TxtDevTestInstruction" Text="Commencez par « Préparer le terminal » : les tests impossibles sur ce modèle sont grisés." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                    <WrapPanel Margin="0,0,0,12">
+                                        <Button x:Name="BtnDevTestRun" Content="▶ Lancer le test" Click="BtnDevTestRun_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0" IsEnabled="False"/>
+                                        <Button x:Name="BtnDevTestAbort" Content="⏹ Arrêter" Click="BtnDevTestAbort_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" IsEnabled="False"/>
+                                    </WrapPanel>
+                                    <Border x:Name="DevTestLiveBox" Background="{DynamicResource ConsoleBg}" CornerRadius="8" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                                        <TextBlock x:Name="TxtDevTestLive" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource ConsoleInk}" TextWrapping="Wrap"/>
+                                    </Border>
+                                    <Image x:Name="DevTestPhoto" MaxHeight="300" HorizontalAlignment="Left" Stretch="Uniform" Margin="0,0,0,8" Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <WrapPanel Margin="0,0,0,8">
+                                        <Button x:Name="BtnDevTestOpenFile" Content="📂 Ouvrir le fichier" Click="BtnDevTestOpenFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Margin="0,0,8,0" Visibility="Collapsed" ToolTip="Photo ou enregistrement récupéré du terminal"/>
+                                        <Button x:Name="BtnDevTestPlay" Content="🔊 Réécouter" Click="BtnDevTestPlay_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Visibility="Collapsed"/>
+                                    </WrapPanel>
+                                    <TextBlock x:Name="TxtDevTestResult" FontSize="13" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                    <TextBlock Text="Résultat retenu" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,6"/>
+                                    <WrapPanel x:Name="DevTestVerdictPanel" IsEnabled="False">
+                                        <Button Content="✅ Conforme" Tag="✅" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
+                                        <Button Content="⚠️ À surveiller" Tag="⚠️" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
+                                        <Button Content="❌ Non conforme" Tag="❌" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
+                                        <Button Content="⏭ Ne pas tester" Tag="⚪" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6" ToolTip="Le test n'apparaîtra pas dans le rapport"/>
+                                    </WrapPanel>
+                                    <TextBox x:Name="TxtDevTestComment" Tag="Commentaire pour le rapport (facultatif)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="32" VerticalContentAlignment="Center" Margin="0,6,0,0" TextChanged="TxtDevTestComment_TextChanged"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <Grid Grid.Row="2" Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="TxtDevTestsSummary" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnDevTestsReport" Grid.Column="1" Content="✅ Reporter dans le diagnostic SAV" Click="BtnDevTestsReport_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" IsEnabled="False" ToolTip="Ajoute les tests faits à la checklist des Diagnostics SAV et au rapport Word ; les autres n'y figurent pas"/>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>

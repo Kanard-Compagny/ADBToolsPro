@@ -85,12 +85,25 @@ namespace ADBToolsNew.Core
             string androidVersion = ExtractField(authDetails, "Version Android");
             string buildOs = ExtractField(authDetails, "Build OS");
 
+            // Tests du terminal réellement faits (lignes « dev_… ») : tableau ajouté après les tests manuels.
+            var deviceTests = byId.Values.Where(c => c.SystemId.StartsWith(DeviceTestCatalog.SystemIdPrefix, StringComparison.Ordinal)
+                                                     && StatusFill(c.StatusIcon) != null)
+                                         .OrderBy(c => DeviceTestOrder(c.SystemId)).ToList();
+            var summaryOrder = AutoModuleOrder.Concat(ManualModuleOrder).Concat(deviceTests.Select(c => c.SystemId)).ToList();
+
             using (var wdoc = WordprocessingDocument.Open(outputPath, true))
             {
                 if (ReportTemplateEngine.UsesTags(wdoc))
                 {
+                    // Le tableau des tests manuels sert de modèle (mise en forme) au tableau des tests du terminal :
+                    // copié AVANT le remplacement des balises.
+                    var body = wdoc.MainDocumentPart.Document.Body;
+                    var manual = body.Descendants<Table>().FirstOrDefault(t => t.InnerText.Contains("{{SCANNER_STATUT}}") || t.InnerText.Contains("{{BOUTONS_STATUT}}"));
+                    var model0 = manual == null ? null : (Table)manual.CloneNode(true);
+
                     // Modèle à balises ({{SOCIETE}}, {{WIFI_STATUT}}...) : mise en page libre.
-                    FillByTags(wdoc, serial, societe, incidentNumber, model, androidVersion, buildOs, byId);
+                    FillByTags(wdoc, serial, societe, incidentNumber, model, androidVersion, buildOs, byId, summaryOrder);
+                    if (manual != null) AppendDeviceTestsTable(manual, model0, deviceTests);
                 }
                 else
                 {
@@ -99,11 +112,13 @@ namespace ADBToolsNew.Core
                     var tables = body.Elements<Table>().ToList();
                     if (tables.Count < 4) throw new InvalidOperationException("Structure du template Word inattendue (tableaux manquants).");
 
+                    var model0 = (Table)tables[2].CloneNode(true);
                     FillHeaderTable(tables[0], societe, incidentNumber, serial, model, androidVersion, buildOs);
                     FillModuleTable(tables[1], AutoModuleOrder, byId);
                     FillModuleTable(tables[2], ManualModuleOrder, byId);
                     FillVisualsTable(wdoc, tables[3], byId);
-                    FillSummary(body, AutoModuleOrder.Concat(ManualModuleOrder), byId);
+                    FillSummary(body, summaryOrder, byId);
+                    AppendDeviceTestsTable(tables[2], model0, deviceTests);
                 }
 
                 wdoc.MainDocumentPart.Document.Save();
@@ -156,12 +171,12 @@ namespace ADBToolsNew.Core
         }
 
         private static void FillByTags(WordprocessingDocument wdoc, string serial, string societe, string incidentNumber,
-            string model, string androidVersion, string buildOs, Dictionary<string, DiagComponent> byId)
+            string model, string androidVersion, string buildOs, Dictionary<string, DiagComponent> byId, List<string> summaryOrder)
         {
             var texts = CommonTags(societe, incidentNumber, serial, model);
             texts["VERSION_ANDROID"] = androidVersion ?? "";
             texts["BUILD_OS"] = buildOs ?? "";
-            texts["RESUME"] = BuildSummaryFor(AutoModuleOrder.Concat(ManualModuleOrder), byId);
+            texts["RESUME"] = BuildSummaryFor(summaryOrder, byId);
 
             var fills = new Dictionary<string, string>();
             foreach (var pair in ModuleTagNames)
@@ -411,6 +426,69 @@ namespace ADBToolsNew.Core
                 run.Append(new Text(lines[i]) { Space = SpaceProcessingModeValues.Preserve });
             }
             para.Append(run);
+        }
+
+        private static int DeviceTestOrder(string systemId)
+        {
+            string id = systemId.Substring(DeviceTestCatalog.SystemIdPrefix.Length);
+            int i = DeviceTestCatalog.All.FindIndex(d => d.Id == id);
+            return i < 0 ? 999 : i;
+        }
+
+        /// <summary>
+        /// Tableau « Tests sur le terminal » inséré juste après le tableau des tests manuels, avec la même mise
+        /// en forme (copie de ce tableau avant remplissage : en-tête + une ligne modèle). Seuls les tests réellement
+        /// faits y figurent ; aucun tableau si aucun test du terminal n'a été fait.
+        /// </summary>
+        internal static void AppendDeviceTestsTable(Table manualTable, Table pristineCopy, List<DiagComponent> deviceTests)
+        {
+            if (manualTable == null || pristineCopy == null || deviceTests == null || deviceTests.Count == 0) return;
+            var rows = pristineCopy.Elements<TableRow>().ToList();
+            if (rows.Count < 2) return;
+            var header = rows[0];
+            var rowModel = rows[1];
+            foreach (var r in rows.Skip(1)) r.Remove();
+
+            foreach (var item in deviceTests)
+            {
+                var row = (TableRow)rowModel.CloneNode(true);
+                var cells = row.Elements<TableCell>().ToList();
+                if (cells.Count < 4) return;
+                SetCellText(cells[0], Loc.T(item.ComponentName));
+                SetCellText(cells[1], CleanDetailsForClient(item.Details));
+                foreach (var shd in cells[2].Descendants<Shading>().ToList()) shd.Remove();
+                SetValidityCell(cells[2], item.StatusIcon);
+                SetCellText(cells[3], item.Comment);
+                pristineCopy.Append(row);
+            }
+            // Première case de l'en-tête : intitulé de la section.
+            var headerCells = header.Elements<TableCell>().ToList();
+            if (headerCells.Count > 0) SetCellText(headerCells[0], Loc.T("Test sur le terminal"));
+
+            // Titre au-dessus du tableau : copie du titre des tests manuels s'il existe, sinon simple paragraphe.
+            Paragraph title = null;
+            var prev = manualTable.PreviousSibling();
+            while (prev != null && !(prev is Table))
+            {
+                if (prev is Paragraph p && !string.IsNullOrWhiteSpace(p.InnerText)) { title = (Paragraph)p.CloneNode(true); break; }
+                prev = prev.PreviousSibling();
+            }
+            if (title == null) title = new Paragraph(new Run(new Text("")));
+            SetParagraphText(title, Loc.T("Tests sur le terminal"));
+
+            var spacer = new Paragraph();
+            manualTable.InsertAfterSelf(spacer);
+            spacer.InsertAfterSelf(title);
+            title.InsertAfterSelf(pristineCopy);
+        }
+
+        private static void SetParagraphText(Paragraph p, string text)
+        {
+            var texts = p.Descendants<Text>().ToList();
+            if (texts.Count == 0) { p.Append(new Run(new Text(text))); return; }
+            texts[0].Text = text;
+            texts[0].Space = SpaceProcessingModeValues.Preserve;
+            for (int i = 1; i < texts.Count; i++) texts[i].Text = "";
         }
 
         private static void FillVisualsTable(WordprocessingDocument wdoc, Table visualsTable, Dictionary<string, DiagComponent> byId)

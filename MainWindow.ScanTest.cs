@@ -10,12 +10,11 @@ namespace ADBToolsNew
 {
     /// <summary>
     /// Test du lecteur code-barres (Diagnostics SAV ▸ Laboratoire ▸ « Test du lecteur ») : ADB Tools installe une
-    /// petite appli de test sur le terminal (ScanTest\ADBToolsScan.apk, compilée avec le programme), lit les
+    /// petite appli de test sur le terminal (appli de diagnostic DiagApp\ADBToolsDiag.apk, en mode « lecteur »), lit les
     /// lectures dans le journal Android et la gâchette avec getevent, puis désinstalle l'appli à la fin.
     /// </summary>
     public partial class MainWindow
     {
-        private const string ScanAppPackage = "fr.kanard.adbtools.scan";
         private readonly AdbStreamProcess _scanLogProcess = new AdbStreamProcess();
         private readonly AdbStreamProcess _scanTriggerProcess = new AdbStreamProcess();
         private ScanTestSession _scanSession;
@@ -25,7 +24,6 @@ namespace ADBToolsNew
         private bool _scanTestBusy;
         private long _scanDeviceStartMs; // heure du terminal au démarrage : les lectures plus anciennes du journal sont ignorées
 
-        private static string ScanAppApkPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScanTest", "ADBToolsScan.apk");
 
         private void BtnOpenScanTest_Click(object sender, RoutedEventArgs e)
         {
@@ -48,20 +46,13 @@ namespace ADBToolsNew
                 await ShowCustomDialogAsync(Loc.T("🔫 Test du lecteur"), Loc.T("Connectez d'abord un terminal (ADB autorisé)."), Loc.T("OK"), "", false);
                 return;
             }
-            if (!File.Exists(ScanAppApkPath))
-            {
-                await ShowCustomDialogAsync(Loc.T("🔫 Test du lecteur"),
-                    Loc.F("L'appli de test est introuvable :\n{0}\n\nElle est fournie avec les versions publiées d'ADB Tools (dossier ScanTest).", ScanAppApkPath), Loc.T("OK"), "", false);
-                return;
-            }
-
             _scanTestBusy = true;
             BtnScanTestStart.IsEnabled = false;
             string serial = dev.Serial;
             try
             {
                 SetScanStatus(Loc.T("Installation de l'appli de test sur le terminal…"));
-                if (!await InstallScanAppAsync(serial)) return;
+                if (!await EnsureDiagAppAsync(serial, "scan")) { SetScanStatus(Loc.T("Installation de l'appli de test impossible.")); return; }
 
                 _scanSerial = serial;
                 var clock = await _adbManager.ExecuteAsync($"-s {serial} shell date +%s");
@@ -72,7 +63,7 @@ namespace ADBToolsNew
                 RememberDiagnosedDevice(serial);
 
                 // Journal : seulement les lignes de l'appli de test, à partir de maintenant (-T 1).
-                _scanLogProcess.Start(_adbExePath, $"-s {serial} logcat -T 1 -v brief -s {ScanText.LogTag}:I", line =>
+                _scanLogProcess.Start(_adbExePath, DiagApp.LogcatArgs(serial), line =>
                 {
                     DateTime at = DateTime.Now;
                     Dispatcher.InvokeAsync(() => OnScanLogLine(line, at), DispatcherPriority.Background);
@@ -86,7 +77,7 @@ namespace ADBToolsNew
                     Dispatcher.InvokeAsync(() => { if (_scanRunning) { _scanSession?.AddTrigger(at); RefreshScanTestUi(); } }, DispatcherPriority.Background);
                 });
 
-                await _adbManager.ExecuteAsync($"-s {serial} shell am start -n {ScanAppPackage}/.MainActivity");
+                await SendDiagCommandAsync(serial, "scan");
                 _scanRunning = true;
                 _scanStatsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
                 _scanStatsTimer.Tick += (s, ev) => RefreshScanTestUi();
@@ -106,25 +97,6 @@ namespace ADBToolsNew
                 _scanTestBusy = false;
                 BtnScanTestStart.IsEnabled = !_scanRunning;
             }
-        }
-
-        /// <summary>Installe l'appli de test ; si une ancienne version signée autrement gêne, la désinstalle d'abord.</summary>
-        private async Task<bool> InstallScanAppAsync(string serial)
-        {
-            string apk = AdbManager.QuoteLocalArg(ScanAppApkPath);
-            var res = await _adbManager.ExecuteAsync($"-s {serial} install -r -t {apk}", TimeSpan.FromSeconds(90));
-            if (!(res.StandardOutput ?? "").Contains("Success"))
-            {
-                await _adbManager.ExecuteAsync($"-s {serial} uninstall {ScanAppPackage}");
-                res = await _adbManager.ExecuteAsync($"-s {serial} install -t {apk}", TimeSpan.FromSeconds(90));
-            }
-            if ((res.StandardOutput ?? "").Contains("Success")) return true;
-            string detail = ((res.StandardError ?? "") + " " + (res.StandardOutput ?? "")).Trim();
-            SetScanStatus(Loc.F("Installation de l'appli de test impossible : {0}", detail));
-            await ShowCustomDialogAsync(Loc.T("🔫 Test du lecteur"),
-                Loc.F("L'appli de test n'a pas pu être installée sur le terminal :\n{0}\n\nCertains terminaux gérés (MDM) interdisent l'installation d'applications par ADB.", PackageManagerService.DescribeInstallFailure(detail)),
-                Loc.T("OK"), "", false);
-            return false;
         }
 
         private void OnScanLogLine(string line, DateTime at)
@@ -162,13 +134,8 @@ namespace ADBToolsNew
             if (uninstall && !string.IsNullOrEmpty(serial))
             {
                 SetScanStatus(Loc.T("Fin du test : désinstallation de l'appli de test…"));
-                try
-                {
-                    await _adbManager.ExecuteAsync($"-s {serial} shell am force-stop {ScanAppPackage}");
-                    await _adbManager.ExecuteAsync($"-s {serial} uninstall {ScanAppPackage}");
-                    await _adbManager.ExecuteAsync($"-s {serial} shell am broadcast -a com.symbol.datawedge.api.ACTION --es com.symbol.datawedge.api.DELETE_PROFILE ADBToolsScan");
-                }
-                catch { /* terminal débranché entre-temps : rien d'autre à faire */ }
+                try { await SendDiagCommandAsync(serial, "stop"); } catch { }
+                await ReleaseDiagAppAsync("scan");
             }
             RefreshScanTestUi();
             if (wasRunning)

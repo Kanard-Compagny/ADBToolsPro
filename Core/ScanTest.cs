@@ -6,7 +6,7 @@ using System.Text;
 
 namespace ADBToolsNew.Core
 {
-    /// <summary>Une lecture reçue de l'appli de test du terminal (ADBToolsScan).</summary>
+    /// <summary>Une lecture reçue de l'appli de diagnostic du terminal (mode « lecteur »).</summary>
     public sealed class ScanRead
     {
         public int Index { get; set; }
@@ -35,10 +35,10 @@ namespace ADBToolsNew.Core
     /// <summary>Lecture des lignes du journal et mise en forme des codes lus. Fonctions pures, testables.</summary>
     public static class ScanText
     {
-        public const string LogTag = "ADBToolsScan";
+        public const string LogTag = DiagApp.LogTag;
 
         /// <summary>
-        /// Ligne du journal « … ADBToolsScan: SCAN \t ms \t source \t symbologie \t base64 » → lecture.
+        /// Ligne du journal « … ADBToolsDiag: SCAN \t ms \t source \t symbologie \t base64 » → lecture.
         /// Renvoie null pour toute autre ligne.
         /// </summary>
         public static ScanRead ParseLogLine(string line, DateTime receivedAt)
