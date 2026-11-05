@@ -115,6 +115,8 @@
     <Compile Include="Core\ReportChartRenderer.cs" />
     <Compile Include="Core\FolderPicker.cs" />
     <Compile Include="Core\Loc.cs" />
+    <Compile Include="Core\LogAnalyzer.cs" />
+    <Compile Include="Core\LogImport.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -212,6 +214,9 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.Radar.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.LogAnalysis.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="Themes\Theme.Dark.xaml">

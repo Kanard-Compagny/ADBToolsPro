@@ -2047,6 +2047,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
@@ -2105,82 +2106,192 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <Border Grid.Row="2" Style="{StaticResource CardGlowStyle}">
-                                    <!-- Le Border intérieur garde ClipToBounds pour que les coins carrés du
-                                         DataGrid ne dépassent pas du rectangle arrondi — la lueur est donc
-                                         posée sur ce Border extérieur non-clippé, sinon elle s'auto-rogne. -->
-                                    <Border Background="{DynamicResource ConsoleBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <!-- Analyse automatique des logs (1.3.0) -->
+                                <Border Grid.Row="2" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,10">
                                     <Grid>
-                                        <DataGrid x:Name="LogsDataGrid"
-                                                  Visibility="Visible"
-                                                  Background="Transparent"
-                                                  SelectionMode="Extended" 
-                                                  SelectionUnit="FullRow" 
-                                                  IsReadOnly="True"
-                                                  AutoGenerateColumns="False"
-                                                  CanUserAddRows="False"
-                                                  HeadersVisibility="Column"
-                                                  GridLinesVisibility="None"
-                                                  RowHeight="25"
-                                                  FontSize="12"
-                                                  VirtualizingPanel.IsVirtualizing="True"
-                                                  VirtualizingPanel.VirtualizationMode="Recycling">
-
-                                            <DataGrid.RowStyle>
-                                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Level}" Value="E">
-                                                            <Setter Property="Foreground" Value="{DynamicResource BadFg}"/>
-                                                            <Setter Property="Background" Value="{DynamicResource BadBg}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="W">
-                                                            <Setter Property="Foreground" Value="{DynamicResource WarnFg}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="I">
-                                                            <Setter Property="Foreground" Value="{DynamicResource OkFg}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="D">
-                                                            <Setter Property="Foreground" Value="{DynamicResource InfoFg}"/>
-                                                        </DataTrigger>
-                                                        <Trigger Property="IsSelected" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
-                                                            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-                                                        </Trigger>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </DataGrid.RowStyle>
-
-                                            <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="100"/>
-                                                <DataGridTextColumn Header="PID" Binding="{Binding PID}" Width="60"/>
-                                                <DataGridTextColumn Header="Lvl" Binding="{Binding Level}" Width="40"/>
-                                                <DataGridTextColumn Header="Application / Tag" Binding="{Binding Tag}" Width="180"/>
-                                                <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
-                                            </DataGrid.Columns>
-                                        </DataGrid>
-
-                                        <ScrollViewer x:Name="LogsRawScroll" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                            <TextBox x:Name="TxtLogsRaw" 
-                                                     Background="Transparent" 
-                                                     Foreground="{DynamicResource BrandText}" 
-                                                     BorderThickness="0" 
-                                                     IsReadOnly="True" 
-                                                     FontFamily="Consolas" 
-                                                     FontSize="13" 
-                                                     TextWrapping="NoWrap"
-                                                     Padding="10"/>
-                                        </ScrollViewer>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="🩺 Analyse automatique" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="Repère les plantages, applications figées, problèmes système, Wi-Fi et lecteur code-barres." Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button x:Name="BtnAnalyzeLogs" Content="🩺 Analyser les logs affichés" Click="BtnAnalyzeLogs_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Analyse toutes les lignes capturées (même celles masquées par les filtres)"/>
+                                            <Button x:Name="BtnQuickLogAnalysis" Content="⚡ Analyse rapide du terminal" Click="BtnQuickLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit le journal actuel du terminal (logcat -d) et l'analyse, sans lancer la capture en direct"/>
+                                            <Button x:Name="BtnOpenLogFile" Content="📂 Ouvrir un fichier" Click="BtnOpenLogFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvre et analyse un logcat enregistré (.txt, .log) ou un bugreport (.zip)"/>
+                                        </StackPanel>
                                     </Grid>
-                                    </Border>
                                 </Border>
 
-                                <Grid Grid.Row="3" Margin="0,15,0,0">
+                                <Grid Grid.Row="3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource CardGlowStyle}">
+                                        <!-- Le Border intérieur garde ClipToBounds pour que les coins carrés du
+                                             DataGrid ne dépassent pas du rectangle arrondi — la lueur est donc
+                                             posée sur ce Border extérieur non-clippé, sinon elle s'auto-rogne. -->
+                                        <Border Background="{DynamicResource ConsoleBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                        <Grid>
+                                            <DataGrid x:Name="LogsDataGrid"
+                                                      Visibility="Visible"
+                                                      Background="Transparent"
+                                                      SelectionMode="Extended" 
+                                                      SelectionUnit="FullRow" 
+                                                      IsReadOnly="True"
+                                                      AutoGenerateColumns="False"
+                                                      CanUserAddRows="False"
+                                                      HeadersVisibility="Column"
+                                                      GridLinesVisibility="None"
+                                                      RowHeight="25"
+                                                      FontSize="12"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling">
+
+                                                <DataGrid.RowStyle>
+                                                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Level}" Value="E">
+                                                                <Setter Property="Foreground" Value="{DynamicResource BadFg}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource BadBg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="W">
+                                                                <Setter Property="Foreground" Value="{DynamicResource WarnFg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="I">
+                                                                <Setter Property="Foreground" Value="{DynamicResource OkFg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="D">
+                                                                <Setter Property="Foreground" Value="{DynamicResource InfoFg}"/>
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DataGrid.RowStyle>
+
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="100"/>
+                                                    <DataGridTextColumn Header="PID" Binding="{Binding PID}" Width="60"/>
+                                                    <DataGridTextColumn Header="Lvl" Binding="{Binding Level}" Width="40"/>
+                                                    <DataGridTextColumn Header="Application / Tag" Binding="{Binding Tag}" Width="180"/>
+                                                    <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+
+                                            <ScrollViewer x:Name="LogsRawScroll" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                                <TextBox x:Name="TxtLogsRaw" 
+                                                         Background="Transparent" 
+                                                         Foreground="{DynamicResource BrandText}" 
+                                                         BorderThickness="0" 
+                                                         IsReadOnly="True" 
+                                                         FontFamily="Consolas" 
+                                                         FontSize="13" 
+                                                         TextWrapping="NoWrap"
+                                                         Padding="10"/>
+                                            </ScrollViewer>
+                                        </Grid>
+                                        </Border>
+                                    </Border>
+
+                                    <!-- Résultat de l'analyse : à droite du tableau ; un clic sur un problème montre sa ligne. -->
+                                    <Border x:Name="LogAnalysisPanel" Grid.Column="1" Width="400" Margin="10,0,0,0" Visibility="Collapsed" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Top" Margin="14,12,14,8">
+                                                <Grid>
+                                                    <TextBlock Text="🩺 Résultat de l'analyse" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                    <Button Content="✖" Click="BtnCloseLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Width="28" Height="26" HorizontalAlignment="Right" ToolTip="Fermer le résultat"/>
+                                                </Grid>
+                                                <TextBlock x:Name="TxtLogAnalysisSource" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                <TextBlock x:Name="TxtLogAnalysisPeriod" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap"/>
+                                                <TextBlock x:Name="TxtLogAnalysisVerdict" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                    <Border Background="{DynamicResource BadBg}" CornerRadius="10" Padding="8,2" Margin="0,0,6,0"><TextBlock x:Name="TxtLogAnalysisBad" Foreground="{DynamicResource BadFg}" FontSize="11" FontWeight="SemiBold"/></Border>
+                                                    <Border Background="{DynamicResource WarnBg}" CornerRadius="10" Padding="8,2" Margin="0,0,6,0"><TextBlock x:Name="TxtLogAnalysisWarn" Foreground="{DynamicResource WarnFg}" FontSize="11" FontWeight="SemiBold"/></Border>
+                                                    <Border Background="{DynamicResource InfoBg}" CornerRadius="10" Padding="8,2"><TextBlock x:Name="TxtLogAnalysisInfo" Foreground="{DynamicResource InfoFg}" FontSize="11" FontWeight="SemiBold"/></Border>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="14,8,14,12">
+                                                <Button Content="📋 Copier" Click="BtnCopyLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Margin="0,0,8,0" ToolTip="Copie le rapport d'analyse (pour un ticket ou un e-mail)"/>
+                                                <Button Content="💾 Exporter (.txt)" Click="BtnExportLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" ToolTip="Enregistre le rapport d'analyse dans le dossier des captures"/>
+                                            </StackPanel>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
+                                                <ItemsControl x:Name="LogFindingsList">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border x:Name="Card" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="3,1,1,1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Cursor="Hand" MouseLeftButtonUp="LogFinding_Click" ToolTip="{Binding Category}">
+                                                                <Border.Resources>
+                                                                    <BooleanToVisibilityConverter x:Key="B2V"/>
+                                                                </Border.Resources>
+                                                                <StackPanel>
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock Text="{Binding SeverityIcon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
+                                                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                                                        <TextBlock Grid.Column="2" Text="{Binding CountText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="6,1,0,0"/>
+                                                                    </Grid>
+                                                                    <TextBlock Text="{Binding AppLabel}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding AppLabel}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding TimeText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0"/>
+                                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Detail}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding Advice}" Foreground="{DynamicResource TextSecondary}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,0">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Advice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <ToggleButton x:Name="SampleToggle" Content="{Binding LinesLabel}" Visibility="{Binding HasSample, Converter={StaticResource B2V}}" Style="{StaticResource ModernToggleStyle}" HorizontalAlignment="Left" Height="24" Padding="8,0" FontSize="11" Margin="0,6,0,0"/>
+                                                                    <TextBox Text="{Binding SampleText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="10" TextWrapping="NoWrap" MaxHeight="220" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="{DynamicResource ConsoleBg}" Foreground="{DynamicResource ConsoleInk}" BorderThickness="0" Padding="6" Margin="0,6,0,0"
+                                                                             Visibility="{Binding IsChecked, ElementName=SampleToggle, Converter={StaticResource B2V}}"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <DataTemplate.Triggers>
+                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="bad"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource BadFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="warn"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="info"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource InfoFg}"/></DataTrigger>
+                                                            </DataTemplate.Triggers>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Grid Grid.Row="4" Margin="0,15,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
