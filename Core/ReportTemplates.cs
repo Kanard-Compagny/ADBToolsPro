@@ -37,12 +37,41 @@ namespace ADBToolsNew.Core
         /// <summary>Logo personnel (Templates\logo.png / logo.jpg), ou null s'il n'y en a pas.</summary>
         public static string GetLogoPath()
         {
-            foreach (var name in new[] { "logo.png", "logo.jpg", "logo.jpeg" })
+            foreach (var name in LogoNames)
             {
                 string p = Path.Combine(UserFolder, name);
                 if (File.Exists(p)) return p;
             }
             return null;
+        }
+
+        private static readonly string[] LogoNames = { "logo.png", "logo.jpg", "logo.jpeg" };
+
+        /// <summary>Installe l'image choisie comme logo des rapports (copiée dans Templates\logo.png/.jpg).</summary>
+        public static string SetLogo(string sourcePath)
+        {
+            if (!File.Exists(sourcePath)) throw new FileNotFoundException("Image introuvable.", sourcePath);
+            string ext = Path.GetExtension(sourcePath).ToLowerInvariant();
+            if (ext != ".png" && ext != ".jpg" && ext != ".jpeg")
+                throw new InvalidOperationException("Le logo doit être une image PNG ou JPEG.");
+            EnsureUserFolder();
+            string dest = Path.Combine(UserFolder, "logo" + (ext == ".jpeg" ? ".jpg" : ext));
+            if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase)) return dest;
+            string tmp = dest + ".nouveau";
+            File.Copy(sourcePath, tmp, true);
+            ClearLogo();
+            File.Move(tmp, dest);
+            return dest;
+        }
+
+        /// <summary>Retire le logo des rapports.</summary>
+        public static void ClearLogo()
+        {
+            foreach (var name in LogoNames)
+            {
+                string p = Path.Combine(UserFolder, name);
+                if (File.Exists(p)) File.Delete(p);
+            }
         }
 
         /// <summary>Copie un .docx choisi par l'utilisateur comme modèle personnel. L'ancien modèle personnel
@@ -112,9 +141,13 @@ Vous pouvez tout changer (mise en page, couleurs, textes) : il suffit de placer
 les balises ci-dessous là où vous voulez voir les informations. Écrivez-les en
 MAJUSCULES, avec les doubles accolades, d'un seul tenant (sans mise en forme au
 milieu). Une balise mal écrite reste visible dans le rapport, pour la repérer.
+Une ligne qui ne contient qu'une balise sans valeur disparaît du rapport.
 
 BALISES COMMUNES (les deux rapports)
-  {{LOGO}}            votre logo (fichier logo.png de ce dossier)
+  {{LOGO}}            votre logo (Paramètres ▸ Rapports Word ▸ En-tête)
+  {{MA_SOCIETE}}      votre société (Paramètres ▸ Rapports Word ▸ En-tête)
+  {{COORDONNEES}}     vos coordonnées (plusieurs lignes possibles)
+  {{TECHNICIEN}}      votre nom
   {{SOCIETE}}         société / client saisi à l'export
   {{INCIDENT}}        numéro d'incident saisi à l'export
   {{NUMERO_SERIE}}    numéro de série du terminal

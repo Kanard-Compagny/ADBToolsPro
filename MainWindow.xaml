@@ -2913,7 +2913,68 @@
                                 <!-- Rapports Word -->
                                 <StackPanel x:Name="SettingsPanelReports" Visibility="Collapsed">
                                     <TextBlock Text="Rapports Word" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
-                                    <TextBlock Text="Modèles utilisés pour les rapports du Diagnostic SAV et de l'Analyse Wi-Fi." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <TextBlock Text="En-tête, dossier et modèles des rapports remis aux clients (Diagnostic SAV et Analyse Wi-Fi)." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="En-tête des rapports" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Votre société, vos coordonnées et votre nom, avec votre logo : ils remplissent les balises {{MA_SOCIETE}}, {{COORDONNEES}}, {{TECHNICIEN}} et {{LOGO}} des modèles."
+                                                       FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="14"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                                                    <TextBlock Text="Société" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtReportCompany" Height="34" LostFocus="ReportHeader_LostFocus"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="0,0,0,12">
+                                                    <TextBlock Text="Coordonnées (adresse, téléphone, e-mail…)" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtReportContact" Height="80" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" LostFocus="ReportHeader_LostFocus"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
+                                                    <TextBlock Text="Technicien" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtReportTechnician" Height="34" LostFocus="ReportHeader_LostFocus"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Text="Logo" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="56" Height="34" CornerRadius="5" Background="{DynamicResource Surface2}" Margin="0,0,10,0">
+                                                    <Image x:Name="ImgReportLogo" Stretch="Uniform" Margin="3" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                </Border>
+                                                <TextBlock x:Name="TxtReportLogo" Grid.Column="1" Text="Aucun" FontSize="12.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                    <Button Content="Choisir…" Click="BtnReportLogoChoose_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="8,0,0,0"/>
+                                                    <Button x:Name="BtnReportLogoClear" Content="Retirer" Click="BtnReportLogoClear_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="8,0,0,0" Visibility="Collapsed"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Dossier des rapports" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Dossier où sont enregistrés les rapports Word et les rapports RMA. Par défaut, le dossier des captures." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10,7" Margin="0,0,0,10">
+                                                <TextBlock x:Name="TxtReportsFolder" Text="" FontFamily="{DynamicResource FontMono}" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                            </Border>
+                                            <WrapPanel>
+                                                <Button Content="Changer…" Click="BtnReportsFolderChange_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button Content="Ouvrir le dossier" Click="BtnReportsFolderOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button x:Name="BtnReportsFolderReset" Content="Revenir au dossier des captures" Click="BtnReportsFolderReset_Click" Style="{StaticResource SettingsLinkStyle}" Visibility="Collapsed"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock Text="MODÈLES" Style="{StaticResource SettingsGroupLabelStyle}" Margin="2,8,0,8"/>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -2952,8 +3013,8 @@
                                     </Border>
                                     <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
-                                        <TextBlock Text="Logo et balises" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
-                                        <TextBlock Text="Déposez logo.png dans le dossier des modèles pour l'afficher en en-tête des rapports. Les balises comme {{SOCIETE}} indiquent où placer chaque information dans votre modèle." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                        <TextBlock Text="Balises des modèles" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                        <TextBlock Text="Les balises comme {{SOCIETE}} ou {{MA_SOCIETE}} indiquent où placer chaque information dans votre modèle Word. Une ligne qui ne contient qu'une balise vide disparaît du rapport." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
                                             <StackPanel Orientation="Horizontal">
                                                 <Button Content="📂 Ouvrir le dossier des modèles" Click="BtnTemplatesOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,10,0"/>
                                                 <Button Content="📄 Liste des balises" Click="BtnTemplatesTags_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>

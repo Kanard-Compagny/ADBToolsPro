@@ -131,6 +131,9 @@ namespace ADBToolsNew.Core
             return new Dictionary<string, string>
             {
                 ["SOCIETE"] = societe ?? "",
+                ["MA_SOCIETE"] = AppSettings.Current.ReportCompany?.Trim() ?? "",
+                ["COORDONNEES"] = AppSettings.Current.ReportContact?.Trim() ?? "",
+                ["TECHNICIEN"] = AppSettings.Current.ReportTechnician?.Trim() ?? "",
                 ["INCIDENT"] = incidentNumber ?? "",
                 ["NUMERO_SERIE"] = serial ?? "",
                 ["MODELE"] = model ?? "",

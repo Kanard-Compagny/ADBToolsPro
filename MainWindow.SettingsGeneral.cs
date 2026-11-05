@@ -122,6 +122,120 @@ namespace ADBToolsNew
             return Path.GetDirectoryName(dlg.FileName);
         }
 
+        // --------------------------------------------------------------- Rapports : en-tête et dossier
+
+        /// <summary>Dossier des rapports Word / RMA : celui choisi dans Paramètres, sinon le dossier des captures.</summary>
+        private string GetReportsFolderPath()
+        {
+            string custom = AppSettings.Current.ReportsFolder;
+            if (!string.IsNullOrWhiteSpace(custom))
+            {
+                try
+                {
+                    Directory.CreateDirectory(custom);
+                    return custom;
+                }
+                catch
+                {
+                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⚠️ Dossier des rapports inaccessible ({custom}) : enregistrement dans le dossier des captures.");
+                }
+            }
+            return GetCaptureFolderPath();
+        }
+
+        private void UpdateReportSettingsUi()
+        {
+            var s = AppSettings.Current;
+            if (!TxtReportCompany.IsKeyboardFocusWithin) TxtReportCompany.Text = s.ReportCompany;
+            if (!TxtReportContact.IsKeyboardFocusWithin) TxtReportContact.Text = s.ReportContact;
+            if (!TxtReportTechnician.IsKeyboardFocusWithin) TxtReportTechnician.Text = s.ReportTechnician;
+
+            string logo = ReportTemplates.GetLogoPath();
+            TxtReportLogo.Text = logo == null ? "Aucun" : Path.GetFileName(logo);
+            BtnReportLogoClear.Visibility = logo == null ? Visibility.Collapsed : Visibility.Visible;
+            ImgReportLogo.Source = LoadImageUnlocked(logo);
+
+            bool custom = !string.IsNullOrWhiteSpace(s.ReportsFolder);
+            TxtReportsFolder.Text = custom ? s.ReportsFolder : GetCaptureFolderPath() + "   (dossier des captures)";
+            BtnReportsFolderReset.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>Charge une image sans garder le fichier ouvert (on doit pouvoir la remplacer ensuite).</summary>
+        private static System.Windows.Media.ImageSource LoadImageUnlocked(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try
+            {
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.CreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions.IgnoreImageCache;
+                bmp.UriSource = new Uri(path);
+                bmp.DecodePixelHeight = 96;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch { return null; }
+        }
+
+        private void ReportHeader_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var s = AppSettings.Current;
+            s.ReportCompany = TxtReportCompany.Text.Trim();
+            s.ReportContact = TxtReportContact.Text.Trim();
+            s.ReportTechnician = TxtReportTechnician.Text.Trim();
+            AppSettings.Save();
+        }
+
+        private void BtnReportLogoChoose_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Logo des rapports",
+                Filter = "Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg"
+            };
+            if (dlg.ShowDialog() != true) return;
+            try
+            {
+                ReportTemplates.SetLogo(dlg.FileName);
+                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🖼️ Logo des rapports mis à jour.");
+            }
+            catch (Exception ex)
+            {
+                AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Logo non enregistré : {ex.Message}");
+            }
+            UpdateReportSettingsUi();
+        }
+
+        private void BtnReportLogoClear_Click(object sender, RoutedEventArgs e)
+        {
+            try { ReportTemplates.ClearLogo(); }
+            catch (Exception ex) { AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ❌ Logo non retiré : {ex.Message}"); }
+            UpdateReportSettingsUi();
+        }
+
+        private void BtnReportsFolderChange_Click(object sender, RoutedEventArgs e)
+        {
+            string folder = PickFolder("Dossier des rapports", GetReportsFolderPath());
+            if (folder == null) return;
+            AppSettings.Current.ReportsFolder = folder;
+            AppSettings.Save();
+            UpdateReportSettingsUi();
+        }
+
+        private void BtnReportsFolderOpen_Click(object sender, RoutedEventArgs e)
+        {
+            try { Process.Start(new ProcessStartInfo(GetReportsFolderPath()) { UseShellExecute = true }); } catch { }
+        }
+
+        private void BtnReportsFolderReset_Click(object sender, RoutedEventArgs e)
+        {
+            AppSettings.Current.ReportsFolder = "";
+            AppSettings.Save();
+            UpdateReportSettingsUi();
+        }
+
         // --------------------------------------------------------------- À propos : diagnostic
 
         private void UpdateDiagnosticUi()
@@ -151,6 +265,7 @@ namespace ADBToolsNew
             Line("Programme", Process.GetCurrentProcess().MainModule?.FileName ?? AppDomain.CurrentDomain.BaseDirectory);
             Line("Outils", ToolsManager.ToolsFolder);
             Line("Captures", GetCaptureFolderPath());
+            if (!string.IsNullOrWhiteSpace(AppSettings.Current.ReportsFolder)) Line("Rapports", AppSettings.Current.ReportsFolder);
             Line("Réglages", AppSettings.DataFolder);
             string share = AppUpdater.ShareFolder;
             if (!string.IsNullOrWhiteSpace(share)) Line("Diffusion", share);

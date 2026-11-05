@@ -54,7 +54,7 @@ namespace ADBToolsNew
             if (tag == "General") { UpdateThemeUi(); UpdateGeneralUi(); }
             if (tag == "About") UpdateDiagnosticUi();
             if (tag == "Tools" && SettingsToolsList.Children.Count == 0) _ = RefreshToolsListAsync(false);
-            if (tag == "Reports") UpdateReportTemplateStates();
+            if (tag == "Reports") { UpdateReportTemplateStates(); UpdateReportSettingsUi(); }
             if (tag == "Updates") UpdateAppUpdateUi();
         }
 

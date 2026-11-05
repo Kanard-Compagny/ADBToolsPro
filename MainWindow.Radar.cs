@@ -460,7 +460,7 @@ namespace ADBToolsNew
                 TimeSpan duration = stats.Duration;
 
                 string outputPath = ADBToolsNew.Core.WifiReportService.GenerateReport(
-                    templatePath, GetCaptureFolderPath(), serial, deviceModel, societe, incident,
+                    templatePath, GetReportsFolderPath(), serial, deviceModel, societe, incident,
                     TxtWifiSsid.Text,
                     TxtWifiBssid.Text.Replace("BSSID : ", ""),
                     TxtWifiFreq.Text,

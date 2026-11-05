@@ -23,6 +23,13 @@ namespace ADBToolsNew.Core
         /// <summary>Dossier de diffusion de l'équipe (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip). Vide : GitHub seulement.</summary>
         public string UpdateShareFolder { get; set; } = "";
 
+        // --- Rapports : en-tête (balises {{MA_SOCIETE}}, {{COORDONNEES}}, {{TECHNICIEN}}) et dossier d'enregistrement
+        public string ReportCompany { get; set; } = "";
+        public string ReportContact { get; set; } = "";
+        public string ReportTechnician { get; set; } = "";
+        /// <summary>Dossier des rapports Word / RMA. Vide : dossier des captures.</summary>
+        public string ReportsFolder { get; set; } = "";
+
         // ------------------------------------------------------------------ Lecture / écriture
 
         public static string DataFolder
@@ -80,6 +87,10 @@ namespace ADBToolsNew.Core
             if (UiScale < 1.0 || UiScale > 1.5) UiScale = 1.0;
             if (string.IsNullOrWhiteSpace(StartPage)) StartPage = "Dashboard";
             if (UpdateShareFolder == null) UpdateShareFolder = "";
+            ReportCompany = ReportCompany ?? "";
+            ReportContact = ReportContact ?? "";
+            ReportTechnician = ReportTechnician ?? "";
+            ReportsFolder = ReportsFolder ?? "";
         }
 
         public static void Save()

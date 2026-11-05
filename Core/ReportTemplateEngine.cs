@@ -98,7 +98,18 @@ namespace ADBToolsNew.Core
                     }
 
                     // 3. Texte
+                    bool onlyTags = TagRegex.Replace(full, "").Trim().Length == 0;
                     ReplaceTextTags(paragraph, texts, monospaceTags);
+
+                    // 4. Ligne qui ne contenait que des balises, toutes vides (ex. {{COORDONNEES}} non renseignées) :
+                    //    on la retire pour ne pas laisser de trou, sauf si c'est le dernier paragraphe de son bloc
+                    //    (une cellule de tableau ou un en-tête doit toujours en garder un).
+                    if (onlyTags && tagsHere.All(t => texts.ContainsKey(t)) && paragraph.InnerText.Trim().Length == 0 &&
+                        !paragraph.Descendants<Drawing>().Any() && paragraph.Parent != null &&
+                        paragraph.Parent.ChildElements.Count(e => e is Paragraph || e is Table) > 1)
+                    {
+                        paragraph.Remove();
+                    }
                 }
             }
         }

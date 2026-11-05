@@ -99,13 +99,17 @@ namespace ADBToolsNew
             host.Children.Add(H2("Créer votre modèle"));
             host.Children.Add(Bullet("Paramètres ▸ Rapports Word ▸ « Gérer le modèle » ▸ « Créer mon modèle à partir du modèle fourni ».", 0));
             host.Children.Add(Bullet("Modifiez-le dans Word ou LibreOffice (mise en page, couleurs, textes) en gardant le format .docx.", 0));
-            host.Children.Add(Bullet("Votre logo : déposez logo.png dans le dossier des modèles, il remplace la balise {{LOGO}}.", 0));
+            host.Children.Add(Bullet("Votre logo, votre société, vos coordonnées et votre nom se règlent dans Paramètres ▸ Rapports Word ▸ En-tête des rapports.", 0));
+            host.Children.Add(Bullet("Une ligne qui ne contient qu'une balise sans valeur disparaît du rapport : pas de trou si un champ est vide.", 0));
             host.Children.Add(Bullet("Pour revenir au modèle fourni : « Gérer le modèle » ▸ « Revenir au modèle fourni ». Votre modèle est rangé dans Templates\\_anciens, rien n'est supprimé.", 0));
 
             host.Children.Add(H2("Balises communes (les deux rapports)"));
             host.Children.Add(BuildSimpleTable(new[] { "Balise", "Contenu" }, new[] { 1.0, 2.2 }, new List<string[]>
             {
-                new[] { "{{LOGO}}", "Votre logo (fichier logo.png du dossier des modèles)" },
+                new[] { "{{LOGO}}", "Votre logo (Paramètres ▸ Rapports Word ▸ En-tête)" },
+                new[] { "{{MA_SOCIETE}}", "Votre société (Paramètres ▸ Rapports Word ▸ En-tête)" },
+                new[] { "{{COORDONNEES}}", "Vos coordonnées, sur plusieurs lignes si besoin" },
+                new[] { "{{TECHNICIEN}}", "Votre nom" },
                 new[] { "{{SOCIETE}}", "Société / client saisi au moment de l'export" },
                 new[] { "{{INCIDENT}}", "Numéro d'incident saisi au moment de l'export" },
                 new[] { "{{NUMERO_SERIE}}", "Numéro de série du terminal" },

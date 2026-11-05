@@ -677,7 +677,7 @@ namespace ADBToolsNew
             {
                 string json = DiagnosticService.BuildRmaReportJson(serial, _diagList);
 
-                string savePath = System.IO.Path.Combine(GetCaptureFolderPath(), $"Rapport_RMA_{FileNameHelper.Sanitize(serial)}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+                string savePath = System.IO.Path.Combine(GetReportsFolderPath(), $"Rapport_RMA_{FileNameHelper.Sanitize(serial)}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
                 System.IO.File.WriteAllText(savePath, json);
 
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 💾 Rapport JSON RMA généré : {savePath}");
@@ -725,7 +725,7 @@ namespace ADBToolsNew
 
             try
             {
-                string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetCaptureFolderPath(), serial, societe, incident, _diagList);
+                string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetReportsFolderPath(), serial, societe, incident, _diagList);
                 AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 📝 Rapport Word généré : {outputPath}");
                 ShowInExplorer(outputPath);
             }
