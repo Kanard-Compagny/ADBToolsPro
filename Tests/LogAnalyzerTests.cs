@@ -187,5 +187,21 @@ namespace ADBToolsNew.Tests
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
         }
+
+        [TestMethod]
+        public void Scanner_PasDeFauxPositifsDuSysteme()
+        {
+            var a = Run(
+@"11-05 16:45:01.000  1684  1700 W ProcessStats: Tracking association SourceState{3def2ce com.symbol.datawedge:zdcpservice/10102 Fgs #30916} whose proc state 3 is better than process ProcessState{1ffc5c3 com.symbol.datawedge:hwinfoservice/10102 pkg=com.symbol.datawedge} proc state 5 (2 skipped)
+11-05 16:45:12.000  5000  5000 W ndroid.settings: ApkAssets: Deleting an ApkAssets object '<empty>' and /system/priv-app/com.symbol.datawedge/com.symbol.datawedge.apk with 1 weak references
+11-05 16:45:12.000  2500  2500 W ScannerFramework: [StateMachine::MoveState] Transition from state 'Disabled' to 'Disabled' is invalid
+11-05 16:45:13.000  2500  2500 W ScannerFramework: Scanner state changed to Idle
+11-05 16:45:14.000  6000  6000 E MonAppli: Barcode scanner error: unable to open the scanner");
+            var scan = a.Findings.Where(x => x.Category == LogAnalyzer.CatScanner).ToList();
+            Assert.IsFalse(scan.Any(x => x.App == "ProcessStats" || x.App == "ndroid.settings"));
+            Assert.AreEqual(FindingSeverity.Warn, scan.Single(x => x.Detail.Contains("is invalid")).Severity);
+            Assert.AreEqual(FindingSeverity.Info, scan.Single(x => x.Detail.Contains("Idle")).Severity);
+            Assert.AreEqual(FindingSeverity.Bad, scan.Single(x => x.App == "MonAppli").Severity);
+        }
     }
 }

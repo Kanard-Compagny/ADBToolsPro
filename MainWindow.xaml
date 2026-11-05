@@ -2121,11 +2121,12 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                                            <TextBlock Text="🩺 Analyse automatique" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="🔎 Analyse automatique" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                             <TextBlock Text="Repère les plantages, applications figées, problèmes système, Wi-Fi et lecteur code-barres." Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap"/>
+                                            <CheckBox x:Name="ChkAutoAnalyze" Content="Analyser en continu pendant la capture" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" FontSize="12" Margin="0,6,0,0" Checked="ChkAutoAnalyze_Changed" Unchecked="ChkAutoAnalyze_Changed" ToolTip="Le résultat se met à jour tout seul toutes les 5 secondes pendant la capture en direct"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button x:Name="BtnAnalyzeLogs" Content="🩺 Analyser les logs affichés" Click="BtnAnalyzeLogs_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Analyse toutes les lignes capturées (même celles masquées par les filtres)"/>
+                                            <Button x:Name="BtnAnalyzeLogs" Content="🔎 Analyser maintenant" Click="BtnAnalyzeLogs_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Analyse toutes les lignes capturées (même celles masquées par les filtres)"/>
                                             <Button x:Name="BtnQuickLogAnalysis" Content="⚡ Analyse rapide du terminal" Click="BtnQuickLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit le journal actuel du terminal (logcat -d) et l'analyse, sans lancer la capture en direct"/>
                                             <Button x:Name="BtnOpenLogFile" Content="📂 Ouvrir un fichier" Click="BtnOpenLogFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvre et analyse un logcat enregistré (.txt, .log) ou un bugreport (.zip)"/>
                                         </StackPanel>
@@ -2177,12 +2178,14 @@
                                                             <DataTrigger Binding="{Binding Level}" Value="D">
                                                                 <Setter Property="Foreground" Value="{DynamicResource InfoFg}"/>
                                                             </DataTrigger>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
-                                                                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-                                                            </Trigger>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                                            </Trigger>
+                                                            <!-- Ligne sélectionnée : vert foncé et texte blanc, lisible dans les deux thèmes (déclaré en dernier
+                                                                 pour l'emporter sur le survol et sur les couleurs de niveau). -->
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource SideActiveBg}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
                                                             </Trigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -2217,7 +2220,7 @@
                                         <DockPanel>
                                             <StackPanel DockPanel.Dock="Top" Margin="14,12,14,8">
                                                 <Grid>
-                                                    <TextBlock Text="🩺 Résultat de l'analyse" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="🔎 Résultat de l'analyse" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                     <Button Content="✖" Click="BtnCloseLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Width="28" Height="26" HorizontalAlignment="Right" ToolTip="Fermer le résultat"/>
                                                 </Grid>
                                                 <TextBlock x:Name="TxtLogAnalysisSource" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
@@ -2233,7 +2236,7 @@
                                                 <Button Content="📋 Copier" Click="BtnCopyLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Margin="0,0,8,0" ToolTip="Copie le rapport d'analyse (pour un ticket ou un e-mail)"/>
                                                 <Button Content="💾 Exporter (.txt)" Click="BtnExportLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" ToolTip="Enregistre le rapport d'analyse dans le dossier des captures"/>
                                             </StackPanel>
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
+                                            <ScrollViewer x:Name="LogFindingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
                                                 <ItemsControl x:Name="LogFindingsList">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
@@ -2387,12 +2390,14 @@
                                                         <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                                         <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
                                                         <Style.Triggers>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
-                                                                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-                                                            </Trigger>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                                            </Trigger>
+                                                            <!-- Ligne sélectionnée : vert foncé et texte blanc, lisible dans les deux thèmes (déclaré en dernier
+                                                                 pour l'emporter sur le survol et sur les couleurs de niveau). -->
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource SideActiveBg}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
                                                             </Trigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -3532,6 +3537,10 @@
                                                     <DataTrigger Binding="{Binding KindKey}" Value="same">
                                                         <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
                                                     </DataTrigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SideActiveBg}"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
+                                                    </Trigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGrid.RowStyle>

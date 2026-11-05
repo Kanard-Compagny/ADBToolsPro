@@ -166,6 +166,9 @@ namespace ADBToolsNew.Core
         private static readonly Regex ScannerMsg = new Regex(@"datawedge|barcode|scan engine|\bscanner\b", OI);
         // « Scanner » Wi-Fi, Bluetooth, média… : rien à voir avec le lecteur code-barres.
         private static readonly Regex NotBarcode = new Regex(@"wifi|wlan|bluetooth|\bble|media|location|gnss|gps|nfc|bt_|network|cell", OI);
+        // Journaux du système qui citent le lecteur sans qu'il soit en cause (suivi des processus, installation…).
+        private static readonly Regex SystemTag = new Regex(@"^(?:ProcessStats|ActivityManager|ActivityTaskManager|PackageManager|PackageInstaller|ApkAssets|AppOps|BroadcastQueue|JobScheduler.*|WindowManager|InputMethodManagerService|Zygote|SELinux|audit|ndroid\..*|.*\.settings|ContentProvider.*|ActivityThread|ApplicationPackageManager)$", OI);
+        private static readonly Regex ErrorWords = new Regex(@"error|fail|exception|not found|invalid|unable|timeout|timed out|denied|refused|cannot|can't", OI);
         private static readonly Regex Digits = new Regex(@"0x[0-9a-fA-F]+|\d+", O);
 
         public static LogAnalysis Analyze(IList<LogEntry> entries, string source = "")
@@ -456,13 +459,20 @@ namespace ADBToolsNew.Core
                 }
 
                 // ---------------- Lecteur code-barres
-                if (isWarnOrError && (ScannerTag.IsMatch(tag) || ScannerMsg.IsMatch(msg)) && !NotBarcode.IsMatch(tag))
+                // Journal du lecteur lui-même (tag), ou erreur d'une application qui cite le lecteur ; pas les
+                // journaux du système qui le mentionnent seulement (suivi des processus, installation…).
+                bool scannerTag = ScannerTag.IsMatch(tag) && !NotBarcode.IsMatch(tag);
+                bool scannerMsg = !scannerTag && isError && ScannerMsg.IsMatch(msg) && ErrorWords.IsMatch(msg) && !NotBarcode.IsMatch(tag);
+                if (isWarnOrError && (scannerTag || scannerMsg) && !SystemTag.IsMatch(tag))
                 {
                     string norm = Digits.Replace(msg.Trim(), "#");
                     if (norm.Length > 120) norm = norm.Substring(0, 120);
-                    Add(map, "scan|" + lvl + "|" + tag + "|" + norm, i, e, CatScanner, 3, isError ? FindingSeverity.Bad : FindingSeverity.Warn, () => new LogFinding
+                    // Simple avertissement sans mot d'erreur (changement d'état…) : information, pas une alerte.
+                    var sev = isError ? FindingSeverity.Bad : ErrorWords.IsMatch(msg) ? FindingSeverity.Warn : FindingSeverity.Info;
+                    Add(map, "scan|" + lvl + "|" + tag + "|" + norm, i, e, CatScanner, 3, sev, () => new LogFinding
                     {
-                        Title = isError ? Loc.T("Erreur du lecteur code-barres") : Loc.T("Avertissement du lecteur code-barres"),
+                        Title = sev == FindingSeverity.Bad ? Loc.T("Erreur du lecteur code-barres")
+                              : sev == FindingSeverity.Warn ? Loc.T("Avertissement du lecteur code-barres") : Loc.T("Message du lecteur code-barres"),
                         App = tag,
                         Detail = Shorten(msg),
                         Advice = Loc.T("Vérifier le profil du lecteur associé à l'application (DataWedge, Scanner Settings…), puis redémarrer le service du lecteur ou le terminal."),

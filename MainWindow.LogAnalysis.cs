@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace ADBToolsNew
 {
@@ -17,13 +18,66 @@ namespace ADBToolsNew
     {
         private LogAnalysis _lastLogAnalysis;
         private string _lastLogAnalysisName = "";
+        private string _lastLogAnalysisSignature = "";
+        private bool _logAnalysisRunning;
+        private bool _logAnalysisClosedByUser;
+        private LogEntry _lastAnalyzedTail;
+        private DispatcherTimer _autoAnalysisTimer;
+        private static readonly TimeSpan AutoAnalysisInterval = TimeSpan.FromSeconds(5);
+
+        // ------------------------------------------------------------------ Analyse en continu
+
+        /// <summary>Appelé au démarrage de la capture en direct : l'analyse se met à jour toute seule.</summary>
+        private void StartAutoLogAnalysis()
+        {
+            StopAutoLogAnalysis();
+            _logAnalysisClosedByUser = false;
+            _lastAnalyzedTail = null;
+            if (ChkAutoAnalyze?.IsChecked != true) return;
+            _autoAnalysisTimer = new DispatcherTimer { Interval = AutoAnalysisInterval };
+            _autoAnalysisTimer.Tick += async (s, ev) => await AutoAnalyzeTickAsync();
+            _autoAnalysisTimer.Start();
+        }
+
+        private void StopAutoLogAnalysis()
+        {
+            if (_autoAnalysisTimer == null) return;
+            _autoAnalysisTimer.Stop();
+            _autoAnalysisTimer = null;
+        }
+
+        /// <summary>Nouvelle analyse seulement si de nouvelles lignes sont arrivées depuis la précédente.</summary>
+        private async Task AutoAnalyzeTickAsync()
+        {
+            if (_logAnalysisRunning || _masterLogs.Count == 0) return;
+            var tail = _masterLogs[_masterLogs.Count - 1];
+            if (ReferenceEquals(tail, _lastAnalyzedTail)) return;
+            _lastAnalyzedTail = tail;
+            var dev = DeviceComboBox.SelectedItem as AndroidDevice;
+            await RunLogAnalysisAsync(_masterLogs.ToList(), Loc.F("Capture en direct ({0})", dev?.Serial ?? "?"), dev?.Serial ?? "", silent: true);
+        }
+
+        private void ChkAutoAnalyze_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            if (ChkAutoAnalyze.IsChecked == true && _logcatService.IsRunning) StartAutoLogAnalysis();
+            else StopAutoLogAnalysis();
+        }
+
+        /// <summary>Fin de la capture : dernière analyse, pour que le résultat corresponde à tout ce qui a été capturé.</summary>
+        private async void FinishAutoLogAnalysis()
+        {
+            StopAutoLogAnalysis();
+            if (ChkAutoAnalyze?.IsChecked == true && _masterLogs.Count > 0)
+                await AutoAnalyzeTickAsync();
+        }
         private static readonly TimeSpan QuickLogcatTimeout = TimeSpan.FromSeconds(90);
 
         private async void BtnAnalyzeLogs_Click(object sender, RoutedEventArgs e)
         {
             if (_masterLogs.Count == 0)
             {
-                await ShowCustomDialogAsync(Loc.T("🩺 Analyse des logs"),
+                await ShowCustomDialogAsync(Loc.T("🔎 Analyse des logs"),
                     Loc.T("Aucun log à analyser pour l'instant.\n\nDémarrez la capture puis reproduisez le problème, ou utilisez « Analyse rapide du terminal » pour lire son journal actuel, ou « Ouvrir un fichier » pour un logcat ou un bugreport reçu."),
                     Loc.T("OK"), "", false);
                 return;
@@ -110,7 +164,7 @@ namespace ADBToolsNew
         {
             if (_masterLogs.Count > 0)
             {
-                bool ok = await ShowCustomDialogAsync(Loc.T("🩺 Analyse des logs"),
+                bool ok = await ShowCustomDialogAsync(Loc.T("🔎 Analyse des logs"),
                     Loc.T("Les logs affichés vont être remplacés (pensez à les sauvegarder si besoin). Continuer ?"),
                     Loc.T("Remplacer"), Loc.T("Annuler"), false);
                 if (!ok) return false;
@@ -120,6 +174,7 @@ namespace ADBToolsNew
                 ToggleLogcatRead.IsChecked = false;
                 ToggleLogcatRead.Content = Loc.T("▶️ Démarrer");
                 StopLogcat();
+                StopAutoLogAnalysis();
                 AnimateNavButton(BtnNavLogs, false);
             }
             return true;
@@ -136,11 +191,16 @@ namespace ADBToolsNew
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ℹ️ {1} lignes lues : les {2} dernières sont affichées, l'analyse porte sur toutes.", DateTime.Now, entries.Count, MAX_LOGS));
         }
 
-        private async Task RunLogAnalysisAsync(List<LogEntry> entries, string source, string name)
+        private async Task RunLogAnalysisAsync(List<LogEntry> entries, string source, string name, bool silent = false)
         {
-            var analysis = await Task.Run(() => LogAnalyzer.Analyze(entries, source));
+            if (_logAnalysisRunning) return;
+            _logAnalysisRunning = true;
+            LogAnalysis analysis;
+            try { analysis = await Task.Run(() => LogAnalyzer.Analyze(entries, source)); }
+            finally { _logAnalysisRunning = false; }
             _lastLogAnalysis = analysis;
             _lastLogAnalysisName = name ?? "";
+            if (!silent) _logAnalysisClosedByUser = false;
 
             TxtLogAnalysisSource.Text = source;
             TxtLogAnalysisPeriod.Text = analysis.PeriodText;
@@ -148,9 +208,19 @@ namespace ADBToolsNew
             TxtLogAnalysisBad.Text = Loc.F("❌ {0} important(s)", analysis.BadCount);
             TxtLogAnalysisWarn.Text = Loc.F("⚠️ {0} à surveiller", analysis.WarnCount);
             TxtLogAnalysisInfo.Text = Loc.F("ℹ️ {0} info(s)", analysis.InfoCount);
-            LogFindingsList.ItemsSource = analysis.Findings;
-            LogAnalysisPanel.Visibility = Visibility.Visible;
-            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🩺 Analyse des logs : {1}", DateTime.Now, analysis.Verdict));
+            // Liste remplacée seulement si les problèmes ont changé, en gardant la position de défilement :
+            // pendant la capture en direct, le panneau ne doit pas « sauter » toutes les 5 secondes.
+            string signature = string.Join("|", analysis.Findings.Select(f => f.Key + ":" + f.Count + ":" + (int)f.Severity));
+            if (signature != _lastLogAnalysisSignature || !silent)
+            {
+                double offset = LogFindingsScroll.VerticalOffset;
+                LogFindingsList.ItemsSource = analysis.Findings;
+                _lastLogAnalysisSignature = signature;
+                if (silent) Dispatcher.BeginInvoke(new Action(() => LogFindingsScroll.ScrollToVerticalOffset(offset)), DispatcherPriority.Loaded);
+                else LogFindingsScroll.ScrollToTop();
+            }
+            if (!_logAnalysisClosedByUser) LogAnalysisPanel.Visibility = Visibility.Visible;
+            if (!silent) AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔎 Analyse des logs : {1}", DateTime.Now, analysis.Verdict));
         }
 
         private void SetLogAnalysisBusy(bool busy, System.Windows.Controls.Button button, string text)
@@ -163,6 +233,7 @@ namespace ADBToolsNew
         private void BtnCloseLogAnalysis_Click(object sender, RoutedEventArgs e)
         {
             LogAnalysisPanel.Visibility = Visibility.Collapsed;
+            _logAnalysisClosedByUser = true; // l'analyse en continu ne le rouvre pas ; « Analyser maintenant » oui
         }
 
         /// <summary>Un clic sur un problème sélectionne sa première ligne dans le tableau (filtres retirés si besoin).</summary>

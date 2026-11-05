@@ -51,6 +51,7 @@ namespace ADBToolsNew
                 // DÉMARRAGE DE LA LECTURE
                 ToggleLogcatRead.Content = Loc.T("⏸️ Pause");
                 StartLogcat(dev.Serial);
+                StartAutoLogAnalysis(); // analyse automatique en continu (page Logs)
 
                 // LANCE LA PULSATION DU BOUTON LOGS DANS LE MENU DE GAUCHE
                 AnimateNavButton(BtnNavLogs, true);
@@ -60,6 +61,7 @@ namespace ADBToolsNew
                 // MISE EN PAUSE
                 ToggleLogcatRead.Content = Loc.T("▶️ Démarrer");
                 StopLogcat();
+                FinishAutoLogAnalysis();
 
                 // ARRÊTE LA PULSATION
                 AnimateNavButton(BtnNavLogs, false);
