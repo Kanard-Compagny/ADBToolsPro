@@ -207,24 +207,11 @@ namespace ADBToolsNew
             }
             else
             {
-                // Sélecteur de dossier moderne (même rendu que les autres boîtes de dialogue de l'app) :
-                // WPF n'a pas de "FolderBrowserDialog" natif, donc on détourne OpenFileDialog en ne
-                // gardant que le dossier choisi. Évite la vieille boîte WinForms (SHBrowseForFolder).
+                // Vrai sélecteur de dossier de Windows (bouton « Sélectionner un dossier »).
                 // Note : si l'élément sélectionné est un dossier, "adb pull" le récupère récursivement
                 // avec tout son contenu — aucune logique supplémentaire n'est nécessaire pour ça.
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Sélectionnez le dossier de destination",
-                    CheckFileExists = false,
-                    CheckPathExists = true,
-                    ValidateNames = false,
-                    FileName = "Choisir ce dossier",
-                    Filter = "Dossiers|no.such.file.exists.abcxyz"
-                };
-
-                if (dlg.ShowDialog() != true) return;
-
-                string destFolder = System.IO.Path.GetDirectoryName(dlg.FileName);
+                string destFolder = ADBToolsNew.Core.FolderPicker.Pick(this, "Dossier de destination");
+                if (destFolder == null) return;
                 _transferCts = new System.Threading.CancellationTokenSource();
                 int total = files.Count;
 

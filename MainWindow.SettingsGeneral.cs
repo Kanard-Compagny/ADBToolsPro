@@ -102,25 +102,8 @@ namespace ADBToolsNew
             AppContentGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01 ? Transform.Identity : new ScaleTransform(scale, scale);
         }
 
-        /// <summary>
-        /// Sélecteur de dossier moderne : WPF n'a pas de « FolderBrowserDialog » natif, on détourne OpenFileDialog
-        /// en ne gardant que le dossier choisi (même astuce que l'Explorateur). Renvoie null si annulé.
-        /// </summary>
-        private static string PickFolder(string title, string initialFolder)
-        {
-            var dlg = new OpenFileDialog
-            {
-                Title = title,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                ValidateNames = false,
-                FileName = "Choisir ce dossier",
-                Filter = "Dossiers|no.such.file.exists.abcxyz"
-            };
-            try { if (!string.IsNullOrWhiteSpace(initialFolder) && Directory.Exists(initialFolder)) dlg.InitialDirectory = initialFolder; } catch { }
-            if (dlg.ShowDialog() != true) return null;
-            return Path.GetDirectoryName(dlg.FileName);
-        }
+        /// <summary>Vrai sélecteur de dossier de Windows (voir <see cref="FolderPicker"/>). Renvoie null si annulé.</summary>
+        private string PickFolder(string title, string initialFolder) => FolderPicker.Pick(this, title, initialFolder);
 
         // --------------------------------------------------------------- Rapports : en-tête et dossier
 
