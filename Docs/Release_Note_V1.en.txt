@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.2.1
+                              RELEASE NOTES V1.3.0
 ================================================================================
-Version        : 1.2.0 (new Settings page, English interface)
-Release date   : November 2026 (1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.3.0 (log analysis, device comparator)
+Release date   : November 2026 (1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,39 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
+================================================================================
+AUTOMATIC LOG ANALYSIS (Logs page)
+  - "Analyse displayed logs": the whole live capture is reviewed, even lines
+    hidden by filters.
+  - "Quick device analysis": reads the current device log (logcat -d) and
+    analyses it in one click, without starting the capture.
+  - "Open a file": saved logcat (.txt, .log) or bugreport (.zip) received from
+    a customer or a colleague.
+  - What is detected: app crashes (Java and native), frozen apps (ANR),
+    restarted services, memory pressure, full storage, battery (level,
+    temperature, health), overheating, restarts, Wi-Fi (disconnections and
+    their reason, rejected password, DHCP, roaming), DNS, unreachable servers,
+    certificates, and barcode scanners of all brands (DataWedge, Honeywell,
+    Datalogic, Newland, Urovo...).
+  - Problems are grouped and sorted from most to least serious, each with a
+    piece of advice; a click shows the line in the table. Report to copy or
+    export as .txt for a ticket.
+
+DEVICE COMPARATOR (new menu page)
+  - Two connected devices, a device and a reference (.adbref: approved model
+    device), or a device and one of its previous states.
+  - Compares identity and system (Android version, security patch, build,
+    baseband...), apps and their versions, disabled apps, Android settings and
+    properties.
+  - Values specific to each device (serial number, addresses, counters) are
+    ignored: only real differences stand out.
+  - Each snapshot is stored in the device history (when it changed): ideal to
+    see what an update or an intervention changed.
+  - Export of the differences table as .csv (Excel).
+
+================================================================================
+2b. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
 A fully redesigned Settings page, modelled on Scanalyse.
 

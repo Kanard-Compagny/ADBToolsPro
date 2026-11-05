@@ -49,7 +49,7 @@ namespace ADBToolsNew.Core
         public string LinesLabel => Loc.T("Voir les lignes");
         public string AppLabel => string.IsNullOrEmpty(App) ? "" : App;
 
-        internal static string ShortTime(string t)
+        public static string ShortTime(string t)
         {
             if (string.IsNullOrEmpty(t)) return "";
             int dot = t.LastIndexOf('.');

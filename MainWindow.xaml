@@ -1083,6 +1083,13 @@
                                     </StackPanel>
                                 </Button>
 
+                                <Button x:Name="BtnNavCompare" Click="NavCompare_Click" Style="{StaticResource MenuButtonStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚖️" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Comparateur" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
+                                    </StackPanel>
+                                </Button>
+
                             </StackPanel>
                         </ScrollViewer>
 
@@ -3036,6 +3043,7 @@
                                                 <RadioButton GroupName="StartPage" Tag="Radar" Content="Analyse Wi-Fi" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
                                                 <RadioButton GroupName="StartPage" Tag="Library" Content="Bibliothèque ADB" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
                                                 <RadioButton GroupName="StartPage" Tag="Logs" Content="Logs" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
+                                                <RadioButton GroupName="StartPage" Tag="Compare" Content="Comparateur" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
                                             </WrapPanel>
                                             <TextBlock Text="Taille de l'interface (80 ou 90 % pour les petits écrans de PC portable)" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,6,0,6"/>
                                             <WrapPanel x:Name="UiScaleChoices">
@@ -3416,6 +3424,138 @@
                                         </Grid>
                                     </ScrollViewer>
                                 </Grid>
+                            </Grid>
+                        </TabItem>
+                        <!-- Comparateur de terminaux (1.3.0) : index 10 -->
+                        <TabItem>
+                            <Grid Margin="15,0,15,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Margin="0,0,0,15">
+                                    <TextBlock Text="Comparateur de terminaux" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Version du système, correctifs, applications et réglages : repérez ce qui diffère entre deux terminaux, avec une référence ou avec un état précédent." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <Border Grid.Row="1" Style="{StaticResource SettingsCardStyle}">
+                                    <StackPanel>
+                                        <WrapPanel Margin="0,0,0,12">
+                                            <RadioButton x:Name="RbCmpDevices" GroupName="CmpMode" Content="Deux terminaux branchés" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="CmpMode_Checked"/>
+                                            <RadioButton x:Name="RbCmpReference" GroupName="CmpMode" Content="Terminal ↔ référence" Style="{StaticResource SettingsPillStyle}" Checked="CmpMode_Checked"/>
+                                            <RadioButton x:Name="RbCmpHistory" GroupName="CmpMode" Content="Terminal ↔ état précédent" Style="{StaticResource SettingsPillStyle}" Checked="CmpMode_Checked"/>
+                                        </WrapPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Terminal (à gauche)" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="CmpLeftDevice" Height="32" DisplayMemberPath="DisplayName" SelectionChanged="CmpLeftDevice_SelectionChanged"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="⇄" FontSize="20" Foreground="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="16,0,16,4"/>
+                                            <Grid Grid.Column="2">
+                                                <StackPanel x:Name="CmpRightDevicePanel">
+                                                    <TextBlock Text="Terminal (à droite)" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmpRightDevice" Height="32" DisplayMemberPath="DisplayName"/>
+                                                </StackPanel>
+                                                <StackPanel x:Name="CmpRightReferencePanel" Visibility="Collapsed">
+                                                    <TextBlock Text="Référence (fichier .adbref)" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="6" Height="32" Padding="10,0">
+                                                            <TextBlock x:Name="TxtCmpReference" Text="Aucune référence choisie" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        </Border>
+                                                        <Button Grid.Column="1" Content="📂 Choisir…" Click="BtnCmpChooseReference_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                                <StackPanel x:Name="CmpRightHistoryPanel" Visibility="Collapsed">
+                                                    <TextBlock Text="État enregistré de ce terminal" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmpHistoryStates" Height="32" DisplayMemberPath="HistoryLabel"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                        <Grid Margin="0,14,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <WrapPanel VerticalAlignment="Center">
+                                                <Button Content="🔄 Actualiser les terminaux" Click="BtnCmpRefresh_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,4"/>
+                                                <Button x:Name="BtnCmpSaveReference" Content="💾 Enregistrer comme référence…" Click="BtnCmpSaveReference_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,4" ToolTip="Enregistre la configuration du terminal de gauche dans un fichier .adbref (terminal modèle à reproduire sur le parc)"/>
+                                                <Button x:Name="BtnCmpSaveState" Content="📸 Enregistrer l'état actuel" Click="BtnCmpSaveState_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,4" ToolTip="Mémorise la configuration du terminal de gauche dans l'historique (par numéro de série)"/>
+                                            </WrapPanel>
+                                            <Button x:Name="BtnCmpRun" Grid.Column="1" Content="⚖️ Comparer" Click="BtnCmpRun_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="22,0" VerticalAlignment="Top"/>
+                                        </Grid>
+                                        <TextBlock x:Name="TxtCmpStatus" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid Grid.Row="2" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock x:Name="TxtCmpSummary" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="TxtCmpSides" FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBox x:Name="TxtCmpSearch" Tag="Rechercher…" Style="{StaticResource PlaceholderTextBoxStyle}" Width="180" Height="30" VerticalContentAlignment="Center" TextChanged="CmpFilter_Changed" Margin="0,0,10,0"/>
+                                        <CheckBox x:Name="ChkCmpShowSame" Content="Afficher aussi les éléments identiques" Style="{StaticResource ModernCheckBoxStyle}" VerticalAlignment="Center" Checked="CmpFilter_Changed" Unchecked="CmpFilter_Changed" Margin="0,0,10,0"/>
+                                        <Button x:Name="BtnCmpExport" Content="💾 Exporter (.csv)" Click="BtnCmpExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" IsEnabled="False" ToolTip="Tableau des différences, à ouvrir dans Excel"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Grid.Row="3" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,10">
+                                    <DataGrid x:Name="CmpGrid" Background="Transparent" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="None"
+                                              SelectionMode="Extended" SelectionUnit="FullRow" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding KindKey}" Value="diff">
+                                                        <Setter Property="Background" Value="{DynamicResource WarnBg}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding KindKey}" Value="only">
+                                                        <Setter Property="Background" Value="{DynamicResource BadBg}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding KindKey}" Value="same">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="" Binding="{Binding KindIcon}" Width="32"/>
+                                            <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="170"/>
+                                            <DataGridTextColumn Header="Élément" Binding="{Binding Label}" Width="2*">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="ToolTip" Value="{Binding Key}"/></Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="À gauche" Binding="{Binding Left}" Width="2*">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="À droite" Binding="{Binding Right}" Width="2*">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
                             </Grid>
                         </TabItem>
                     </TabControl>

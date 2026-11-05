@@ -49,6 +49,7 @@ namespace ADBToolsNew
                     case "Radar": NavRadar_Click(null, null); break;
                     case "Library": NavLibrary_Click(null, null); break;
                     case "Logs": NavLogs_Click(null, null); break;
+                    case "Compare": NavCompare_Click(null, null); break;
                     default: break; // Device Info : déjà affiché
                 }
             }

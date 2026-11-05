@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.2.1
+                              RELEASE NOTES V1.3.0
 ================================================================================
-Version        : 1.2.0 (nouvelle page Paramètres)
-Date de sortie : Novembre 2026 (1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
+Version        : 1.3.0 (analyse des logs, comparateur de terminaux)
+Date de sortie : Novembre 2026 (1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -25,7 +25,39 @@ matériel réel ; les limitations connues sont listées en fin de document
 (section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.3.0 (Novembre 2026)
+================================================================================
+ANALYSE AUTOMATIQUE DES LOGS (page Logs)
+  - « Analyser les logs affichés » : toute la capture en direct est passée en
+    revue, même les lignes masquées par les filtres.
+  - « Analyse rapide du terminal » : lit le journal actuel du terminal
+    (logcat -d) et l'analyse en un clic, sans lancer la capture.
+  - « Ouvrir un fichier » : logcat enregistré (.txt, .log) ou bugreport (.zip)
+    reçu d'un client ou d'un collègue.
+  - Ce qui est repéré : plantages d'applications (Java et natifs), applications
+    figées (ANR), services relancés, mémoire saturée, stockage plein, batterie
+    (niveau, température, état), chauffe, redémarrages, Wi-Fi (déconnexions et
+    leur raison, mot de passe refusé, DHCP, itinérance), DNS, serveurs
+    injoignables, certificats, et lecteur code-barres de toutes marques
+    (DataWedge, Honeywell, Datalogic, Newland, Urovo...).
+  - Problèmes regroupés et triés du plus grave au moins grave, avec un conseil
+    pour chacun ; un clic montre la ligne dans le tableau. Rapport à copier ou
+    à exporter en .txt pour un ticket.
+
+COMPARATEUR DE TERMINAUX (nouvelle page du menu)
+  - Deux terminaux branchés, un terminal et une référence (.adbref : terminal
+    modèle validé), ou un terminal et l'un de ses états précédents.
+  - Compare l'identité et le système (version Android, correctif de sécurité,
+    build, bande de base...), les applications et leurs versions, les
+    applications désactivées, les réglages Android et les propriétés.
+  - Les valeurs propres à chaque appareil (numéro de série, adresses,
+    compteurs) sont ignorées : seules les vraies différences ressortent.
+  - Chaque relevé est mémorisé dans l'historique du terminal (s'il a changé) :
+    idéal pour voir ce qu'une mise à jour ou une intervention a modifié.
+  - Export du tableau des différences en .csv (Excel).
+
+================================================================================
+2 bis. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
 ================================================================================
 Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
 

@@ -164,6 +164,11 @@ namespace ADBToolsNew.Core
                     }
                     catch { }
                 }
+                // États de configuration du comparateur (.adbref) : même durée de conservation.
+                foreach (var state in Directory.GetFiles(dir, "*" + DeviceSnapshot.FileExtension))
+                {
+                    try { if (File.GetLastWriteTime(state) < limit) File.Delete(state); } catch { }
+                }
                 try { if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir); } catch { }
             }
             return removed;
