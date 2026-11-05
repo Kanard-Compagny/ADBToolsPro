@@ -56,6 +56,16 @@ COMPARATEUR DE TERMINAUX (nouvelle page du menu)
     idéal pour voir ce qu'une mise à jour ou une intervention a modifié.
   - Export du tableau des différences en .csv (Excel).
 
+TEST DU LECTEUR CODE-BARRES (Diagnostics SAV ▸ Laboratoire)
+  - Une petite appli de test est installée sur le terminal le temps du
+    test, puis désinstallée automatiquement.
+  - Lectures en direct : données (caractères invisibles affichés), longueur,
+    symbologie (transmise sur Zebra et Honeywell, estimée sinon).
+  - Gâchette détectée : délai jusqu'à la lecture, lectures ratées, taux de
+    réussite ; cadence en lectures par minute.
+  - Liste de codes attendus (planche de test) : écarts signalés.
+  - Résultat reporté dans « Optique Scanner » (diagnostic et rapport Word).
+
 MISES À JOUR, COMME DANS SCANALYSE
   - La pastille « Mise à jour X » s'affiche dans la barre de titre, à côté de
     la version. Un clic ouvre la fenêtre d'installation avec les nouveautés,
