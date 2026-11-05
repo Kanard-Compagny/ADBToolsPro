@@ -1,9 +1,9 @@
-================================================================================
+﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.1.1
+                              RELEASE NOTES V1.2.0
 ================================================================================
-Version        : 1.1.1 (mises à jour automatiques)
-Date de sortie : Novembre 2026 (1.1.0 : première version publique)
+Version        : 1.2.0 (nouvelle page Paramètres)
+Date de sortie : Novembre 2026 (1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -20,12 +20,52 @@ la saisie manuelle de lignes de commande.
 
 La version 1.0.0 a été la première version stable diffusée en équipe. La
 version 1.0.1 est une version corrective issue d'un audit complet du code :
-ses changements sont détaillés en section 4. Chaque onglet a été testé sur du
+ses changements sont détaillés en section 5. Chaque onglet a été testé sur du
 matériel réel ; les limitations connues sont listées en fin de document
-(section 9) pour éviter toute mauvaise surprise sur le terrain.
+(section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.1.1 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
+================================================================================
+Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
+
+[Général]
+- Page ouverte au démarrage, taille de l'interface (100, 115 ou 130 %),
+  console dépliée ou non au démarrage.
+
+[Mises à jour]
+- Dossier de diffusion de l'équipe : ADB Tools y cherche aussi les nouvelles
+  versions (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip), en plus de
+  GitHub. L'état de chaque source est affiché clairement.
+
+[Prise en main]
+- Écran d'accueil au premier lancement (comment brancher un terminal, choix
+  du thème) et visite guidée qui montre où se trouve chaque outil.
+
+[Rapports Word]
+- En-tête des rapports : votre société, vos coordonnées, votre nom et votre
+  logo, affichés dans les modèles fournis façon papier à lettres.
+- Dossier des rapports au choix. Une ligne de modèle qui ne contient qu'une
+  balise vide disparaît du rapport.
+
+[Historique]
+- Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est rangé dans
+  l'historique du terminal, par numéro de série, avec une copie du rapport.
+  Bouton "Historique" dans les Diagnostics SAV, recherche, durée de
+  conservation, dossier partageable avec l'équipe.
+
+[Profil d'équipe]
+- Exporter / importer un fichier .adbprofil pour configurer tous les postes
+  d'une équipe de la même façon (en-tête, logo, modèles, bibliothèque de
+  commandes, dossier des mises à jour).
+
+[À propos et Désinstaller]
+- Bloc Diagnostic à copier pour une demande d'aide.
+- Désinstaller : efface les réglages (et les données si demandé), puis ouvre
+  l'Explorateur sur le dossier du programme.
+
+================================================================================
+3. NOUVEAUTÉS DE LA VERSION 1.1.1 (Novembre 2026)
 ================================================================================
 [Mises à jour automatiques]
 - Nouvelle section Paramètres > Mises à jour : version installée, recherche
@@ -39,7 +79,7 @@ matériel réel ; les limitations connues sont listées en fin de document
   conservés.
 
 ================================================================================
-3. NOUVEAUTÉS DE LA VERSION 1.1.0 (Novembre 2026)
+4. NOUVEAUTÉS DE LA VERSION 1.1.0 (Novembre 2026)
 ================================================================================
 Première version publique : ADB Tools devient un logiciel libre et gratuit
 (licence GNU GPL v3), publié sur GitHub par Mr.Kanard.
@@ -72,7 +112,7 @@ Première version publique : ADB Tools devient un logiciel libre et gratuit
   dans des fenêtres mises en forme.
 
 ================================================================================
-4. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
+5. NOUVEAUTÉS DE LA VERSION 1.0.1 (Octobre 2026)
 ================================================================================
 Version corrective : aucune fonction retirée, aucune habitude à changer. Elle
 fiabilise les mesures et les rapports remis aux clients, corrige plusieurs
@@ -172,7 +212,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   Radar et la génération des rapports, sans terminal branché.
 
 ================================================================================
-5. PRÉREQUIS D'UTILISATION
+6. PRÉREQUIS D'UTILISATION
 ================================================================================
 - Câble USB Data (transfert de données) de bonne qualité.
 - Terminaux Android avec le "Débogage USB" activé (Options Développeur).
@@ -181,7 +221,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   d'extraire le dossier ZIP sur le bureau et de lancer l'exécutable.
 
 ================================================================================
-6. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
+7. LA BARRE DE CONNEXION (visible en permanence, tous onglets)
 ================================================================================
 - Liste déroulante des terminaux détectés, avec indicateur d'état (connecté /
   non autorisé / hors-ligne) et rafraîchissement automatique toutes les 2 sec.
@@ -193,7 +233,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (dès Android 5+) et appairage par code natif (Android 11+).
 
 ================================================================================
-7. FONCTIONNALITÉS PAR ONGLET
+8. FONCTIONNALITÉS PAR ONGLET
 ================================================================================
 
 [📱 Dashboard]
@@ -325,7 +365,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
   (.zip) pour les échanges avec le support constructeur.
 
 ================================================================================
-8. EXÉCUTION MULTI-APPAREILS (transversale)
+9. EXÉCUTION MULTI-APPAREILS (transversale)
 ================================================================================
 Trois actions peuvent être lancées sur plusieurs terminaux connectés à la
 fois, via un même sélecteur d'appareils cohérent dans toute l'application :
@@ -339,7 +379,7 @@ reçoit un résultat individuel dans la Console — un échec sur l'un n'interro
 jamais le traitement des autres.
 
 ================================================================================
-9. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.1.1)
+10. NOTES TECHNIQUES, SÉCURITÉ ET LIMITES CONNUES (V1.2.0)
 ================================================================================
 - Environnement isolé : les outils tiers (adb.exe, scrcpy.exe, ffmpeg.exe)
   sont téléchargés dans le sous-dossier /Tools à côté du programme, pour
@@ -354,7 +394,5 @@ jamais le traitement des autres.
 - La fenêtre mémorise sa taille et sa position entre deux lancements.
 - Limites connues de cette version : Device Info, Package Manager (hors
   installation) et Explorer restent volontairement mono-appareil (une seule
-  cible à la fois) ; il n'existe pas encore d'historique de diagnostic
-  consultable par numéro de série d'un terminal (chaque export RMA/rapport
-  reste un fichier indépendant sur le PC, non relu par l'application).
+  cible à la fois). L'interface n'existe pour l'instant qu'en français.
 ================================================================================

@@ -53,6 +53,10 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - Thème clair, sombre ou **comme Windows**.
 - Connexion **sans câble** (Wi-Fi, Android 10 et moins comme Android 11 et plus).
 - **Modèles de rapport personnalisables** : modifiez le modèle fourni ou importez le vôtre, avec des balises comme `{{SOCIETE}}` ou `{{NUMERO_SERIE}}`.
+- **Historique par numéro de série** : chaque rapport est rangé dans l'historique du terminal, consultable et partageable avec l'équipe (dossier réseau).
+- **Profil d'équipe** : un seul fichier `.adbprofil` pour configurer tous les postes pareil (en-tête des rapports, logo, modèles, bibliothèque de commandes, dossier des mises à jour).
+- **Mises à jour** depuis GitHub ou depuis un dossier de diffusion de l'équipe, vérifiées (SHA-256) et installées en un clic.
+- Accueil et **visite guidée** au premier lancement.
 - **Tout reste sur le PC** : aucune donnée n'est envoyée sur Internet.
 
 ## Démarrer

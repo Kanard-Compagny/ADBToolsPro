@@ -1,15 +1,36 @@
-## Nouveautés de la version 1.1.1
+## Nouveautés de la version 1.2.0
 
-### Mises à jour automatiques
-- Nouvelle section **Paramètres ▸ Mises à jour** : version installée, recherche d'une nouvelle version, nouveautés et installation en un clic.
-- À chaque ouverture, ADB Tools regarde discrètement si une nouvelle version est sortie et l'indique par un bouton **Mise à jour** en haut à droite (désactivable).
-- L'installation télécharge l'archive, **vérifie son empreinte SHA-256**, remplace uniquement les fichiers du programme puis redémarre : modèles de rapport, outils tiers, captures et réglages sont conservés.
+Une page **Paramètres** entièrement revue, sur le modèle de Scanalyse.
 
-### Divers
-- Le numéro de version affiché suit exactement la version installée (les archives de test affichent « -dev »).
+### Général
+- Page ouverte au démarrage, **taille de l'interface** (100 / 115 / 130 %), console dépliée ou non au démarrage.
+
+### Mises à jour
+- **Dossier de diffusion de l'équipe** : ADB Tools y cherche aussi les nouvelles versions (partage réseau où l'on dépose `ADBToolsPro-X.Y.Z.zip` et son `.sha256`), en plus de GitHub.
+- État de chaque source affiché clairement (dépôt privé, dossier introuvable…).
+
+### Prise en main
+- **Écran d'accueil** au premier lancement : présentation, comment brancher un terminal en 3 étapes, choix du thème.
+- **Visite guidée** qui montre où se trouve chaque outil ; les deux se relancent depuis Paramètres ▸ Prise en main.
+
+### Rapports Word
+- **En-tête des rapports** : votre société, vos coordonnées, votre nom et votre logo remplissent `{{MA_SOCIETE}}`, `{{COORDONNEES}}`, `{{TECHNICIEN}}` et `{{LOGO}}`. Les modèles fournis les affichent façon papier à lettres.
+- **Dossier des rapports** au choix (dossier des captures par défaut).
+- Une ligne de modèle qui ne contient qu'une balise vide disparaît du rapport.
+
+### Historique
+- Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est rangé dans l'**historique du terminal**, par numéro de série, avec les résultats de chaque test et une copie du rapport.
+- Bouton **Historique** dans les Diagnostics SAV, recherche, durée de conservation, dossier partageable avec l'équipe.
+
+### Profil d'équipe
+- Exporter / importer un fichier **`.adbprofil`** : en-tête et logo, modèles Word, bibliothèque de commandes ADB, dossier des mises à jour, dossier des rapports. Le contenu est affiché avant d'être appliqué ; rien n'est supprimé.
+
+### À propos et Désinstaller
+- Bloc **Diagnostic** à copier pour une demande d'aide, lien vers le dossier des données.
+- **Désinstaller** : efface les réglages (et vos données si vous le cochez), puis ouvre l'Explorateur sur le programme.
 
 ## Installation
-1. Déjà en 1.1.0 ou plus : **Paramètres ▸ Mises à jour ▸ Installer**.
-2. Sinon : téléchargez `ADBToolsPro-1.1.1.zip` ci-dessous et décompressez-le où vous voulez (aucune installation), puis lancez `ADBToolsNew.exe`.
+1. Déjà en 1.1.1 ou plus : **Paramètres ▸ Mises à jour ▸ Installer**.
+2. Sinon : téléchargez `ADBToolsPro-1.2.0.zip` ci-dessous et décompressez-le où vous voulez (aucune installation), puis lancez `ADBToolsNew.exe`.
 
 Prérequis : Windows 10 ou 11 avec .NET Framework 4.7.2 ou plus récent (déjà présent sur les Windows à jour).
