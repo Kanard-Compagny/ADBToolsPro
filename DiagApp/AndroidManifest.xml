@@ -46,13 +46,25 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|screenLayout|navigation"
-            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:theme="@style/DiagTheme"
             android:windowSoftInputMode="stateAlwaysHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Deuxième entrée dans le lanceur, « ADB Tools Wi-Fi » (logo Wi-Fi) : retrouver la mesure sans câble en cours. -->
+        <activity-alias
+            android:name=".WifiLauncher"
+            android:targetActivity=".MainActivity"
+            android:label="ADB Tools Wi-Fi"
+            android:icon="@mipmap/ic_launcher_wifi"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <service android:name=".SurveyService" android:exported="false" />
     </application>
 </manifest>

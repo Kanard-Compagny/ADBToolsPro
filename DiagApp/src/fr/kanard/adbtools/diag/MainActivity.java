@@ -26,6 +26,8 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.graphics.drawable.GradientDrawable;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -50,7 +52,25 @@ public class MainActivity extends Activity {
     private static final String DW_PROFILE = "ADBToolsDiag";
     private static final String HONEYWELL_SERVICE = "com.intermec.datacollectionservice";
 
+    // Couleurs du thème sombre d'ADB Tools (Themes/Theme.Dark.xaml).
+    static final int C_BG = Color.rgb(0x10, 0x13, 0x14);
+    static final int C_SURFACE = Color.rgb(0x18, 0x1C, 0x1E);
+    static final int C_SURFACE2 = Color.rgb(0x1F, 0x24, 0x27);
+    static final int C_LINE = Color.rgb(0x2A, 0x30, 0x33);
+    static final int C_INK = Color.rgb(0xE9, 0xEC, 0xEE);
+    static final int C_MUTED = Color.rgb(0x9A, 0xA3, 0xA9);
+    static final int C_BRAND = Color.rgb(0x1F, 0x74, 0x54);
+    static final int C_BRAND_TEXT = Color.rgb(0x5F, 0xD3, 0xA1);
+    static final int C_ACTION = Color.rgb(0xFF, 0x9A, 0x2E);   // orange « bec de canard » : action principale
+    static final int C_ON_ACTION = Color.rgb(0x1B, 0x0F, 0x02);
+    static final int C_TITLE = Color.rgb(0x07, 0x1E, 0x17);
+    static final int C_TITLE_INK = Color.rgb(0xDC, 0xEB, 0xE3);
+    static final int C_TITLE_MUTED = Color.rgb(0x86, 0xA8, 0x97);
+
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private ImageView logoView;
+    private LinearLayout card;
+    private boolean wifiEntry;
     private TextView titleView, messageView, bigView, detailView;
     private TextureView preview;
     private EditText input;
@@ -100,29 +120,58 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Color.rgb(0x0B, 0x31, 0x25));
+        frame.setBackgroundColor(C_BG);
         preview = new TextureView(this);
         preview.setVisibility(View.GONE);
         frame.addView(preview, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+
+        // Bandeau comme la barre de titre d'ADB Tools : logo, nom, mode en cours.
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setBackgroundColor(C_TITLE);
+        header.setPadding(dp(16), dp(12), dp(16), dp(12));
+        logoView = new ImageView(this);
+        setLogo(false);
+        header.addView(logoView, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        LinearLayout names = new LinearLayout(this);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(12), 0, 0, 0);
+        names.addView(text("ADB Tools Pro", 18, C_TITLE_INK, true));
+        titleView = text("Diagnostic", 13, C_TITLE_MUTED, false);
+        names.addView(titleView);
+        header.addView(names);
+        outer.addView(header, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(20);
         root.setPadding(pad, pad, pad, pad);
-        titleView = text("ADB Tools — Diagnostic", 22, Color.WHITE, true);
-        messageView = text("Piloté depuis ADB Tools sur le PC.\nControlled from ADB Tools on the PC.", 15, Color.rgb(0xB8, 0xD3, 0xC6), false);
-        messageView.setPadding(0, dp(6), 0, dp(20));
-        bigView = text("", 56, Color.rgb(0xF2, 0x8C, 0x28), true);
+        messageView = text("Piloté depuis ADB Tools sur le PC.\nControlled from ADB Tools on the PC.", 15, C_MUTED, false);
+        messageView.setPadding(0, 0, 0, dp(16));
+
+        // Carte des valeurs (fond de bloc, bord fin, coins arrondis) : valeur principale en vert de la charte.
+        card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setBackground(rounded(C_SURFACE, C_LINE, 12));
+        bigView = text("", 48, C_BRAND_TEXT, true);
         bigView.setGravity(Gravity.CENTER_HORIZONTAL);
-        detailView = text("", 16, Color.WHITE, false);
+        detailView = text("", 15, C_INK, false);
         detailView.setTypeface(Typeface.MONOSPACE);
-        detailView.setPadding(0, dp(16), 0, dp(12));
+        detailView.setPadding(0, dp(8), 0, 0);
+        card.addView(bigView);
+        card.addView(detailView);
+        card.setVisibility(View.GONE);
 
         input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setTextColor(Color.WHITE);
+        input.setTextColor(C_INK);
         input.setHint("…");
-        input.setHintTextColor(Color.rgb(0x6F, 0x8F, 0x80));
+        input.setHintTextColor(C_MUTED);
         if (Build.VERSION.SDK_INT >= 21) input.setShowSoftInputOnFocus(false);
         input.setVisibility(View.GONE);
         input.addTextChangedListener(new TextWatcher() {
@@ -136,26 +185,32 @@ public class MainActivity extends Activity {
             }
         });
 
-        root.addView(titleView);
         root.addView(messageView);
-        root.addView(bigView);
-        root.addView(detailView);
-        root.addView(input, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(card, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        inputLp.topMargin = dp(12);
+        root.addView(input, inputLp);
 
         surveyButtons = new LinearLayout(this);
         surveyButtons.setOrientation(LinearLayout.VERTICAL);
         surveyButtons.setVisibility(View.GONE);
-        Button markBtn = new Button(this);
-        markBtn.setText("📍 Poser un repère / Add a marker");
+        Button markBtn = button("📍 Poser un repère / Add a marker", true);
         markBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askMark(); } });
-        Button stopBtn = new Button(this);
-        stopBtn.setText("⏹ Arrêter la mesure / Stop measuring");
+        Button stopBtn = button("⏹ Arrêter la mesure / Stop measuring", false);
         stopBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopSurvey(); } });
-        surveyButtons.addView(markBtn);
-        surveyButtons.addView(stopBtn);
+        LinearLayout.LayoutParams b1 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
+        b1.topMargin = dp(16);
+        LinearLayout.LayoutParams b2 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
+        b2.topMargin = dp(10);
+        surveyButtons.addView(markBtn, b1);
+        surveyButtons.addView(stopBtn, b2);
         root.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        frame.addView(root, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        outer.addView(root, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        frame.addView(outer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
         setContentView(frame);
+
+        Intent launch = getIntent();
+        wifiEntry = launch != null && launch.getComponent() != null && launch.getComponent().getClassName().endsWith(".WifiLauncher");
 
         Log.i(Out.TAG, "READY\t" + Build.MANUFACTURER + "\t" + Build.MODEL + "\t" + Build.VERSION.RELEASE);
         pendingCmd = getIntent() == null ? null : getIntent().getStringExtra("cmd");
@@ -180,6 +235,12 @@ public class MainActivity extends Activity {
         if (scanMode) enableScanOutputs();
         if (pendingCmd != null) { String c = pendingCmd; pendingCmd = null; handle(c); }
         else if (SurveyService.running != null) showSurvey();
+        else if (wifiEntry) {
+            setLogo(true);
+            titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
+            setMessage("Aucune mesure en cours : démarrez-la depuis ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble).\n"
+                    + "No survey running: start it from ADB Tools (Wi-Fi Analysis ▸ Cable-free survey).");
+        }
     }
 
     @Override
@@ -200,6 +261,7 @@ public class MainActivity extends Activity {
         hideSurvey();
         bigView.setText("");
         detailView.setText("");
+        card.setVisibility(View.GONE);
         switch (cmd) {
             case "survey":
                 startSurvey(pendingExtras);
@@ -282,7 +344,7 @@ public class MainActivity extends Activity {
             Out.state(t.id(), "stopped");
         }
         showPreview(false);
-        titleView.setText("ADB Tools — Diagnostic");
+        titleView.setText("Diagnostic"); setLogo(false);
     }
 
     /** Appelé par un test terminé (sur le fil principal). */
@@ -292,7 +354,7 @@ public class MainActivity extends Activity {
         try { t.stop(); } catch (Exception ignored) { }
         Out.state(t.id(), "stopped");
         showPreview(false);
-        titleView.setText("ADB Tools — Diagnostic");
+        titleView.setText("Diagnostic"); setLogo(false);
         setMessage("Test terminé : voir ADB Tools / Test finished: see ADB Tools");
     }
 
@@ -334,6 +396,8 @@ public class MainActivity extends Activity {
 
     private void showSurvey() {
         titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
+        setLogo(true);
+        card.setVisibility(View.VISIBLE);
         setMessage("Vous pouvez débrancher le terminal et vous déplacer. Posez des repères aux endroits clés.\n"
                 + "You can unplug the device and walk around. Add markers at key places.");
         surveyButtons.setVisibility(View.VISIBLE);
@@ -424,7 +488,7 @@ public class MainActivity extends Activity {
                 String name = KeyEvent.keyCodeToString(event.getKeyCode()).replace("KEYCODE_", "");
                 Integer n = keys.get(name);
                 keys.put(name, n == null ? 1 : n + 1);
-                bigView.setText(name);
+                bigView.setText(name); card.setVisibility(View.VISIBLE);
                 detailView.setText(keys.size() + " touche(s) / key(s)");
                 Out.live("keys", Out.obj("key", name, "distinct", keys.size()));
             }
@@ -448,9 +512,10 @@ public class MainActivity extends Activity {
         scanMode = on;
         if (on) {
             scanCount = 0;
-            titleView.setText("ADB Tools — Test du lecteur / Scanner test");
+            titleView.setText("Test du lecteur / Scanner test");
             setMessage("Scannez des codes-barres : ils s'affichent dans ADB Tools.\nScan barcodes: they are shown in ADB Tools.");
             bigView.setText("0");
+            card.setVisibility(View.VISIBLE);
             input.setVisibility(View.VISIBLE);
             input.requestFocus();
             if (resumed) enableScanOutputs();
@@ -584,6 +649,37 @@ public class MainActivity extends Activity {
     }
 
     // ------------------------------------------------------------------ Outils
+
+    /** Logo du bandeau : ADB Tools Diag, ou ADB Tools Wi-Fi pendant la mesure sans câble. */
+    private void setLogo(boolean wifi) {
+        if (logoView == null) return;
+        int id = getResources().getIdentifier(wifi ? "ic_launcher_wifi" : "ic_launcher", "mipmap", getPackageName());
+        if (id != 0) logoView.setImageResource(id);
+    }
+
+    static GradientDrawable rounded(int fill, int stroke, int radiusDp, android.content.Context c) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(fill);
+        float r = radiusDp * c.getResources().getDisplayMetrics().density;
+        g.setCornerRadius(r);
+        if (stroke != 0) g.setStroke(Math.max(1, Math.round(c.getResources().getDisplayMetrics().density)), stroke);
+        return g;
+    }
+
+    private GradientDrawable rounded(int fill, int stroke, int radiusDp) { return rounded(fill, stroke, radiusDp, this); }
+
+    /** Bouton dans le style d'ADB Tools : orange pour l'action principale, sinon bloc sombre bordé. */
+    private Button button(String label, boolean primary) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTextColor(primary ? C_ON_ACTION : C_INK);
+        b.setBackground(rounded(primary ? C_ACTION : C_SURFACE2, primary ? 0 : C_LINE, 8));
+        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
+        return b;
+    }
 
     private TextView text(String s, int sp, int color, boolean bold) {
         TextView t = new TextView(this);

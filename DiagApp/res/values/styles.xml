@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Couleurs d'ADB Tools (thème sombre du programme) : vert de la charte, orange réservé à l'action principale. -->
+<resources>
+    <style name="DiagTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#071E17</item>
+        <item name="android:colorPrimaryDark">#071E17</item>
+        <item name="android:colorAccent">#5FD3A1</item>
+        <item name="android:windowBackground">#101314</item>
+        <item name="android:textColorPrimary">#E9ECEE</item>
+        <item name="android:textColorSecondary">#9AA3A9</item>
+        <item name="android:statusBarColor">#071E17</item>
+        <item name="android:navigationBarColor">#101314</item>
+    </style>
+</resources>

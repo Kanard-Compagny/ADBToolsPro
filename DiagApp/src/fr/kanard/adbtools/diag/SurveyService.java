@@ -222,6 +222,9 @@ public class SurveyService extends Service {
         } else {
             b = new Notification.Builder(this);
         }
+        int wifiIcon = getResources().getIdentifier("ic_launcher_wifi", "mipmap", getPackageName());
+        if (wifiIcon != 0) b.setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), wifiIcon));
+        if (Build.VERSION.SDK_INT >= 21) b.setColor(MainActivity.C_BRAND);
         return b.setContentTitle("ADB Tools — Mesure Wi-Fi en cours")
                 .setContentText("Rebranchez le terminal au PC pour récupérer les mesures.")
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
