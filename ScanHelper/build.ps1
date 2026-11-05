@@ -25,8 +25,11 @@ $out = "build"
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$out/classes", "$out/dex" | Out-Null
 
-& "$($bt.FullName)/aapt2" link -o "$out/base.apk" --manifest AndroidManifest.xml -I $androidJar
-if ($LASTEXITCODE) { throw "aapt2" }
+# Ressources : seulement l'icône (res/mipmap-*/ic_launcher.png, tirée de Resources/Logos/Petit-logo-APK_ADBTools.svg).
+& "$($bt.FullName)/aapt2" compile --dir res -o "$out/res.zip"
+if ($LASTEXITCODE) { throw "aapt2 compile" }
+& "$($bt.FullName)/aapt2" link -o "$out/base.apk" --manifest AndroidManifest.xml -I $androidJar "$out/res.zip"
+if ($LASTEXITCODE) { throw "aapt2 link" }
 
 # Fichiers d'arguments (@fichier) : chemins Windows passés tels quels, sans interprétation par PowerShell.
 function Q([string]$p) { '"' + ($p -replace '\\', '/') + '"' }
