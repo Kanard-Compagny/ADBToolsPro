@@ -109,7 +109,7 @@ namespace ADBToolsNew.Tests
         public void NotesDeVersion_TexteLisibleSansInstallation()
         {
             string md = "## Nouveautés 1.3.0\n\n- **Analyse des logs** (page Logs) : `logcat -d`.\n  - sous-point\n- Comparateur\n\n## Installation\n1. Télécharger";
-            string txt = ADBToolsNew.MainWindow.FormatReleaseNotes(md);
+            string txt = AppUpdater.FormatReleaseNotes(md);
             Assert.AreEqual("• Analyse des logs (page Logs) : logcat -d.\n    – sous-point\n• Comparateur", txt);
         }
     }

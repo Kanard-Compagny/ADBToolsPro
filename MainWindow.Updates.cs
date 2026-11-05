@@ -150,7 +150,7 @@ namespace ADBToolsNew
         private Task<bool> ShowUpdateDialogAsync(AppRelease release)
         {
             TxtUpdateDialogTitle.Text = Loc.F("Installer ADB Tools {0} ?", release.VersionText);
-            string notes = FormatReleaseNotes(release.Notes);
+            string notes = AppUpdater.FormatReleaseNotes(release.Notes);
             TxtUpdateDialogNotes.Text = notes;
             TxtUpdateDialogNotes.Visibility = notes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateDialog.Visibility = Visibility.Visible;
@@ -170,31 +170,6 @@ namespace ADBToolsNew
         {
             UpdateDialog.Visibility = Visibility.Collapsed;
             _updateDialogTcs?.TrySetResult(false);
-        }
-
-        /// <summary>
-        /// Notes de version (Markdown du CHANGELOG / de GitHub) en texte lisible : titres et mise en forme retirés,
-        /// puces « • », sans la partie « Installation » (inutile ici : c'est justement ce que fait le bouton).
-        /// </summary>
-        public static string FormatReleaseNotes(string markdown)
-        {
-            var lines = new System.Collections.Generic.List<string>();
-            foreach (var raw in (markdown ?? "").Replace("\r", "").Split('\n'))
-            {
-                string line = raw.TrimEnd();
-                string t = line.TrimStart();
-                if (t.StartsWith("## Installation", StringComparison.OrdinalIgnoreCase) || t.StartsWith("Prérequis", StringComparison.Ordinal)) break;
-                if (t.StartsWith("#", StringComparison.Ordinal)) continue; // titre (« Nouveautés 1.3.0 ») : déjà dans le titre de la fenêtre
-                line = Regex.Replace(line, @"\*\*|`", "");
-                int indent = line.Length - line.TrimStart().Length;
-                t = line.TrimStart();
-                if (t.StartsWith("- ", StringComparison.Ordinal) || t.StartsWith("* ", StringComparison.Ordinal))
-                    line = (indent >= 2 ? "    – " : "• ") + t.Substring(2);
-                if (line.Length == 0 && (lines.Count == 0 || lines[lines.Count - 1].Length == 0)) continue;
-                lines.Add(line);
-            }
-            while (lines.Count > 0 && lines[lines.Count - 1].Length == 0) lines.RemoveAt(lines.Count - 1);
-            return string.Join("\n", lines);
         }
 
         private async void BtnUpdCheck_Click(object sender, RoutedEventArgs e)
