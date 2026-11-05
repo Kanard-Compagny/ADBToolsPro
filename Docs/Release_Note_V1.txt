@@ -80,6 +80,15 @@ TEST DU LECTEUR CODE-BARRES (Diagnostics SAV ▸ Laboratoire)
   - Liste de codes attendus (planche de test) : écarts signalés.
   - Résultat reporté dans « Optique Scanner » (diagnostic et rapport Word).
 
+MESURE WI-FI SANS CÂBLE (Analyse Wi-Fi ▸ Mesure sans câble)
+  - Le terminal mesure le Wi-Fi seul, débranché du PC, pendant le parcours
+    du site : signal, borne, canal, débit et ping chaque seconde ;
+    changements de borne et coupures notés. Fonctionne écran éteint.
+  - Repères posés sur le terminal (« Quai 3 », « Bureau »…) : bilan du signal
+    et des pertes par zone.
+  - Au retour : « Récupérer les mesures » affiche le relevé dans l'Analyse
+    Wi-Fi (graphiques, statistiques, journal) ; le rapport Word le reprend.
+
 MISES À JOUR, COMME DANS SCANALYSE
   - La pastille « Mise à jour X » s'affiche dans la barre de titre, à côté de
     la version. Un clic ouvre la fenêtre d'installation avec les nouveautés,

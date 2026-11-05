@@ -76,6 +76,16 @@ BARCODE SCANNER TEST (SAV Diagnostics ▸ Lab)
   - List of expected codes (test sheet): differences reported.
   - Result added to "Scanner optics" (diagnostic and Word report).
 
+CABLE-FREE WI-FI SURVEY (Wi-Fi Analysis ▸ Cable-free survey)
+  - The device measures Wi-Fi on its own, unplugged from the PC, while you
+    walk around the site: signal, access point, channel, link speed and ping
+    every second; access point changes and drops recorded. Works with the
+    screen off.
+  - Markers added on the device ("Dock 3", "Office"...): signal and loss
+    summary by zone.
+  - When back: "Retrieve the data" shows the survey in the Wi-Fi Analysis
+    (charts, statistics, log); the Word report includes it.
+
 UPDATES, AS IN SCANALYSE
   - The "Update X" badge appears in the title bar, next to the version. A
     click opens the install window with what's new, then "Install and
