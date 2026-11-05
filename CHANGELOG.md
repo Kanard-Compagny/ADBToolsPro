@@ -2,6 +2,9 @@
 
 Une page **Paramètres** entièrement revue, sur le modèle de Scanalyse.
 
+### Langue / Language
+- Interface disponible en **anglais** (Paramètres ▸ Général ▸ Langue / Language), y compris les messages, les résultats des diagnostics et les **rapports Word** (modèles fournis en anglais).
+
 ### Général
 - Page ouverte au démarrage, **taille de l'interface** (80 / 90 / 100 / 115 / 130 %, les petites tailles pour les écrans de PC portable), console dépliée ou non au démarrage.
 - Sur un petit écran, la fenêtre ne dépasse plus de l'écran au premier lancement.
