@@ -1,7 +1,7 @@
-# Compile l'appli de test du lecteur (ADBToolsScan.apk) sans Gradle, avec le SDK Android installé :
+# Compile l'appli de test du lecteur (ADBToolsDiag.apk) sans Gradle, avec le SDK Android installé :
 # aapt2 (manifeste) → javac → d8 (dex) → zipalign → apksigner. Utilisé par la compilation GitHub (build.yml) ;
 # fonctionne aussi en local si ANDROID_HOME (ou ANDROID_SDK_ROOT) et un JDK 11+ sont présents.
-param([string]$Output = "ADBToolsScan.apk")
+param([string]$Output = "ADBToolsDiag.apk")
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 

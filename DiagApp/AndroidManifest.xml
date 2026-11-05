@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Appli de diagnostic installée temporairement par ADB Tools (Diagnostics SAV), puis désinstallée à la fin.
+     - Tests du terminal : caméras, flash, haut-parleur, écouteur, micro, vibreur, capteurs, NFC, GPS, Bluetooth,
+       clavier physique, vitesse du stockage. Chaque test est lancé depuis le PC (am start ... -e cmd <test>).
+     - Test du lecteur code-barres : mode clavier (toutes marques), DataWedge (Zebra) et intents Honeywell.
+     Les résultats sont écrits dans le journal Android (tag ADBToolsDiag) que ADB Tools lit en direct. Les
+     autorisations sont accordées à l'installation (adb install -g). Aucune donnée n'est envoyée ailleurs.
+     Android 8 (API 26) et plus récents ; minSdk plus bas pour ne bloquer aucun terminal ancien. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="fr.kanard.adbtools.diag"
+    android:versionCode="2"
+    android:versionName="2.0">
+
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <!-- Matériel facultatif : l'appli s'installe aussi sur un terminal sans caméra, NFC, GPS... -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <application
+        android:label="ADB Tools Diag"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|screenLayout|navigation"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:windowSoftInputMode="stateAlwaysHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
