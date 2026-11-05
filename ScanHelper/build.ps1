@@ -8,8 +8,9 @@ Set-Location $PSScriptRoot
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
 if (-not $sdk -or -not (Test-Path $sdk)) { throw "SDK Android introuvable (ANDROID_HOME)" }
 $bt = Get-ChildItem "$sdk/build-tools" -Directory | Sort-Object { [version]($_.Name -replace '[^\d.].*$', '') } | Select-Object -Last 1
-$platform = Get-ChildItem "$sdk/platforms" -Directory | Where-Object { Test-Path "$($_.FullName)/android.jar" } |
-            Sort-Object { [int](($_.Name -replace '\D', '') + '0') } | Select-Object -Last 1
+# Plateforme stable la plus récente (android-35, android-36…), pas les préversions (android-37.2-beta3).
+$platform = Get-ChildItem "$sdk/platforms" -Directory | Where-Object { $_.Name -match '^android-\d+$' -and (Test-Path "$($_.FullName)/android.jar") } |
+            Sort-Object { [int]($_.Name -replace '\D', '') } | Select-Object -Last 1
 $androidJar = "$($platform.FullName)/android.jar"
 Write-Host "build-tools $($bt.Name), $($platform.Name)"
 
@@ -19,6 +20,7 @@ foreach ($v in "JAVA_HOME_17_X64", "JAVA_HOME_21_X64", "JAVA_HOME_11_X64") {
     if ($p) { $env:JAVA_HOME = $p; $env:PATH = "$p/bin;$env:PATH"; break }
 }
 
+& java -version 2>&1 | Select-Object -First 1 | Write-Host
 $out = "build"
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$out/classes", "$out/dex" | Out-Null
@@ -26,12 +28,18 @@ New-Item -ItemType Directory -Force "$out/classes", "$out/dex" | Out-Null
 & "$($bt.FullName)/aapt2" link -o "$out/base.apk" --manifest AndroidManifest.xml -I $androidJar
 if ($LASTEXITCODE) { throw "aapt2" }
 
-$sources = Get-ChildItem src -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-& javac -source 8 -target 8 -encoding UTF-8 -bootclasspath $androidJar -classpath $androidJar -d "$out/classes" @sources
+# Fichiers d'arguments (@fichier) : chemins Windows passés tels quels, sans interprétation par PowerShell.
+function Q([string]$p) { '"' + ($p -replace '\\', '/') + '"' }
+$javacArgs = @("-source", "8", "-target", "8", "-encoding", "UTF-8", "-nowarn",
+               "-bootclasspath", (Q $androidJar), "-classpath", (Q $androidJar), "-d", (Q "$out/classes"))
+$javacArgs += Get-ChildItem src -Recurse -Filter *.java | ForEach-Object { Q $_.FullName }
+Set-Content -Path "$out/javac.args" -Value $javacArgs -Encoding ascii
+& javac "@$out/javac.args"
 if ($LASTEXITCODE) { throw "javac" }
 
-$classes = Get-ChildItem "$out/classes" -Recurse -Filter *.class | ForEach-Object { $_.FullName }
-& "$($bt.FullName)/d8.bat" --release --min-api 21 --lib $androidJar --output "$out/dex" @classes
+& jar cf "$out/classes.jar" -C "$out/classes" .
+if ($LASTEXITCODE) { throw "jar" }
+& "$($bt.FullName)/d8.bat" --release --min-api 21 --lib $androidJar --output "$out/dex" "$out/classes.jar"
 if ($LASTEXITCODE) { throw "d8" }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
