@@ -868,22 +868,22 @@
                     <Button x:Name="BtnConnect" Click="BtnConnect_Click" Content="Connecter" Style="{StaticResource PrimaryButtonStyle}" Width="100" Height="32" FontSize="12" Margin="0,0,6,0"/>
                     <Button x:Name="BtnRefresh" Click="BtnRefresh_Click" Content="↺" ToolTip="Actualiser la liste des appareils" Style="{StaticResource SidebarToggleStyle}" Width="32" Height="32" FontSize="16" Margin="0,0,14,0"/>
 
-                    <Button x:Name="BtnDevOff" Click="BtnDevOff_Click" Style="{StaticResource DangerButtonStyle}" Height="32" FontFamily="Segoe UI Emoji" Margin="0,0,6,0" ToolTip="Désactiver le mode développeur (révoque l'accès ADB)">
+                    <Button x:Name="BtnDevOff" Click="BtnDevOff_Click" Style="{StaticResource DangerButtonStyle}" Height="32" Margin="0,0,6,0" ToolTip="Désactiver le mode développeur (révoque l'accès ADB)">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
-                            <TextBlock Text="🔒" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Dev Off" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="🔒" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Dev Off" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnReload" Click="BtnReload_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" FontFamily="Segoe UI Emoji" Margin="0,0,6,0" ToolTip="Redémarrage classique">
+                    <Button x:Name="BtnReload" Click="BtnReload_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0" ToolTip="Redémarrage classique">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
-                            <TextBlock Text="🔄" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Redémarrer" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="🔄" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Redémarrer" FontSize="12" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnRecovery" Click="BtnRecovery_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" FontFamily="Segoe UI Emoji" Margin="0,0,14,0" ToolTip="Redémarrage en mode Recovery">
+                    <Button x:Name="BtnRecovery" Click="BtnRecovery_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,14,0" ToolTip="Redémarrage en mode Recovery">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
-                            <TextBlock Text="🛠️" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Recovery Mode" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="🛠️" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Recovery Mode" FontSize="12" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
                         </StackPanel>
                     </Button>
 
