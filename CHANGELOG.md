@@ -3,7 +3,8 @@
 Une page **Paramètres** entièrement revue, sur le modèle de Scanalyse.
 
 ### Général
-- Page ouverte au démarrage, **taille de l'interface** (100 / 115 / 130 %), console dépliée ou non au démarrage.
+- Page ouverte au démarrage, **taille de l'interface** (80 / 90 / 100 / 115 / 130 %, les petites tailles pour les écrans de PC portable), console dépliée ou non au démarrage.
+- Sur un petit écran, la fenêtre ne dépasse plus de l'écran au premier lancement.
 
 ### Mises à jour
 - **Dossier de diffusion de l'équipe** : ADB Tools y cherche aussi les nouvelles versions (partage réseau où l'on dépose `ADBToolsPro-X.Y.Z.zip` et son `.sha256`), en plus de GitHub.

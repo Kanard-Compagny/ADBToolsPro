@@ -30,8 +30,9 @@ matériel réel ; les limitations connues sont listées en fin de document
 Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
 
 [Général]
-- Page ouverte au démarrage, taille de l'interface (100, 115 ou 130 %),
-  console dépliée ou non au démarrage.
+- Page ouverte au démarrage, taille de l'interface (80, 90, 100, 115 ou
+  130 %, les petites tailles pour les écrans de PC portable), console
+  dépliée ou non au démarrage.
 
 [Mises à jour]
 - Dossier de diffusion de l'équipe : ADB Tools y cherche aussi les nouvelles

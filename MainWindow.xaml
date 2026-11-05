@@ -2896,8 +2896,10 @@
                                                 <RadioButton GroupName="StartPage" Tag="Library" Content="Bibliothèque ADB" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
                                                 <RadioButton GroupName="StartPage" Tag="Logs" Content="Logs" Style="{StaticResource SettingsPillStyle}" Checked="StartPage_Checked"/>
                                             </WrapPanel>
-                                            <TextBlock Text="Taille de l'interface" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,6,0,6"/>
+                                            <TextBlock Text="Taille de l'interface (80 ou 90 % pour les petits écrans de PC portable)" FontSize="11.5" Foreground="{DynamicResource Muted}" Margin="0,6,0,6"/>
                                             <WrapPanel x:Name="UiScaleChoices">
+                                                <RadioButton GroupName="UiScale" Tag="0.8" Content="80 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
+                                                <RadioButton GroupName="UiScale" Tag="0.9" Content="90 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
                                                 <RadioButton GroupName="UiScale" Tag="1" Content="100 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
                                                 <RadioButton GroupName="UiScale" Tag="1.15" Content="115 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
                                                 <RadioButton GroupName="UiScale" Tag="1.3" Content="130 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>

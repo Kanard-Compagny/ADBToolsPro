@@ -13,7 +13,7 @@ namespace ADBToolsNew.Core
         // --- Général : démarrage et affichage
         /// <summary>Page ouverte au démarrage : Dashboard, Mirroring, Packages, Explorer, Tools, Diag, Radar, Library, Logs.</summary>
         public string StartPage { get; set; } = "Dashboard";
-        /// <summary>Taille de l'interface : 1.0, 1.15 ou 1.3.</summary>
+        /// <summary>Taille de l'interface : 0.8, 0.9, 1.0, 1.15 ou 1.3.</summary>
         public double UiScale { get; set; } = 1.0;
         /// <summary>Console dépliée au démarrage.</summary>
         public bool ConsoleExpandedAtStartup { get; set; } = true;
@@ -98,7 +98,7 @@ namespace ADBToolsNew.Core
 
         private void Normalize()
         {
-            if (UiScale < 1.0 || UiScale > 1.5) UiScale = 1.0;
+            if (UiScale < 0.75 || UiScale > 1.5) UiScale = 1.0;
             if (string.IsNullOrWhiteSpace(StartPage)) StartPage = "Dashboard";
             if (UpdateShareFolder == null) UpdateShareFolder = "";
             ReportCompany = ReportCompany ?? "";

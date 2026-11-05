@@ -404,6 +404,11 @@ namespace ADBToolsNew
         /// (par défaut ou restaurée) — nécessaire depuis le passage à WindowStartupLocation="Manual".</summary>
         private void CenterOnScreen()
         {
+            // Petit écran (PC portable) : la fenêtre ne dépasse jamais la zone de travail (taille par défaut
+            // 1400 × 800, ou taille mémorisée sur un écran plus grand).
+            var area = SystemParameters.WorkArea;
+            if (this.Width > area.Width) this.Width = Math.Max(this.MinWidth, area.Width * 0.96);
+            if (this.Height > area.Height) this.Height = Math.Max(this.MinHeight, area.Height * 0.96);
             this.Left = SystemParameters.WorkArea.Left + (SystemParameters.WorkArea.Width - this.Width) / 2;
             this.Top = SystemParameters.WorkArea.Top + (SystemParameters.WorkArea.Height - this.Height) / 2;
         }
