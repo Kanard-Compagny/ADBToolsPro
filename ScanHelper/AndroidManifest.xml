@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Appli de test du lecteur code-barres, installée temporairement par ADB Tools (Diagnostics SAV ▸ Test du lecteur)
+     puis désinstallée à la fin du test. Elle affiche un champ de saisie (mode clavier, toutes marques) et reçoit les
+     lectures par intent sur Zebra (DataWedge) et Honeywell, pour connaître la symbologie. Chaque lecture est écrite
+     dans le journal Android (tag ADBToolsScan), que ADB Tools lit en direct. Aucune donnée n'est envoyée ailleurs. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="fr.kanard.adbtools.scan"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+
+    <application
+        android:label="ADB Tools Scan"
+        android:allowBackup="false">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:windowSoftInputMode="stateAlwaysHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

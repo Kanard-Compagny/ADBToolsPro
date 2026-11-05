@@ -71,6 +71,13 @@ jobs:
       - name: Compilation (Release)
         run: msbuild ADBToolsNew.csproj -p:Configuration=Release -p:Platform=AnyCPU -m -nologo -v:minimal
 
+      - name: Appli de test du lecteur (Android)
+        shell: pwsh
+        run: |
+          # Petite appli installée temporairement sur le terminal par « Test du lecteur » (Diagnostics SAV).
+          $dir = New-Item -ItemType Directory -Force "bin/Release/ScanTest"
+          ./ScanHelper/build.ps1 -Output (Join-Path $dir.FullName "ADBToolsScan.apk")
+
       - name: Tests
         shell: pwsh
         run: |
