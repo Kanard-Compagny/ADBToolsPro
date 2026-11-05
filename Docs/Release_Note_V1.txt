@@ -56,6 +56,20 @@ COMPARATEUR DE TERMINAUX (nouvelle page du menu)
     idéal pour voir ce qu'une mise à jour ou une intervention a modifié.
   - Export du tableau des différences en .csv (Excel).
 
+TESTS DU TERMINAL (Diagnostics SAV ▸ Laboratoire)
+  - Une appli de diagnostic est installée le temps des tests, puis
+    désinstallée. Elle détecte le matériel présent : les tests impossibles
+    sur ce modèle sont grisés.
+  - Tests à la demande, tous facultatifs : caméras arrière et avant (photo
+    récupérée), flash, haut-parleur, écouteur, micro (niveau mesuré,
+    enregistrement réécoutable), vibreur, capteurs, NFC, GPS, Bluetooth,
+    clavier physique, vitesse de la mémoire.
+  - Résultat mesuré quand c'est possible, confirmé par le technicien sinon ;
+    toujours modifiable, avec un commentaire.
+  - Seuls les tests faits vont dans le rapport (tableau « Tests sur le
+    terminal ») : un test non fait ou sans objet n'y figure pas.
+  - Android 8 à 16, fonctions standard d'Android.
+
 TEST DU LECTEUR CODE-BARRES (Diagnostics SAV ▸ Laboratoire)
   - Une petite appli de test est installée sur le terminal le temps du
     test, puis désinstallée automatiquement.

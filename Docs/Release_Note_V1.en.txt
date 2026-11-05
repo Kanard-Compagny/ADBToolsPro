@@ -52,6 +52,20 @@ DEVICE COMPARATOR (new menu page)
     see what an update or an intervention changed.
   - Export of the differences table as .csv (Excel).
 
+DEVICE TESTS (SAV Diagnostics ▸ Lab)
+  - A diagnostic app is installed for the duration of the tests, then
+    uninstalled. It detects the hardware present: tests impossible on this
+    model are greyed out.
+  - On-demand tests, all optional: back and front cameras (photo
+    retrieved), flash, speaker, earpiece, microphone (measured level,
+    recording you can play back), vibrator, sensors, NFC, GPS, Bluetooth,
+    physical keypad, storage speed.
+  - Measured result when possible, confirmed by the technician otherwise;
+    always editable, with a comment.
+  - Only the tests done go into the report ("Tests on the device" table): a
+    test not done or not applicable is left out.
+  - Android 8 to 16, standard Android features.
+
 BARCODE SCANNER TEST (SAV Diagnostics ▸ Lab)
   - A small test app is installed on the device for the duration of the
     test, then uninstalled automatically.
