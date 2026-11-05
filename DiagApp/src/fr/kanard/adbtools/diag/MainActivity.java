@@ -1,6 +1,8 @@
 package fr.kanard.adbtools.diag;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -21,6 +23,7 @@ import android.view.KeyEvent;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -61,6 +64,10 @@ public class MainActivity extends Activity {
     private String lastIntentData;
     private long lastIntentAt;
     private boolean receiverRegistered;
+
+    // Mesure Wi-Fi autonome
+    private LinearLayout surveyButtons;
+    private final Runnable surveyRefresh = new Runnable() { @Override public void run() { refreshSurvey(); } };
 
     // Test « clavier »
     private boolean keysMode;
@@ -134,18 +141,35 @@ public class MainActivity extends Activity {
         root.addView(bigView);
         root.addView(detailView);
         root.addView(input, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        surveyButtons = new LinearLayout(this);
+        surveyButtons.setOrientation(LinearLayout.VERTICAL);
+        surveyButtons.setVisibility(View.GONE);
+        Button markBtn = new Button(this);
+        markBtn.setText("📍 Poser un repère / Add a marker");
+        markBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askMark(); } });
+        Button stopBtn = new Button(this);
+        stopBtn.setText("⏹ Arrêter la mesure / Stop measuring");
+        stopBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopSurvey(); } });
+        surveyButtons.addView(markBtn);
+        surveyButtons.addView(stopBtn);
+        root.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         frame.addView(root, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
         setContentView(frame);
 
         Log.i(Out.TAG, "READY\t" + Build.MANUFACTURER + "\t" + Build.MODEL + "\t" + Build.VERSION.RELEASE);
         pendingCmd = getIntent() == null ? null : getIntent().getStringExtra("cmd");
+        pendingExtras = getIntent() == null ? null : getIntent().getExtras();
     }
+
+    private Bundle pendingExtras;
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         String cmd = intent == null ? null : intent.getStringExtra("cmd");
         if (cmd == null) return;
+        pendingExtras = intent.getExtras();
         if (resumed) handle(cmd); else pendingCmd = cmd;
     }
 
@@ -155,6 +179,7 @@ public class MainActivity extends Activity {
         resumed = true;
         if (scanMode) enableScanOutputs();
         if (pendingCmd != null) { String c = pendingCmd; pendingCmd = null; handle(c); }
+        else if (SurveyService.running != null) showSurvey();
     }
 
     @Override
@@ -172,9 +197,18 @@ public class MainActivity extends Activity {
         stopCurrent();
         setScanMode(false);
         keysMode = false;
+        hideSurvey();
         bigView.setText("");
         detailView.setText("");
         switch (cmd) {
+            case "survey":
+                startSurvey(pendingExtras);
+                return;
+            case "survey_stop":
+                if (SurveyService.running != null) SurveyService.running.stopSurvey("pc");
+                else Out.result("survey_stop", "na", Out.obj("reason", "not_running"));
+                setMessage("Prêt / Ready");
+                return;
             case "probe":
                 Out.features(Probe.run(this));
                 setMessage("Prêt / Ready");
@@ -277,6 +311,92 @@ public class MainActivity extends Activity {
 
     void showPreview(final boolean on) {
         runLater(new Runnable() { @Override public void run() { preview.setVisibility(on ? View.VISIBLE : View.GONE); } }, 0);
+    }
+
+    // ------------------------------------------------------------------ Mesure Wi-Fi autonome
+
+    private void startSurvey(Bundle extras) {
+        Intent i = new Intent(this, SurveyService.class);
+        if (extras != null) {
+            i.putExtra(SurveyService.EXTRA_TARGET, extras.getString(SurveyService.EXTRA_TARGET, ""));
+            i.putExtra(SurveyService.EXTRA_INTERVAL, parseInt(extras.get(SurveyService.EXTRA_INTERVAL), 1000));
+            i.putExtra(SurveyService.EXTRA_DURATION, parseInt(extras.get(SurveyService.EXTRA_DURATION), 0));
+        }
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        showSurvey();
+    }
+
+    private static int parseInt(Object o, int def) {
+        if (o == null) return def;
+        if (o instanceof Integer) return (Integer) o;
+        try { return Integer.parseInt(String.valueOf(o).trim()); } catch (Exception e) { return def; }
+    }
+
+    private void showSurvey() {
+        titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
+        setMessage("Vous pouvez débrancher le terminal et vous déplacer. Posez des repères aux endroits clés.\n"
+                + "You can unplug the device and walk around. Add markers at key places.");
+        surveyButtons.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(surveyRefresh);
+        refreshSurvey();
+    }
+
+    private void hideSurvey() {
+        handler.removeCallbacks(surveyRefresh);
+        surveyButtons.setVisibility(View.GONE);
+    }
+
+    private void refreshSurvey() {
+        SurveyService s = SurveyService.running;
+        if (s == null) {
+            surveyButtons.setVisibility(View.GONE);
+            if (titleView.getText().toString().startsWith("Mesure Wi-Fi")) {
+                bigView.setText("");
+                detailView.setText("Mesure terminée / Survey finished");
+                setMessage("Rebranchez le terminal au PC et récupérez les mesures dans ADB Tools.\n"
+                        + "Plug the device back into the PC and retrieve the data in ADB Tools.");
+            }
+            return;
+        }
+        long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
+        bigView.setText(s.lastRssi != 0 ? s.lastRssi + " dBm" : "—");
+        detailView.setText(String.format(java.util.Locale.US, "%02d:%02d:%02d   %s\nBSSID %s   ping %s\n%d mesures · %d pertes · %d changements de borne · %d coupures · %d repères",
+                sec / 3600, (sec / 60) % 60, sec % 60, s.lastSsid, s.lastBssid, s.lastPing, s.samples, s.lost, s.roams, s.disconnects, s.marks));
+        handler.postDelayed(surveyRefresh, 1000);
+    }
+
+    private void askMark() {
+        final SurveyService s = SurveyService.running;
+        if (s == null) return;
+        final EditText name = new EditText(this);
+        name.setText("Repère " + (s.marks + 1));
+        name.setSelectAllOnFocus(true);
+        new AlertDialog.Builder(this)
+                .setTitle("📍 Repère / Marker")
+                .setMessage("Où êtes-vous ? (quai, rayon, bureau…) / Where are you?")
+                .setView(name)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        String label = name.getText().toString().trim();
+                        s.mark(label.length() > 0 ? label : "Repère " + (s.marks + 1));
+                    }
+                })
+                .setNegativeButton("✖", null)
+                .show();
+    }
+
+    private void confirmStopSurvey() {
+        new AlertDialog.Builder(this)
+                .setTitle("⏹")
+                .setMessage("Arrêter la mesure ? / Stop measuring?")
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        SurveyService s = SurveyService.running;
+                        if (s != null) s.stopSurvey("user");
+                    }
+                })
+                .setNegativeButton("✖", null)
+                .show();
     }
 
     // ------------------------------------------------------------------ Clavier physique

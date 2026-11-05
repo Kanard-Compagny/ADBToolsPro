@@ -8,8 +8,8 @@
      Android 8 (API 26) et plus récents ; minSdk plus bas pour ne bloquer aucun terminal ancien. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.diag"
-    android:versionCode="2"
-    android:versionName="2.0">
+    android:versionCode="3"
+    android:versionName="3.0">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
 
@@ -22,6 +22,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Mesure Wi-Fi autonome (terminal débranché) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- Matériel facultatif : l'appli s'installe aussi sur un terminal sans caméra, NFC, GPS... -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -47,5 +53,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service android:name=".SurveyService" android:exported="false" />
     </application>
 </manifest>

@@ -31,7 +31,15 @@ namespace ADBToolsNew
             var res = await _adbManager.ExecuteAsync($"-s {serial} install -r -t -g {apk}", TimeSpan.FromSeconds(90));
             if (!(res.StandardOutput ?? "").Contains("Success"))
             {
-                // Ancienne version signée autrement (chaque compilation a sa clé) : on la retire d'abord.
+                // Ancienne version signée autrement (chaque compilation a sa clé) : on la retire d'abord —
+                // sauf si elle garde une mesure Wi-Fi sans câble pas encore récupérée.
+                if (await HasPendingSurveyAsync(serial))
+                {
+                    await ShowCustomDialogAsync(Loc.T("🧪 Appli de diagnostic"),
+                        Loc.T("Une mesure Wi-Fi sans câble est encore sur le terminal : récupérez-la d'abord (Analyse Wi-Fi ▸ Mesure sans câble ▸ Récupérer les mesures)."),
+                        Loc.T("OK"), "", false);
+                    return false;
+                }
                 await _adbManager.ExecuteAsync($"-s {serial} uninstall {DiagApp.Package}");
                 res = await _adbManager.ExecuteAsync($"-s {serial} install -t -g {apk}", TimeSpan.FromSeconds(90));
             }
@@ -59,6 +67,12 @@ namespace ADBToolsNew
             if (_diagAppUsers.Count > 0 || string.IsNullOrEmpty(_diagAppSerial)) return;
             string serial = _diagAppSerial;
             _diagAppSerial = null;
+            if (await HasPendingSurveyAsync(serial))
+            {
+                // Une mesure Wi-Fi sans câble n'a pas été récupérée : désinstaller l'appli effacerait le relevé.
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🚶 Appli de diagnostic laissée sur {1} : une mesure Wi-Fi sans câble n'a pas encore été récupérée (Analyse Wi-Fi ▸ Mesure sans câble).", DateTime.Now, serial));
+                return;
+            }
             try
             {
                 await _adbManager.ExecuteAsync($"-s {serial} shell am force-stop {DiagApp.Package}");

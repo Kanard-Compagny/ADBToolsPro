@@ -102,6 +102,7 @@ namespace ADBToolsNew
 
         private void StartRadar(string serial, string logcatSince = null)
         {
+            _importedSurvey = null; // une nouvelle session remplace la mesure autonome affichée
             _radarSerial = serial;
             _radarSessionId++;
             BtnToggleRadar.Content = Loc.T("⏹ ARRÊTER");
@@ -355,7 +356,7 @@ namespace ADBToolsNew
                 string deviceModel = await GetBrandModelAsync(serial);
 
                 // Calculs des moyennes de l'audit
-                var stats = _radarService.Stats;
+                var stats = _importedSurvey?.Stats ?? _radarService.Stats; // mesure autonome importée, sinon session en direct
                 TimeSpan testDuration = stats.Duration;
 
                 StringBuilder report = new StringBuilder();
@@ -480,7 +481,7 @@ namespace ADBToolsNew
                 string pingChartPath = _pingHistory.Count > 0 ? ADBToolsNew.Core.ReportChartRenderer.RenderPing(_pingHistory, chartBase + "_ping.png") : "";
                 string rssiChartPath = _rssiHistory.Count > 0 ? ADBToolsNew.Core.ReportChartRenderer.RenderRssi(_rssiHistory, chartBase + "_rssi.png") : "";
 
-                var stats = _radarService.Stats;
+                var stats = _importedSurvey?.Stats ?? _radarService.Stats; // mesure autonome importée, sinon session en direct
                 TimeSpan duration = stats.Duration;
 
                 string outputPath = ADBToolsNew.Core.WifiReportService.GenerateReport(
@@ -533,6 +534,7 @@ namespace ADBToolsNew
 
             // 2. Remise à zéro des compteurs ET DE LA MÉMOIRE CACHE
             _radarService.Stats.Reset();
+            _importedSurvey = null;
             _lastBssid = ""; // On force le programme à oublier l'antenne
             _isFetchingHeavyData = false; // On déverrouille le téléchargement de l'IP
             _isPolling = false; // On débloque le timer

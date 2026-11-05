@@ -120,6 +120,7 @@
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />
     <Compile Include="Core\DeviceTests.cs" />
+    <Compile Include="Core\WifiSurvey.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -232,6 +233,9 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.DeviceTests.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.WifiSurvey.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="Themes\Theme.Dark.xaml">

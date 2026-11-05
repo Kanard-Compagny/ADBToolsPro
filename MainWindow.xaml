@@ -2813,6 +2813,8 @@
 
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0">
                                             <Button x:Name="BtnToggleRadar" Content="▶ DÉMARRER" Click="BtnToggleRadar_Click" Style="{StaticResource PrimaryButtonStyle}" Height="40" Margin="0,0,0,8"/>
+                                            <Button Content="🚶 Mesure sans câble…" Click="BtnOpenWifiSurvey_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,8"
+                                                    ToolTip="Le terminal mesure le Wi-Fi tout seul pendant que vous parcourez le site, débranché du PC ; les mesures sont récupérées au retour"/>
                                             <Button x:Name="BtnExportRadar" Content="💾 Générer Rapport" Click="BtnExportRadarReport_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,8"
                                                     ToolTip="Exporte un rapport texte brut (chiffres + config réseau + journal), sans graphique."/>
                                             <Button x:Name="BtnExportRadarWord" Content="📝 Rapport Word" Click="BtnExportRadarWordReport_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,8"
@@ -3847,6 +3849,61 @@
                             <Button x:Name="BtnDevTestsReport" Grid.Column="1" Content="✅ Reporter dans le diagnostic SAV" Click="BtnDevTestsReport_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" IsEnabled="False" ToolTip="Ajoute les tests faits à la checklist des Diagnostics SAV et au rapport Word ; les autres n'y figurent pas"/>
                         </Grid>
                     </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Mesure Wi-Fi sans câble (Analyse Wi-Fi) : le terminal mesure seul, débranché ; récupération au retour. -->
+            <Grid x:Name="WifiSurveyOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1000">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Width="640" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24,20">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="🚶 Mesure Wi-Fi sans câble" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                            <Button Content="✖" Click="BtnWifiSurveyClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="32" Height="32" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <TextBlock Text="Le terminal mesure le Wi-Fi chaque seconde (signal, borne, débit, ping) pendant que vous parcourez le site, débranché du PC. Posez des repères sur le terminal aux endroits clés (quai, rayon, bureau…). Au retour, rebranchez-le et récupérez les mesures : elles s'affichent dans l'Analyse Wi-Fi et vont dans le rapport Word."
+                                   FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <TextBlock Text="1. Démarrer la mesure (terminal branché)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="150"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Cible du ping" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtSurveyTarget" Tag="Passerelle du réseau (automatique)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" ToolTip="Adresse IP ou nom du serveur à joindre ; vide = passerelle du réseau Wi-Fi"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Fréquence" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbSurveyInterval" Height="30" SelectedIndex="0">
+                                    <ComboBoxItem Content="Chaque seconde" Tag="1000"/>
+                                    <ComboBoxItem Content="Toutes les 2 s" Tag="2000"/>
+                                    <ComboBoxItem Content="Toutes les 5 s" Tag="5000"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Durée maximale" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbSurveyDuration" Height="30" SelectedIndex="0">
+                                    <ComboBoxItem Content="Jusqu'à l'arrêt" Tag="0"/>
+                                    <ComboBoxItem Content="15 minutes" Tag="15"/>
+                                    <ComboBoxItem Content="30 minutes" Tag="30"/>
+                                    <ComboBoxItem Content="1 heure" Tag="60"/>
+                                    <ComboBoxItem Content="2 heures" Tag="120"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                        <Button x:Name="BtnSurveyStart" Content="▶ Démarrer la mesure sur le terminal" Click="BtnSurveyStart_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" HorizontalAlignment="Left" Padding="16,0" Margin="0,0,0,18"/>
+
+                        <TextBlock Text="2. Au retour : rebranchez le terminal" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,8"/>
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button x:Name="BtnSurveyFetch" Content="📥 Récupérer les mesures" Click="BtnSurveyFetch_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6" ToolTip="Arrête la mesure si elle tourne encore, copie le relevé sur le PC et l'affiche dans l'Analyse Wi-Fi"/>
+                            <Button Content="📂 Ouvrir un relevé…" Click="BtnSurveyOpenFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,6" ToolTip="Relevé déjà récupéré (.jsonl)"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="TxtSurveyStatus" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
                 </Border>
             </Grid>
 
