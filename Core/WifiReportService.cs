@@ -44,16 +44,16 @@ namespace ADBToolsNew.Core
                     texts["PASSERELLE"] = gateway ?? "";
                     texts["DNS"] = dns ?? "";
                     texts["RESUME"] = BuildSummaryText(stats, duration);
-                    texts["VERDICT"] = RadarStats.VerdictLabel(stats.Verdict);
+                    texts["VERDICT"] = Loc.T(RadarStats.VerdictLabel(stats.Verdict));
                     texts["DUREE"] = RadarStats.FormatDuration(duration);
                     texts["STATS_PING"] = BuildPingStats(stats);
                     texts["STATS_RSSI"] = BuildRssiStats(stats);
-                    texts["JOURNAL"] = string.IsNullOrWhiteSpace(rawLogText) ? "Aucun événement réseau brut enregistré durant la session." : rawLogText;
+                    texts["JOURNAL"] = string.IsNullOrWhiteSpace(rawLogText) ? Loc.T("Aucun événement réseau brut enregistré durant la session.") : rawLogText;
 
                     var images = new Dictionary<string, TemplateImage>();
                     WordReportService.AddLogo(images);
-                    images["GRAPHIQUE_PING"] = new TemplateImage { Path = pingChartPath, FallbackText = "Aucune donnée de latence enregistrée durant la session." };
-                    images["GRAPHIQUE_RSSI"] = new TemplateImage { Path = rssiChartPath, FallbackText = "Aucune donnée de signal enregistrée durant la session." };
+                    images["GRAPHIQUE_PING"] = new TemplateImage { Path = pingChartPath, FallbackText = Loc.T("Aucune donnée de latence enregistrée durant la session.") };
+                    images["GRAPHIQUE_RSSI"] = new TemplateImage { Path = rssiChartPath, FallbackText = Loc.T("Aucune donnée de signal enregistrée durant la session.") };
 
                     ReportTemplateEngine.Fill(wdoc, texts, images, null, new List<string> { "JOURNAL" });
                 }
@@ -145,21 +145,21 @@ namespace ADBToolsNew.Core
 
         internal static string BuildSummaryText(RadarStats stats, TimeSpan duration)
         {
-            string verdict = RadarStats.VerdictLabel(stats.Verdict);
-            return $"Résumé : {verdict} — Durée du test : {RadarStats.FormatDuration(duration)}. " +
-                $"RSSI moyen {stats.AverageRssi} dBm, latence moyenne {stats.AveragePingMs} ms, {stats.LossPercent}% de paquets perdus, " +
-                $"{stats.RoamingCount} changement(s) d'antenne, {stats.DisconnectCount} déconnexion(s).";
+            string verdict = Loc.T(RadarStats.VerdictLabel(stats.Verdict));
+            return Loc.F("Résumé : {0} — Durée du test : {1}. ", verdict, RadarStats.FormatDuration(duration)) +
+                Loc.F("RSSI moyen {0} dBm, latence moyenne {1} ms, {2}% de paquets perdus, ", stats.AverageRssi, stats.AveragePingMs, stats.LossPercent) +
+                Loc.F("{0} changement(s) d'antenne, {1} déconnexion(s).", stats.RoamingCount, stats.DisconnectCount);
         }
 
         private static string BuildPingStats(RadarStats stats)
         {
-            return $"Paquets envoyés : {stats.PingTotal} — Reçus : {stats.PingReceived} — Perdus : {stats.PingLost} ({stats.LossPercent} %)\n" +
-                $"Latence : Min {stats.MinPingText} ms — Moyenne {stats.AveragePingMs} ms — Max {stats.MaxPingText} ms";
+            return Loc.F("Paquets envoyés : {0} — Reçus : {1} — Perdus : {2} ({3} %)\n", stats.PingTotal, stats.PingReceived, stats.PingLost, stats.LossPercent) +
+                Loc.F("Latence : Min {0} ms — Moyenne {1} ms — Max {2} ms", stats.MinPingText, stats.AveragePingMs, stats.MaxPingText);
         }
 
         private static string BuildRssiStats(RadarStats stats)
         {
-            return $"Signal : Min {stats.MinRssiText} dBm — Moyenne {stats.AverageRssi} dBm — Max {stats.MaxRssiText} dBm";
+            return Loc.F("Signal : Min {0} dBm — Moyenne {1} dBm — Max {2} dBm", stats.MinRssiText, stats.AverageRssi, stats.MaxRssiText);
         }
 
         /// <summary>Remplace le paragraphe repère "[[LOG]]" par le journal brut complet (police Courier New,

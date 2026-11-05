@@ -1537,8 +1537,8 @@
                                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="Nom du Package" Binding="{Binding PackageName}" Width="*"/>
-                                                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110"/>
-                                                <DataGridTextColumn Header="Statut" Binding="{Binding Status}" Width="100"/>
+                                                <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="110"/>
+                                                <DataGridTextColumn Header="Statut" Binding="{Binding StatusText}" Width="100"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
                                     </Border>
@@ -2269,7 +2269,7 @@
                                                             </Style>
                                                         </DataGridTextColumn.ElementStyle>
                                                     </DataGridTextColumn>
-                                                    <DataGridTextColumn Binding="{Binding ComponentName}" Width="*"/>
+                                                    <DataGridTextColumn Binding="{Binding DisplayName}" Width="*"/>
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                         </Grid>

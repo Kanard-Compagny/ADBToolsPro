@@ -80,8 +80,8 @@ namespace ADBToolsNew
 
             // Détail des sources qui n'ont pas répondu (dépôt privé, partage introuvable...), en petit sous l'état.
             var problems = new System.Collections.Generic.List<string>();
-            if (_lastUpdateCheck?.ShareProblem != null) problems.Add("Dossier de l'équipe : " + _lastUpdateCheck.ShareProblem + ".");
-            if (_lastUpdateCheck?.GitHubProblem != null) problems.Add("GitHub : " + _lastUpdateCheck.GitHubProblem + ".");
+            if (_lastUpdateCheck?.ShareProblem != null) problems.Add(Loc.F("Dossier de l'équipe : {0}.", _lastUpdateCheck.ShareProblem));
+            if (_lastUpdateCheck?.GitHubProblem != null) problems.Add(Loc.F("GitHub : {0}.", _lastUpdateCheck.GitHubProblem));
             TxtUpdSources.Text = string.Join("\n", problems);
             TxtUpdSources.Visibility = problems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 

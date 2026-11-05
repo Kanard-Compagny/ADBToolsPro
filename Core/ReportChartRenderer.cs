@@ -122,7 +122,7 @@ namespace ADBToolsNew.Core
 
                 if (values.Count == 0)
                 {
-                    var ft = Text("Aucune mesure", typeface, 26, Label);
+                    var ft = Text(Loc.T("Aucune mesure"), typeface, 26, Label);
                     dc.DrawText(ft, new Point(left + (plotW - ft.Width) / 2, top + (plotH - ft.Height) / 2));
                 }
             }

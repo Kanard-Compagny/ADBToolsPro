@@ -1,0 +1,227 @@
+﻿================================================================================
+                        ADB TOOLS PRO - 2027 EDITION
+                              RELEASE NOTES V1.2.0
+================================================================================
+Version        : 1.2.0 (new Settings page, English interface)
+Release date   : November 2026 (1.1.1: automatic updates, 1.1.0: first public release)
+Developed by   : Mr.Kanard
+Platform       : Windows (.NET Framework / WPF)
+Architecture   : Portable (third-party tools downloaded on first launch)
+License        : GNU GPL v3 (free and open-source software)
+
+================================================================================
+1. OVERVIEW
+================================================================================
+ADB Tools Pro is a desktop tool that makes diagnosing professional Android
+devices (Zebra, Honeywell, Samsung...) simpler, faster and safer. It wraps the
+power of ADB in a modern, responsive graphical interface, so technicians no
+longer have to type command lines by hand.
+
+Every tab has been tested on real hardware; known limitations are listed at
+the end of this document (section 9).
+
+================================================================================
+2. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+================================================================================
+A fully redesigned Settings page, modelled on Scanalyse.
+
+[Language]
+- The interface is now available in English (Settings > General > Language),
+  including messages, diagnostic results and Word reports (built-in English
+  templates).
+
+[General]
+- Page opened at startup, interface size (80, 90, 100, 115 or 130 %, the small
+  sizes for laptop screens), console expanded or not at startup.
+
+[Updates]
+- Team distribution folder: ADB Tools also looks for new versions there (a
+  network share where ADBToolsPro-X.Y.Z.zip is dropped), in addition to
+  GitHub. The state of each source is shown clearly.
+
+[Getting started]
+- Welcome screen on first launch (how to connect a device, theme choice) and
+  a guided tour showing where each tool is.
+
+[Word reports]
+- Report header: your company, contact details, name and logo, shown in the
+  built-in templates like a letterhead.
+- Reports folder of your choice. A template line that only contains an empty
+  tag is removed from the report.
+- Wi-Fi report: print-friendly charts covering the whole session, with a
+  scale that adapts to the measurements.
+
+[History]
+- Every exported report (service diagnostics, RMA, Wi-Fi analysis) is stored
+  in the device history, by serial number, with a copy of the report.
+  "History" button in Service diagnostics, search, retention period, folder
+  that can be shared with the team.
+
+[Team profile]
+- Export / import an .adbprofil file to set up every computer of a team the
+  same way (header, logo, templates, command library, update folder).
+
+[About and Uninstall]
+- Diagnostics block to copy for a help request, "Support ADB Tools" box.
+- Uninstall: erases the settings (and the data if requested), then opens File
+  Explorer on the program folder.
+
+================================================================================
+3. WHAT'S NEW IN VERSION 1.1.1 (November 2026)
+================================================================================
+[Automatic updates]
+- Settings > Updates: installed version, check for a new version, what's new
+  and one-click installation.
+- At each startup, ADB Tools quietly checks whether a new version is out and
+  shows an "Update" button at the top right (can be turned off).
+- The installation downloads the new version, checks its integrity (SHA-256),
+  replaces only the program files and restarts: report templates, third-party
+  tools, captures and settings are kept.
+
+================================================================================
+4. WHAT'S NEW IN VERSION 1.1.0 (November 2026)
+================================================================================
+First public release: ADB Tools becomes free and open-source software (GNU GPL
+v3 license), published on GitHub by Mr.Kanard.
+
+- New visual identity: logos, icon and splash screen redesigned.
+- Light, dark and "System" themes (follows the Windows setting), with a Theme
+  button in the top bar.
+- New Settings page; Captures folder opened and emptied from the top bar.
+- ADB / Fastboot, scrcpy and FFmpeg are no longer shipped with the program:
+  they are downloaded on first launch from their official sources, with an
+  integrity check, and can be updated in one click.
+- Customizable Word report templates (service and Wi-Fi) using {{TAG}} tags.
+
+================================================================================
+5. REQUIREMENTS
+================================================================================
+- A good quality USB data cable (not a charge-only cable).
+- Android devices with "USB debugging" turned on (Developer options).
+- Accept the RSA key prompt on the device screen on the first connection.
+- NO INSTALLATION REQUIRED: the software is 100% portable. Just unzip the
+  folder and run the executable.
+
+================================================================================
+6. THE CONNECTION BAR (always visible, on every tab)
+================================================================================
+- Drop-down list of detected devices, with a state indicator (connected /
+  unauthorized / offline) and automatic refresh every 2 seconds.
+- "Connect": opens the session with the selected device.
+- "Dev Off": remotely revokes USB debugging (with confirmation).
+- "Reboot" and "Recovery Mode": normal reboot or reboot to recovery.
+- "Wi-Fi Pairing": wireless (TCP/IP) connection to the device, with both
+  methods depending on the Android version: classic pairing (Android 5+) and
+  native code pairing (Android 11+).
+
+================================================================================
+7. FEATURES BY TAB
+================================================================================
+
+[📱 Dashboard]
+- Device identity at a glance: model, OS version, build, SDK API, serial
+  number, uptime, screen resolution/DPI.
+- Real-time gauges (battery, RAM, CPU, storage) with automatic colour coding
+  (green / orange / red) and a details panel when clicking each gauge.
+- Built-in free ADB command console, with a history of previous commands.
+
+[📺 Mirroring]
+- Shows the device screen on the PC through scrcpy (very low latency), with
+  options: turn off the physical screen, keep awake, mute, show touches.
+- "Multi-device mirroring": opens a mirroring window on several connected
+  devices in one action.
+- Instant screenshot (PNG) and screen video recording, with an automatic
+  watermark (company name, model, date).
+- Dedicated captures folder, with optional automatic saving.
+
+[📦 Package Manager]
+- Full list of installed apps, with filters (user / system / disabled) and
+  search by package name.
+- Multiple selection for grouped actions: launch, force stop, enable/disable,
+  clear cache/data, extract APK, uninstall — each confirmed before running.
+- Install by drag and drop of an .apk file or split APKs.
+- "Install on several devices": pick an APK once and install it on several
+  connected devices, with an individual result per device.
+- Real-time activity sniffer (app in the foreground on the device).
+
+[📁 Explorer]
+- Built-in browser for the device file tree, with shortcuts (sdcard,
+  Download, tmp).
+- Push and pull files with multiple selection, progress bar and cancel.
+- Create folders, rename and delete remotely.
+
+[⚡ Advanced tools]
+- Physical key simulator (Home, Back, Volume...).
+- Direct switches: Wi-Fi, Bluetooth, airplane mode, NFC, location,
+  auto-rotate, dark mode.
+- Settings with values: brightness, density (DPI), screen resolution (with
+  reset to factory values), screen timeout, volume per audio stream, ringer
+  mode.
+- XML extractor of the displayed interface (UI Automator dump), useful to set
+  up scanning apps (Velocity, ProGlove...).
+- OS update by sideload (.zip) with a safeguard preventing the application
+  from being closed in the middle of a flash.
+
+[🔧 Service diagnostics]
+- One-click automatic check-up covering 9 checkpoints: ADB authorization, root
+  privileges, Wi-Fi interface, network ping, battery status/health, internal
+  storage, sensors, thermal diagnostics, crash/ANR history.
+- 4 guided manual tests: physical buttons, touch panel, scanner trigger and
+  optics, colour patterns to detect dead pixels and screen burn-in.
+- Pass/fail verdict per checkpoint with a free technician comment.
+- Live hardware lab: key press log (with stuck key detection) and touch test
+  grid.
+- "New test": resets the whole diagnostics in one click.
+- Export to JSON (RMA) and to Word (.docx), ready to give to the customer.
+- History of the diagnostics run on each device (by serial number).
+
+[📡 Wi-Fi analysis]
+- Live monitoring of the connection: SSID, BSSID, IP and MAC addresses,
+  signal level (RSSI), band and channel, link speed, gateway and DNS.
+- Two live charts side by side: latency and signal strength, each with
+  min/average/max statistics and live counters.
+- Live roaming and Wi-Fi disconnection sniffer through logcat.
+- Plain-text network report and Word report (.docx) with both charts and the
+  full raw event log.
+
+[📚 ADB library]
+- Ready-to-use ADB commands by category, with keyword search.
+- "▶ Run" runs the command on the connected device (always confirmed);
+  "📋 Copy" copies it for a script. Add and delete custom commands.
+- "▶▶ Multi" and "Cmd. Multi.": run a command on several selected devices at
+  once, with an individual result per device.
+- Export/import of the library as .json, to share commands with the team.
+
+[📝 Logs]
+- Real-time logcat capture, without slowing down the interface.
+- Filters by severity level, live search (free text or regular expression).
+- Targeting of a specific app: automatic detection of the foreground app, or
+  manual package name.
+- Structured table view or raw data; jump to the next error line.
+- Copy the selection, save as .txt, generate the full bugreport (.zip).
+
+================================================================================
+8. MULTI-DEVICE EXECUTION
+================================================================================
+Three actions can run on several connected devices at once, through the same
+device picker everywhere in the application: ADB library (saved or free
+command), mirroring and APK installation. No device is preselected, a
+confirmation lists the exact serial numbers targeted before anything is sent,
+and each device gets its own result in the console.
+
+================================================================================
+9. TECHNICAL NOTES, SECURITY AND KNOWN LIMITATIONS (V1.2.0)
+================================================================================
+- Isolated environment: third-party tools (adb.exe, scrcpy.exe, ffmpeg.exe)
+  are downloaded into the /Tools subfolder next to the program.
+- Asynchronous core: long operations run in the background, the interface
+  stays responsive.
+- Process safety: automatic clean-up of every external process launched by
+  the application when it closes.
+- Every destructive or irreversible action is always confirmed before it
+  runs, with the exact detail of what will be done.
+- The window remembers its size and position between launches.
+- Known limitations: Device Info, Package Manager (except installation) and
+  Explorer deliberately work on one device at a time. Data you entered
+  (command library, categories) stays in the language it was created in.
+================================================================================

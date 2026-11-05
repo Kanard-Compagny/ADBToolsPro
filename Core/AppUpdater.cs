@@ -32,7 +32,7 @@ namespace ADBToolsNew.Core
         public bool FromShare { get; set; }
 
         public string VersionText => $"{Version.Major}.{Version.Minor}.{Version.Build}";
-        public string SourceLabel => FromShare ? "dossier de l'équipe" : "GitHub";
+        public string SourceLabel => FromShare ? Loc.T("dossier de l'équipe") : "GitHub";
     }
 
     /// <summary>Résultat d'une recherche de mise à jour, avec l'état de chaque source pour l'affichage.</summary>
@@ -110,11 +110,11 @@ namespace ADBToolsNew.Core
                 {
                     var r = await Task.Run(() => FindInShare(share), ct).ConfigureAwait(false);
                     if (r != null) found.Add(r);
-                    else result.ShareProblem = "aucune archive ADBToolsPro-X.Y.Z.zip dans le dossier de l'équipe";
+                    else result.ShareProblem = Loc.T("aucune archive ADBToolsPro-X.Y.Z.zip dans le dossier de l'équipe");
                 }
                 catch (Exception ex)
                 {
-                    result.ShareProblem = "dossier de l'équipe inaccessible (" + ex.Message + ")";
+                    result.ShareProblem = Loc.F("dossier de l'équipe inaccessible ({0})", ex.Message);
                 }
             }
 
@@ -122,11 +122,11 @@ namespace ADBToolsNew.Core
             {
                 var r = await GetLatestFromGitHubAsync(ct).ConfigureAwait(false);
                 if (r != null) found.Add(r);
-                else result.GitHubProblem = "versions GitHub non accessibles (dépôt privé ou aucune version publiée)";
+                else result.GitHubProblem = Loc.T("versions GitHub non accessibles (dépôt privé ou aucune version publiée)");
             }
             catch (Exception ex)
             {
-                result.GitHubProblem = "GitHub injoignable (" + ex.Message + ")";
+                result.GitHubProblem = Loc.F("GitHub injoignable ({0})", ex.Message);
             }
 
             // À version égale, on préfère le dossier de l'équipe (réseau local, plus rapide).

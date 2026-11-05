@@ -60,6 +60,11 @@ Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
   d'une équipe de la même façon (en-tête, logo, modèles, bibliothèque de
   commandes, dossier des mises à jour).
 
+[Langue / Language]
+- Interface disponible en anglais (Paramètres > Général > Langue), y compris
+  les messages, les résultats des diagnostics et les rapports Word (modèles
+  fournis en anglais).
+
 [À propos et Désinstaller]
 - Bloc Diagnostic à copier pour une demande d'aide.
 - Désinstaller : efface les réglages (et les données si demandé), puis ouvre
@@ -395,5 +400,6 @@ jamais le traitement des autres.
 - La fenêtre mémorise sa taille et sa position entre deux lancements.
 - Limites connues de cette version : Device Info, Package Manager (hors
   installation) et Explorer restent volontairement mono-appareil (une seule
-  cible à la fois). L'interface n'existe pour l'instant qu'en français.
+  cible à la fois). Les données saisies (bibliothèque de commandes, catégories)
+  restent dans la langue où elles ont été créées.
 ================================================================================

@@ -23,7 +23,16 @@ namespace ADBToolsNew.Core
         public static string DisplayName(ReportKind kind) => kind == ReportKind.Sav ? "Rapport SAV" : "Rapport Wi-Fi";
 
         public static string UserTemplatePath(ReportKind kind) => Path.Combine(UserFolder, FileName(kind));
-        public static string DefaultTemplatePath(ReportKind kind) => Path.Combine(DefaultFolder, FileName(kind));
+        /// <summary>Modèle fourni : version anglaise (Docs\Modeles\en) si l'interface est en anglais.</summary>
+        public static string DefaultTemplatePath(ReportKind kind)
+        {
+            if (Loc.IsEnglish)
+            {
+                string en = Path.Combine(DefaultFolder, "en", FileName(kind));
+                if (File.Exists(en)) return en;
+            }
+            return Path.Combine(DefaultFolder, FileName(kind));
+        }
 
         public static bool HasUserTemplate(ReportKind kind) => File.Exists(UserTemplatePath(kind));
 

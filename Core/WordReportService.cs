@@ -138,7 +138,7 @@ namespace ADBToolsNew.Core
                 ["NUMERO_SERIE"] = serial ?? "",
                 ["MODELE"] = model ?? "",
                 ["DATE"] = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
-                ["PIED_DE_PAGE"] = "Rapport généré par ADB Tools — " + DateTime.Now.ToString("dd/MM/yyyy")
+                ["PIED_DE_PAGE"] = Loc.F("Rapport généré par ADB Tools — {0}", DateTime.Now.ToString("dd/MM/yyyy"))
             };
         }
 
@@ -167,8 +167,8 @@ namespace ADBToolsNew.Core
             foreach (var pair in ModuleTagNames)
             {
                 byId.TryGetValue(pair.Key, out var item);
-                texts[pair.Value + "_DETAILS"] = item == null ? "" : CleanDetailsForClient(item.Details);
-                texts[pair.Value + "_STATUT"] = item == null ? "" : ValidityLabel(item.StatusIcon);
+                texts[pair.Value + "_DETAILS"] = item == null ? "" : Loc.TranslateLines(CleanDetailsForClient(item.Details));
+                texts[pair.Value + "_STATUT"] = item == null ? "" : Loc.T(ValidityLabel(item.StatusIcon));
                 texts[pair.Value + "_COMMENTAIRE"] = item?.Comment ?? "";
                 string fill = item == null ? null : StatusFill(item.StatusIcon);
                 if (fill != null) fills[pair.Value + "_STATUT"] = fill;
@@ -179,7 +179,7 @@ namespace ADBToolsNew.Core
             images["IMAGE_TACTILE"] = new TemplateImage
             {
                 Path = byId.TryGetValue("touch", out var touchItem) ? touchItem.ImagePath : null,
-                FallbackText = "Aucune capture disponible (test manuel non validé)."
+                FallbackText = Loc.T("Aucune capture disponible (test manuel non validé).")
             };
 
             ReportTemplateEngine.Fill(wdoc, texts, images, fills);
@@ -322,21 +322,21 @@ namespace ADBToolsNew.Core
         internal static string BuildSummaryText(int conforme, int surveiller, int nonConforme, int total,
             int nonTeste, int nonApplicable, int deconnecte)
         {
-            string summary = $"Résumé : {conforme} conforme(s), {surveiller} à surveiller, {nonConforme} non conforme(s) sur {total} test(s)";
+            string summary = Loc.F("Résumé : {0} conforme(s), {1} à surveiller, {2} non conforme(s) sur {3} test(s)", conforme, surveiller, nonConforme, total);
 
             var details = new List<string>();
-            if (nonTeste > 0) details.Add($"{nonTeste} non testé(s)");
-            if (nonApplicable > 0) details.Add($"{nonApplicable} non applicable(s)");
-            if (deconnecte > 0) details.Add($"{deconnecte} interrompu(s) (terminal déconnecté)");
+            if (nonTeste > 0) details.Add(Loc.F("{0} non testé(s)", nonTeste));
+            if (nonApplicable > 0) details.Add(Loc.F("{0} non applicable(s)", nonApplicable));
+            if (deconnecte > 0) details.Add(Loc.F("{0} interrompu(s) (terminal déconnecté)", deconnecte));
 
-            if (details.Count > 0) summary += ", dont " + JoinFrench(details);
+            if (details.Count > 0) summary += Loc.T(", dont ") + JoinFrench(details);
             return summary + ".";
         }
 
         private static string JoinFrench(List<string> parts)
         {
             if (parts.Count == 1) return parts[0];
-            return string.Join(", ", parts.Take(parts.Count - 1)) + " et " + parts[parts.Count - 1];
+            return string.Join(", ", parts.Take(parts.Count - 1)) + Loc.T(" et ") + parts[parts.Count - 1];
         }
 
         internal static string ValidityLabel(string statusIcon)

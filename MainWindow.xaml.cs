@@ -45,6 +45,10 @@ namespace ADBToolsNew
         public string PackageName { get; set; }
         public string Type { get; set; }     // Utilisateur ou Système
         public string Status { get; set; }   // Activé ou Désactivé
+
+        // Textes affichés (traduits si l'interface est en anglais) ; Type et Status restent les valeurs de référence.
+        public string TypeText => ADBToolsNew.Core.Loc.T(Type);
+        public string StatusText => ADBToolsNew.Core.Loc.T(Status);
     }
     // --- MODÈLE POUR L'EXPLORATEUR DE FICHIERS ---
     public class AndroidFileItem
@@ -80,6 +84,9 @@ namespace ADBToolsNew
         public string Details { get; set; }
         public string Comment { get; set; }
         public string ImagePath { get; set; } = "";
+
+        /// <summary>Nom affiché (traduit si l'interface est en anglais) ; ComponentName reste la référence.</summary>
+        public string DisplayName => ADBToolsNew.Core.Loc.T(ComponentName);
     }
 
     public partial class MainWindow : Window

@@ -71,6 +71,53 @@ namespace ADBToolsNew.Core
             catch (FormatException) { return string.Format(frFormat, args); }
         }
 
+        // ------------------------------------------------------------------ Textes construits (diagnostics)
+
+        private static readonly Regex Numbers = new Regex(@"\d+(?:[.,]\d+)*", RegexOptions.Compiled);
+        private static readonly Regex LinePrefix = new Regex(@"^(\s*(?:[•👉]\s*)?)(.*?)(\s*)$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Traduit un texte construit ligne par ligne (« • Niveau actuel : 82 % », « --- BILAN THERMIQUE --- »…) :
+        /// ligne entière, sinon « libellé : valeur » traduits séparément, en remplaçant au besoin les nombres
+        /// par {0}, {1}… pour retrouver la phrase dans le dictionnaire. Les données (numéros, adresses…) restent
+        /// telles quelles. Sans effet en français.
+        /// </summary>
+        public static string TranslateLines(string text)
+        {
+            if (!IsEnglish || string.IsNullOrEmpty(text) || _en == null) return text;
+            var lines = text.Replace("\r", "").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var m = LinePrefix.Match(lines[i]);
+                string body = m.Groups[2].Value;
+                if (body.Length == 0) continue;
+                lines[i] = m.Groups[1].Value + (Fragment(body) ?? LabelValue(body) ?? body) + m.Groups[3].Value;
+            }
+            return string.Join("\n", lines);
+        }
+
+        private static string Fragment(string s)
+        {
+            if (_en.TryGetValue(s, out var en)) return en;
+            var args = new List<object>();
+            string masked = Numbers.Replace(s, mm => { args.Add(mm.Value); return "{" + (args.Count - 1) + "}"; });
+            if (args.Count > 0 && _en.TryGetValue(masked, out var fmt))
+            {
+                try { return string.Format(fmt, args.ToArray()); } catch (FormatException) { }
+            }
+            return null;
+        }
+
+        private static string LabelValue(string s)
+        {
+            int idx = s.IndexOf(" : ", StringComparison.Ordinal);
+            if (idx <= 0) return null;
+            string label = s.Substring(0, idx), value = s.Substring(idx + 3);
+            string tl = Fragment(label), tv = Fragment(value) ?? LabelValue(value);
+            if (tl == null && tv == null) return null;
+            return (tl ?? label) + ": " + (tv ?? value);
+        }
+
         private static HashSet<string> _englishValues;
 
         private static void NoteMissing(string fr)
@@ -128,6 +175,10 @@ namespace ADBToolsNew.Core
                 if (node is ComboBoxItem cbi && cbi.Tag == null) cbi.Tag = c;
                 cc.Content = T(c);
             }
+            // Colonnes des tableaux : absentes de l'arbre logique, traduites ici.
+            if (node is DataGrid dg)
+                foreach (var col in dg.Columns)
+                    if (col.Header is string colHeader) col.Header = T(colHeader);
             if (node is FrameworkElement fe && fe.ToolTip is string tip && !BindingOperations.IsDataBound(fe, FrameworkElement.ToolTipProperty))
                 fe.ToolTip = T(tip);
 

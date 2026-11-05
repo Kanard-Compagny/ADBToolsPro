@@ -105,8 +105,8 @@ namespace ADBToolsNew
         {
             if (DiagChecklistGrid.SelectedItem is DiagComponent item)
             {
-                TxtDiagTitle.Text = item.ComponentName;
-                TxtDiagDetails.Text = string.IsNullOrEmpty(item.Details) ? Loc.T("Aucune donnée extraite.") : item.Details;
+                TxtDiagTitle.Text = item.DisplayName;
+                TxtDiagDetails.Text = string.IsNullOrEmpty(item.Details) ? Loc.T("Aucune donnée extraite.") : Loc.TranslateLines(item.Details);
                 TxtDiagComment.Text = item.Comment;
                 GridDiagValidation.Visibility = Visibility.Visible;
 
@@ -159,7 +159,7 @@ namespace ADBToolsNew
                 item.StatusIcon = status;
                 item.Comment = TxtDiagComment.Text;
                 DiagChecklistGrid.Items.Refresh(); // Rafraîchit visuellement le tableau
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🩺 {1} marqué comme {2}", DateTime.Now, item.ComponentName, status));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🩺 {1} marqué comme {2}", DateTime.Now, item.DisplayName, status));
             }
         }
 

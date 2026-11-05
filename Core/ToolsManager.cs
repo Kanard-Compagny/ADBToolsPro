@@ -91,9 +91,9 @@ namespace ADBToolsNew.Core
         {
             switch (c)
             {
-                case ToolComponent.PlatformTools: return "Indispensable : communication avec les terminaux Android.";
-                case ToolComponent.Scrcpy: return "Affichage et contrôle de l'écran du terminal (Mirroring), enregistrement vidéo.";
-                default: return "Facultatif : incrustation du filigrane sur les vidéos enregistrées (≈ 100 Mo).";
+                case ToolComponent.PlatformTools: return Loc.T("Indispensable : communication avec les terminaux Android.");
+                case ToolComponent.Scrcpy: return Loc.T("Affichage et contrôle de l'écran du terminal (Mirroring), enregistrement vidéo.");
+                default: return Loc.T("Facultatif : incrustation du filigrane sur les vidéos enregistrées (≈ 100 Mo).");
             }
         }
 
@@ -111,9 +111,9 @@ namespace ADBToolsNew.Core
         {
             switch (c)
             {
-                case ToolComponent.PlatformTools: return "Licence : conditions du SDK Android (Google)";
-                case ToolComponent.Scrcpy: return "Licence : Apache 2.0";
-                default: return "Licence : GPL v3";
+                case ToolComponent.PlatformTools: return Loc.T("Licence : conditions du SDK Android (Google)");
+                case ToolComponent.Scrcpy: return Loc.T("Licence : Apache 2.0");
+                default: return Loc.T("Licence : GPL v3");
             }
         }
 

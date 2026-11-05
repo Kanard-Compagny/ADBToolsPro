@@ -41,10 +41,11 @@ namespace ADBToolsNew
 
         private static DocumentWindow Create(Window owner, string windowTitle, string heading, string intro)
         {
+            windowTitle = Loc.T(windowTitle);
             var w = new DocumentWindow { Owner = owner, Title = windowTitle + Loc.T(" — ADB Tools") };
             w.TxtWindowTitle.Text = windowTitle;
-            if (!string.IsNullOrEmpty(heading)) w.ContentHost.Children.Add(H1(heading));
-            if (!string.IsNullOrEmpty(intro)) w.ContentHost.Children.Add(Paragraph(intro, "Ink"));
+            if (!string.IsNullOrEmpty(heading)) w.ContentHost.Children.Add(H1(Loc.T(heading)));
+            if (!string.IsNullOrEmpty(intro)) w.ContentHost.Children.Add(Paragraph(Loc.T(intro), "Ink"));
             return w;
         }
 
@@ -52,6 +53,12 @@ namespace ADBToolsNew
         public static void ShowTextFile(Window owner, string windowTitle, string heading, string relativePath)
         {
             string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+            // Version anglaise du document (ex. Docs\Release_Note_V1.en.txt) si l'interface est en anglais.
+            if (Loc.IsEnglish)
+            {
+                string en = Path.Combine(Path.GetDirectoryName(fullPath), Path.GetFileNameWithoutExtension(fullPath) + ".en" + Path.GetExtension(fullPath));
+                if (File.Exists(en)) fullPath = en;
+            }
             string text;
             try { text = File.Exists(fullPath) ? File.ReadAllText(fullPath) : $"Fichier introuvable : {relativePath}"; }
             catch (Exception ex) { text = $"Impossible de lire {relativePath} : {ex.Message}"; }
@@ -61,7 +68,7 @@ namespace ADBToolsNew
         public static void ShowText(Window owner, string windowTitle, string heading, string text)
         {
             var w = Create(owner, windowTitle, heading, null);
-            foreach (var el in RenderText(text)) w.ContentHost.Children.Add(el);
+            foreach (var el in RenderText(Loc.T(text))) w.ContentHost.Children.Add(el);
             w.Show();
         }
 
@@ -72,7 +79,7 @@ namespace ADBToolsNew
                 "ADB Tools s'appuie sur les composants open source suivants. Les outils externes ne sont pas livrés avec le programme : " +
                 "ils sont téléchargés depuis leurs sources officielles (Paramètres ▸ Outils tiers). Chacun reste soumis à sa propre licence.");
 
-            string V(ToolComponent c) => ToolsManager.GetInstalledVersion(c) ?? (ToolsManager.IsInstalled(c) ? "?" : "non installé");
+            string V(ToolComponent c) => ToolsManager.GetInstalledVersion(c) ?? (ToolsManager.IsInstalled(c) ? "?" : Loc.T("non installé"));
             var rows = new List<string[]>
             {
                 new[] { "ADB & Fastboot (Platform-Tools)", "https://developer.android.com/tools/releases/platform-tools", V(ToolComponent.PlatformTools), "Communication avec les terminaux Android", "Apache 2.0 (AOSP), conditions du SDK Android" },
@@ -164,7 +171,7 @@ namespace ADBToolsNew
         /// </summary>
         public static void ShowHistory(Window owner, List<HistoryEntry> entries, string serialFilter)
         {
-            string title = string.IsNullOrWhiteSpace(serialFilter) ? "Historique des diagnostics" : "Historique — " + serialFilter;
+            string title = string.IsNullOrWhiteSpace(serialFilter) ? Loc.T("Historique des diagnostics") : Loc.T("Historique — ") + serialFilter;
             var w = Create(owner, "Historique", title, null);
             var host = w.ContentHost;
 
@@ -227,7 +234,7 @@ namespace ADBToolsNew
             var line1 = new TextBlock { FontSize = 13.5, TextWrapping = TextWrapping.Wrap };
             line1.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
             line1.Inlines.Add(new Run($"{e.Date:dd/MM/yyyy HH:mm}  ·  ") { FontWeight = FontWeights.SemiBold });
-            line1.Inlines.Add(new Run(e.Type) { FontWeight = FontWeights.SemiBold });
+            line1.Inlines.Add(new Run(Loc.T(e.Type)) { FontWeight = FontWeights.SemiBold });
             if (!string.IsNullOrWhiteSpace(e.Verdict))
             {
                 var verdict = new Run("  ·  " + e.Verdict);
@@ -238,9 +245,9 @@ namespace ADBToolsNew
 
             // Ligne 2 : client, incident, technicien
             var meta = new List<string>();
-            if (!string.IsNullOrWhiteSpace(e.Client)) meta.Add("Client : " + e.Client);
-            if (!string.IsNullOrWhiteSpace(e.Incident)) meta.Add("Incident : " + e.Incident);
-            if (!string.IsNullOrWhiteSpace(e.Technician)) meta.Add("Technicien : " + e.Technician);
+            if (!string.IsNullOrWhiteSpace(e.Client)) meta.Add(Loc.T("Client : ") + e.Client);
+            if (!string.IsNullOrWhiteSpace(e.Incident)) meta.Add(Loc.T("Incident : ") + e.Incident);
+            if (!string.IsNullOrWhiteSpace(e.Technician)) meta.Add(Loc.T("Technicien : ") + e.Technician);
             if (!string.IsNullOrWhiteSpace(e.Android)) meta.Add("Android " + e.Android);
             if (meta.Count > 0) stack.Children.Add(Themed(string.Join("  ·  ", meta), "Muted", 12, FontWeights.Normal, new Thickness(0, 3, 0, 0)));
 
@@ -249,26 +256,26 @@ namespace ADBToolsNew
             var details = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 8, 0, 0) };
             if (e.Items.Count > 0 || !string.IsNullOrWhiteSpace(e.Summary))
             {
-                var h = new Hyperlink(new Run("Détails des tests")) { TextDecorations = null };
+                var h = new Hyperlink(new Run(Loc.T("Détails des tests"))) { TextDecorations = null };
                 h.SetResourceReference(TextElement.ForegroundProperty, "BrandText");
                 h.Click += (s, a) => details.Visibility = details.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
                 links.Inlines.Add(h);
                 if (!string.IsNullOrWhiteSpace(e.Summary))
-                    details.Children.Add(Themed(e.Summary, "Ink", 12.5, FontWeights.Normal, new Thickness(0, 0, 0, 6)));
+                    details.Children.Add(Themed(Loc.TranslateLines(e.Summary), "Ink", 12.5, FontWeights.Normal, new Thickness(0, 0, 0, 6)));
                 if (e.Items.Count > 0)
                     details.Children.Add(BuildSimpleTable(new[] { "Test", "Résultat", "Commentaire" }, new[] { 1.2, 1.0, 1.6 },
-                        e.Items.Select(i => new[] { i.Name, i.Status, i.Comment }).ToList()));
+                        e.Items.Select(i => new[] { Loc.T(i.Name), Loc.TranslateLines(i.Status), i.Comment }).ToList()));
             }
             string report = e.ReportPath;
             if (report != null && File.Exists(report))
             {
                 if (links.Inlines.Count > 0) links.Inlines.Add(new Run("     "));
-                var open = new Hyperlink(new Run("Ouvrir le rapport")) { TextDecorations = null };
+                var open = new Hyperlink(new Run(Loc.T("Ouvrir le rapport"))) { TextDecorations = null };
                 open.SetResourceReference(TextElement.ForegroundProperty, "BrandText");
                 open.Click += (s, a) => { try { Process.Start(new ProcessStartInfo(report) { UseShellExecute = true }); } catch { } };
                 links.Inlines.Add(open);
                 links.Inlines.Add(new Run("     "));
-                var folder = new Hyperlink(new Run("Afficher dans le dossier")) { TextDecorations = null };
+                var folder = new Hyperlink(new Run(Loc.T("Afficher dans le dossier"))) { TextDecorations = null };
                 folder.SetResourceReference(TextElement.ForegroundProperty, "Muted");
                 folder.Click += (s, a) => { try { Process.Start("explorer.exe", $"/select,\"{report}\""); } catch { } };
                 links.Inlines.Add(folder);
@@ -453,7 +460,7 @@ namespace ADBToolsNew
             grid.Children.Add(headerBg);
             for (int c = 0; c < headers.Length; c++)
             {
-                var h = Themed(headers[c], "Ink", 13, FontWeights.SemiBold, new Thickness(10, 8, 10, 8));
+                var h = Themed(Loc.T(headers[c]), "Ink", 13, FontWeights.SemiBold, new Thickness(10, 8, 10, 8));
                 Grid.SetColumn(h, c);
                 grid.Children.Add(h);
             }
@@ -470,7 +477,7 @@ namespace ADBToolsNew
                 for (int c = 0; c < headers.Length && c < rows[r].Length; c++)
                 {
                     bool mono = c >= monoFrom && c <= monoTo;
-                    var cell = Themed(rows[r][c], mono ? "BrandText" : "Ink", mono ? 12.5 : 13, FontWeights.Normal, new Thickness(10, 7, 10, 7));
+                    var cell = Themed(Loc.T(rows[r][c]), mono ? "BrandText" : "Ink", mono ? 12.5 : 13, FontWeights.Normal, new Thickness(10, 7, 10, 7));
                     if (mono) cell.SetResourceReference(TextBlock.FontFamilyProperty, "FontMono");
                     Grid.SetRow(cell, r + 1);
                     Grid.SetColumn(cell, c);
@@ -497,7 +504,7 @@ namespace ADBToolsNew
             grid.Children.Add(headerBg);
             for (int c = 0; c < headers.Length; c++)
             {
-                var h = Themed(headers[c], "Ink", 13, FontWeights.SemiBold, new Thickness(10, 9, 10, 9));
+                var h = Themed(Loc.T(headers[c]), "Ink", 13, FontWeights.SemiBold, new Thickness(10, 9, 10, 9));
                 Grid.SetColumn(h, c);
                 grid.Children.Add(h);
             }
@@ -537,7 +544,7 @@ namespace ADBToolsNew
 
                 for (int c = 2; c < row.Length && c - 1 < 4; c++)
                 {
-                    var cell = Themed(row[c], "Ink", 13, FontWeights.Normal, new Thickness(10, 9, 10, 9));
+                    var cell = Themed(Loc.T(row[c]), "Ink", 13, FontWeights.Normal, new Thickness(10, 9, 10, 9));
                     Grid.SetRow(cell, gridRow);
                     Grid.SetColumn(cell, c - 1);
                     grid.Children.Add(cell);

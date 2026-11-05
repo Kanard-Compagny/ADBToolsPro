@@ -49,9 +49,9 @@ namespace ADBToolsNew.Core
             {
                 if (Ok + Warn + Bad == 0) return Summary ?? "";
                 var parts = new List<string>();
-                if (Ok > 0) parts.Add($"{Ok} conforme{(Ok > 1 ? "s" : "")}");
-                if (Warn > 0) parts.Add($"{Warn} à surveiller");
-                if (Bad > 0) parts.Add($"{Bad} non conforme{(Bad > 1 ? "s" : "")}");
+                if (Ok > 0) parts.Add(Ok > 1 ? Loc.F("{0} conformes", Ok) : Loc.F("{0} conforme", Ok));
+                if (Warn > 0) parts.Add(Loc.F("{0} à surveiller", Warn));
+                if (Bad > 0) parts.Add(Bad > 1 ? Loc.F("{0} non conformes", Bad) : Loc.F("{0} non conforme", Bad));
                 return string.Join(" · ", parts);
             }
         }
