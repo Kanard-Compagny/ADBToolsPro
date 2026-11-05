@@ -128,17 +128,39 @@ namespace ADBToolsNew
             double.TryParse(tag as string, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : 1.0;
 
         /// <summary>Agrandit tout le contenu de la fenêtre (100 %, 115 % ou 130 %), comme le réglage de Scanalyse.</summary>
+        private double _uiScale = 1.0;
+
         private void ApplyUiScale(double scale)
         {
             if (AppContentGrid == null) return;
+            _uiScale = scale;
             AppContentGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01 ? Transform.Identity : new ScaleTransform(scale, scale);
             // Texte net malgré l'agrandissement / la réduction : positions arrondies au pixel près.
             AppContentGrid.UseLayoutRounding = true;
-            if (IsLoaded)
+            FitScaledContent();
+        }
+
+        /// <summary>
+        /// Taille explicite du contenu agrandi / réduit : avec une simple LayoutTransform, WPF ne recalculait pas
+        /// toujours la place disponible (au lancement notamment) et le contenu réduit à 80 % n'occupait plus que
+        /// 80 % de la fenêtre. On lui donne donc exactement la taille de la fenêtre divisée par l'échelle, à chaque
+        /// changement de taille de la fenêtre.
+        /// </summary>
+        private void FitScaledContent()
+        {
+            if (AppContentGrid == null || RootBorder == null) return;
+            if (Math.Abs(_uiScale - 1.0) < 0.01)
             {
-                AppContentGrid.UpdateLayout();
-                RootBorder.InvalidateVisual();
+                AppContentGrid.Width = double.NaN;
+                AppContentGrid.Height = double.NaN;
+                return;
             }
+            var b = RootBorder.BorderThickness;
+            double w = RootBorder.ActualWidth - b.Left - b.Right;
+            double h = RootBorder.ActualHeight - b.Top - b.Bottom;
+            if (w <= 0 || h <= 0) return; // pas encore mesurée : SizeChanged rappellera
+            AppContentGrid.Width = Math.Floor(w / _uiScale);
+            AppContentGrid.Height = Math.Floor(h / _uiScale);
         }
 
         /// <summary>Vrai sélecteur de dossier de Windows (voir <see cref="FolderPicker"/>). Renvoie null si annulé.</summary>

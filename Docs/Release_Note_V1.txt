@@ -1,6 +1,6 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.2.0
+                              RELEASE NOTES V1.2.1
 ================================================================================
 Version        : 1.2.0 (nouvelle page Paramètres)
 Date de sortie : Novembre 2026 (1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)

@@ -196,10 +196,15 @@ namespace ADBToolsNew
             WindowShadow.Margin = margin;
             WindowShadow.CornerRadius = radius;
             WindowShadow.Visibility = maximized ? Visibility.Collapsed : Visibility.Visible;
+            FitScaledContent();
             UpdateRootClip();
         }
 
-        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateRootClip();
+        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            FitScaledContent(); // taille de l'interface (80 % … 130 %) : le contenu suit la fenêtre
+            UpdateRootClip();
+        }
 
         /// <summary>Découpe le contenu suivant les coins arrondis (un Border n'arrondit que son propre fond, pas
         /// ce qu'il contient : sans cela, la barre de titre et le menu dépasseraient dans les coins).</summary>
