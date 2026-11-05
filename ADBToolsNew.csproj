@@ -118,6 +118,7 @@
     <Compile Include="Core\LogAnalyzer.cs" />
     <Compile Include="Core\LogImport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
+    <Compile Include="Core\ScanTest.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -221,6 +222,9 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.Compare.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.ScanTest.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="Themes\Theme.Dark.xaml">

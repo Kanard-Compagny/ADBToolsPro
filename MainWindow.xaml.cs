@@ -467,6 +467,7 @@ namespace ADBToolsNew
             try { StopLogcat(); } catch { }
             try { StopRadar(); } catch { }
             try { StopGetEventLab(); } catch { }
+            try { StopScanTestOnExit(); } catch { }
 
             if (_isRecording)
             {

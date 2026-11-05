@@ -2498,6 +2498,7 @@
                                                         <TextBlock Text="Détection matérielle des boutons physiques, de la gâchette et de la dalle tactile." Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                        <Button Content="🔫 Test du lecteur…" Click="BtnOpenScanTest_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit réellement des codes-barres avec le lecteur du terminal (appli de test temporaire) : données, symbologie, cadence, taux de réussite"/>
                                                         <ToggleButton x:Name="ToggleLabListen" Content="Démarrer l'écoute" Click="ToggleLabListen_Click" Style="{StaticResource ModernToggleStyle}" Width="140" Height="35" Margin="0,0,8,0"/>
                                                         <Button x:Name="BtnToggleLabCard" Content="▾" ToolTip="Réduire le Laboratoire" Click="BtnToggleLabCard_Click" Style="{StaticResource SidebarToggleStyle}" Width="26" Height="26" FontSize="13"/>
                                                     </StackPanel>
@@ -3645,6 +3646,93 @@
                             <Button x:Name="BtnDialogConfirm" Content="Confirmer" Click="BtnDialogConfirm_Click" Style="{StaticResource DangerButtonStyle}" MinWidth="100" Height="32" Padding="16,0"/>
                         </StackPanel>
                     </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Test du lecteur code-barres (Diagnostics SAV) : appli de test temporaire sur le terminal, lectures en direct. -->
+            <Grid x:Name="ScanTestOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1001">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Margin="40,30" MaxWidth="1200" Padding="22,18">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="🔫 Test du lecteur code-barres" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                <TextBlock x:Name="TxtScanTestStatus" Text="Une petite appli de test est installée sur le terminal le temps du test, puis désinstallée." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button x:Name="BtnScanTestStart" Content="▶ Démarrer le test" Click="BtnScanTestStart_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnScanTestStop" Content="⏹ Terminer" Click="BtnScanTestStop_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Arrête le test et désinstalle l'appli de test"/>
+                                <Button Content="✖" Click="BtnScanTestClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="34" Height="34" ToolTip="Fermer (le test en cours est terminé)"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <UniformGrid Grid.Row="1" Rows="1" Margin="0,0,0,14">
+                            <Border Style="{StaticResource SettingsCardStyle}" Padding="14,10" Margin="0,0,8,0">
+                                <StackPanel><TextBlock Text="Lectures" FontSize="11" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="TxtScanStatReads" Text="0" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Ink}"/></StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsCardStyle}" Padding="14,10" Margin="0,0,8,0">
+                                <StackPanel><TextBlock Text="Cadence (par minute)" FontSize="11" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="TxtScanStatRate" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Ink}"/></StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsCardStyle}" Padding="14,10" Margin="0,0,8,0">
+                                <StackPanel><TextBlock Text="Taux de réussite" FontSize="11" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="TxtScanStatSuccess" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Ink}"/><TextBlock x:Name="TxtScanStatTriggers" FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsCardStyle}" Padding="14,10" Margin="0,0,8,0">
+                                <StackPanel><TextBlock Text="Délai gâchette → lecture" FontSize="11" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="TxtScanStatDelay" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Ink}"/></StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsCardStyle}" Padding="14,10">
+                                <StackPanel><TextBlock Text="Codes attendus" FontSize="11" Foreground="{DynamicResource Muted}"/><TextBlock x:Name="TxtScanStatExpected" Text="—" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Ink}"/></StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="280"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource ConsoleBg}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" ClipToBounds="True" Margin="0,0,14,0">
+                                <DataGrid x:Name="ScanReadsGrid" Background="Transparent" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="None"
+                                          SelectionMode="Extended" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="44"/>
+                                        <DataGridTextColumn Header="Heure" Binding="{Binding TimeText}" Width="76"/>
+                                        <DataGridTextColumn Header="Données" Binding="{Binding DataDisplay}" Width="3*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Long." Binding="{Binding Length}" Width="52"/>
+                                        <DataGridTextColumn Header="Symbologie" Binding="{Binding Symbology}" Width="2*"/>
+                                        <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="90"/>
+                                        <DataGridTextColumn Header="Délai" Binding="{Binding DelayText}" Width="70"/>
+                                        <DataGridTextColumn Header="✓" Binding="{Binding CheckIcon}" Width="40"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Codes attendus" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                <TextBlock Text="Un code par ligne (planche de test). Laissez vide pour un simple relevé." FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,6"/>
+                                <TextBox x:Name="TxtScanExpected" AcceptsReturn="True" TextWrapping="NoWrap" FontFamily="Consolas" Height="150" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextChanged="TxtScanExpected_TextChanged"/>
+                                <TextBlock Text="Astuce : scannez la planche une première fois, puis « Utiliser les lectures comme codes attendus »." FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,6"/>
+                                <Button Content="⤵ Utiliser les lectures comme codes attendus" Click="BtnScanUseReadsAsExpected_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Margin="0,0,0,16"/>
+                                <Button x:Name="BtnScanReport" Content="✅ Reporter dans le diagnostic SAV" Click="BtnScanReport_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Margin="0,0,0,8" IsEnabled="False" ToolTip="Renseigne « Optique Scanner » dans la checklist des Diagnostics SAV (et donc dans le rapport Word)"/>
+                                <Button x:Name="BtnScanCopy" Content="📋 Copier le résultat" Click="BtnScanCopy_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,8" IsEnabled="False"/>
+                                <Button x:Name="BtnScanExport" Content="💾 Exporter (.csv)" Click="BtnScanExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,8" IsEnabled="False"/>
+                                <Button Content="🗑 Effacer les lectures" Click="BtnScanClear_Click" Style="{StaticResource OutlineButtonStyle}" Height="30"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Grid.Row="3" x:Name="TxtScanTestHint" FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,12,0,0"
+                                   Text="Zebra et Honeywell : la symbologie est transmise. Autres marques : lecture en mode clavier, symbologie estimée. La gâchette est détectée pour mesurer le délai et les lectures ratées."/>
+                    </Grid>
                 </Border>
             </Grid>
 

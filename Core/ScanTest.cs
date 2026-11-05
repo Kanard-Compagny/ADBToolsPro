@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -17,6 +17,8 @@ namespace ADBToolsNew.Core
         public string Source { get; set; } = "";
         /// <summary>Symbologie brute donnée par le lecteur (vide en mode clavier).</summary>
         public string RawSymbology { get; set; } = "";
+        /// <summary>Heure de la lecture selon le terminal (ms depuis 1970), pour écarter les lignes d'un test précédent.</summary>
+        public long DeviceMs { get; set; }
         public double? TriggerDelayMs { get; set; }
         /// <summary>null : pas de contrôle ; vrai/faux : conforme ou non au code attendu.</summary>
         public bool? Expected { get; set; }
@@ -49,7 +51,8 @@ namespace ADBToolsNew.Core
             string data;
             try { data = Encoding.UTF8.GetString(Convert.FromBase64String(parts[4].Trim())); }
             catch (FormatException) { return null; }
-            return new ScanRead { Time = receivedAt, Source = parts[2].Trim(), RawSymbology = parts[3].Trim(), Data = data };
+            long.TryParse(parts[1].Trim(), out long ms);
+            return new ScanRead { Time = receivedAt, DeviceMs = ms, Source = parts[2].Trim(), RawSymbology = parts[3].Trim(), Data = data };
         }
 
         /// <summary>Caractères invisibles rendus visibles : ⟨TAB⟩, ⟨CR⟩, ⟨GS⟩ (séparateur GS1)…</summary>

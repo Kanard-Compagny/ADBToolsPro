@@ -484,7 +484,7 @@ namespace ADBToolsNew
             if (triggerEntries.Count == 0) return;
 
             var scannerItem = _diagList.FirstOrDefault(d => d.SystemId == "scanner");
-            if (scannerItem == null) return;
+            if (scannerItem == null || IsScanTestDetails(scannerItem.Details)) return; // résultat du Test du lecteur, plus complet
 
             int totalPresses = triggerEntries.Sum(entry => entry.Count);
             var keyNames = string.Join(", ", triggerEntries.Select(entry => entry.DisplayName));
