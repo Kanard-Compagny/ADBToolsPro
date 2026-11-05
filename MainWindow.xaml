@@ -871,19 +871,19 @@
                     <Button x:Name="BtnDevOff" Click="BtnDevOff_Click" Style="{StaticResource DangerButtonStyle}" Height="32" Margin="0,0,6,0" ToolTip="Désactiver le mode développeur (révoque l'accès ADB)">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
                             <TextBlock Text="🔒" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Dev Off" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
+                            <TextBlock Text="Dev Off" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnReload" Click="BtnReload_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0" ToolTip="Redémarrage classique">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
                             <TextBlock Text="🔄" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Redémarrer" FontSize="12" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
+                            <TextBlock Text="Redémarrer" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnRecovery" Click="BtnRecovery_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,14,0" ToolTip="Redémarrage en mode Recovery">
                         <StackPanel Orientation="Horizontal" Margin="12,0">
                             <TextBlock Text="🛠️" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Recovery Mode" FontSize="12" VerticalAlignment="Center" TextOptions.TextFormattingMode="Display"/>
+                            <TextBlock Text="Recovery Mode" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
@@ -1145,10 +1145,14 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <Border Grid.Column="0" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,10,0" Height="165">
+                                            <Grid Grid.Column="0" Margin="0,0,10,0" Height="165">
+                                            <!-- Halo sur un calque à part : posé sur la carte, il rendait le texte flou (surtout à 80/90 %). -->
+                                            <Border Background="{DynamicResource BgCard}" CornerRadius="10">
                                                 <Border.Effect>
                                                     <DropShadowEffect x:Name="GlowBattery" Color="{DynamicResource C.BrandText}" ShadowDepth="0" BlurRadius="12" Opacity="0.35"/>
                                                 </Border.Effect>
+                                            </Border>
+                                            <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -1202,11 +1206,16 @@
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
+                                            </Grid>
 
-                                            <Border Grid.Column="1" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="10,0,10,0" Height="165">
+                                            <Grid Grid.Column="1" Margin="10,0,10,0" Height="165">
+                                            <!-- Halo sur un calque à part : posé sur la carte, il rendait le texte flou (surtout à 80/90 %). -->
+                                            <Border Background="{DynamicResource BgCard}" CornerRadius="10">
                                                 <Border.Effect>
                                                     <DropShadowEffect x:Name="GlowRam" Color="{DynamicResource C.BrandText}" ShadowDepth="0" BlurRadius="12" Opacity="0.35"/>
                                                 </Border.Effect>
+                                            </Border>
+                                            <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -1259,11 +1268,16 @@
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
+                                            </Grid>
 
-                                            <Border Grid.Column="2" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="10,0,10,0" Height="165">
+                                            <Grid Grid.Column="2" Margin="10,0,10,0" Height="165">
+                                            <!-- Halo sur un calque à part : posé sur la carte, il rendait le texte flou (surtout à 80/90 %). -->
+                                            <Border Background="{DynamicResource BgCard}" CornerRadius="10">
                                                 <Border.Effect>
                                                     <DropShadowEffect x:Name="GlowCpu" Color="{DynamicResource C.BrandText}" ShadowDepth="0" BlurRadius="12" Opacity="0.35"/>
                                                 </Border.Effect>
+                                            </Border>
+                                            <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -1315,11 +1329,16 @@
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
+                                            </Grid>
 
-                                            <Border Grid.Column="3" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="10,0,0,0" Height="165">
+                                            <Grid Grid.Column="3" Margin="10,0,0,0" Height="165">
+                                            <!-- Halo sur un calque à part : posé sur la carte, il rendait le texte flou (surtout à 80/90 %). -->
+                                            <Border Background="{DynamicResource BgCard}" CornerRadius="10">
                                                 <Border.Effect>
                                                     <DropShadowEffect x:Name="GlowStorage" Color="{DynamicResource C.BrandText}" ShadowDepth="0" BlurRadius="12" Opacity="0.35"/>
                                                 </Border.Effect>
+                                            </Border>
+                                            <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="12">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -1370,6 +1389,7 @@
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
+                                            </Grid>
                                         </Grid>
 
                                         <StackPanel Grid.Row="2">
@@ -2591,8 +2611,8 @@
                                     </DataGrid.CellStyle>
 
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="120" Foreground="{DynamicResource AccentColor}"/>
-                                        <DataGridTextColumn Header="Description / Action" Binding="{Binding Title}" Width="250" Foreground="{DynamicResource Ink}" />
+                                        <DataGridTextColumn Header="Catégorie" Binding="{Binding DisplayCategory, Mode=OneWay}" Width="120" Foreground="{DynamicResource AccentColor}"/>
+                                        <DataGridTextColumn Header="Description / Action" Binding="{Binding DisplayTitle, Mode=OneWay}" Width="250" Foreground="{DynamicResource Ink}" />
                                         <DataGridTextColumn Header="Commande ADB" Binding="{Binding Command}" Width="300" FontFamily="Consolas" Foreground="{DynamicResource Muted}"/>
                                         <DataGridTextColumn Header="Android" Binding="{Binding AndroidRange, Mode=OneWay}" Width="80" Foreground="{DynamicResource TextSecondary}"/>
 

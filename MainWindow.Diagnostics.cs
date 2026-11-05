@@ -708,7 +708,7 @@ namespace ADBToolsNew
             var untested = ADBToolsNew.Core.WordReportService.GetUntestedComponentNames(_diagList);
             if (untested.Count > 0)
             {
-                string list = string.Join("\n", untested.Select(name => $"• {name}"));
+                string list = string.Join("\n", untested.Select(name => "• " + Loc.T(name)));
                 bool proceedAnyway = await ShowCustomDialogAsync(
                     Loc.T("⚠️ Tests incomplets"),
                     Loc.F("{0} test(s) n'ont pas encore été réalisés :\n\n{1}\n\nLe rapport sera généré avec ces tests marqués \"Non testé\". Générer quand même ?", untested.Count, list),

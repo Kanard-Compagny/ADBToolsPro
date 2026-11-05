@@ -26,7 +26,9 @@ namespace ADBToolsNew.Core
     {
         private static Dictionary<string, string> _en;
         private static readonly HashSet<string> Missing = new HashSet<string>();
-        private static readonly Regex LooksFrench = new Regex(@"[a-zà-ÿ]{3,}", RegexOptions.Compiled);
+        // Texte qui a l'air français : un accent ou un petit mot courant. Évite de noter les textes déjà en
+        // anglais (noms de produits, libellés techniques, messages déjà traduits avec des valeurs).
+        private static readonly Regex LooksFrench = new Regex(@"[éèêëàâùûôîïçœÉÈÊÀÂÔÎÇ]|\b(le|la|les|des|du|une|un|et|est|pour|dans|sur|avec|pas|ou|au|aux|ce|cette|vous|votre|vos)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>Langue en cours : "fr" ou "en" (lue dans les réglages au démarrage).</summary>
         public static string Language { get; private set; } = "fr";
@@ -150,6 +152,34 @@ namespace ADBToolsNew.Core
         private static void Walk(DependencyObject node, HashSet<DependencyObject> seen)
         {
             if (node == null || !seen.Add(node)) return;
+            TranslateNode(node);
+            foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>().ToList())
+                Walk(child, seen);
+        }
+
+        /// <summary>Lignes des tableaux : leurs modèles (boutons « Exécuter », « Copier »…) n'existent qu'à
+        /// l'affichage de chaque ligne, on les traduit à ce moment-là.</summary>
+        private static void OnLoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            e.Row.Loaded -= OnRowLoaded;
+            e.Row.Loaded += OnRowLoaded;
+        }
+
+        private static void OnRowLoaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is DependencyObject row) TranslateVisual(row, 0);
+        }
+
+        private static void TranslateVisual(DependencyObject node, int depth)
+        {
+            if (node == null || depth > 40) return;
+            TranslateNode(node);
+            int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < n; i++) TranslateVisual(System.Windows.Media.VisualTreeHelper.GetChild(node, i), depth + 1);
+        }
+
+        private static void TranslateNode(DependencyObject node)
+        {
 
             switch (node)
             {
@@ -177,13 +207,14 @@ namespace ADBToolsNew.Core
             }
             // Colonnes des tableaux : absentes de l'arbre logique, traduites ici.
             if (node is DataGrid dg)
+            {
                 foreach (var col in dg.Columns)
                     if (col.Header is string colHeader) col.Header = T(colHeader);
+                dg.LoadingRow -= OnLoadingRow;
+                dg.LoadingRow += OnLoadingRow;
+            }
             if (node is FrameworkElement fe && fe.ToolTip is string tip && !BindingOperations.IsDataBound(fe, FrameworkElement.ToolTipProperty))
                 fe.ToolTip = T(tip);
-
-            foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>().ToList())
-                Walk(child, seen);
         }
 
         private static void TranslateInlines(InlineCollection inlines)

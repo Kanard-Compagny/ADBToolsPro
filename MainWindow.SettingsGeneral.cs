@@ -25,7 +25,11 @@ namespace ADBToolsNew
         /// <summary>Applique les réglages d'affichage au démarrage (après le chargement des préférences).</summary>
         private void ApplyDisplaySettingsAtStartup()
         {
-            ApplyUiScale(AppSettings.Current.UiScale);
+            // Fenêtre transparente : un dernier passage de mise en page une fois tout affiché, pour qu'aucune zone
+            // ne reste non redessinée avec une taille d'interface différente de 100 %.
+            if (Math.Abs(AppSettings.Current.UiScale - 1.0) > 0.01)
+                Dispatcher.BeginInvoke(new Action(() => { InvalidateMeasure(); UpdateLayout(); RootBorder.InvalidateVisual(); }),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
             if (!AppSettings.Current.ConsoleExpandedAtStartup && !_isConsoleCollapsed)
                 BtnToggleConsole_Click(null, null);
         }
@@ -128,6 +132,13 @@ namespace ADBToolsNew
         {
             if (AppContentGrid == null) return;
             AppContentGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01 ? Transform.Identity : new ScaleTransform(scale, scale);
+            // Texte net malgré l'agrandissement / la réduction : positions arrondies au pixel près.
+            AppContentGrid.UseLayoutRounding = true;
+            if (IsLoaded)
+            {
+                AppContentGrid.UpdateLayout();
+                RootBorder.InvalidateVisual();
+            }
         }
 
         /// <summary>Vrai sélecteur de dossier de Windows (voir <see cref="FolderPicker"/>). Renvoie null si annulé.</summary>

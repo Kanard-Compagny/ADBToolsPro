@@ -203,6 +203,9 @@ namespace ADBToolsNew
         {
             InitializeComponent();
             Core.Loc.TranslateTree(this); // interface en anglais si choisi (Paramètres ▸ Général ▸ Langue)
+            // Taille de l'interface appliquée AVANT le premier affichage : appliquée après, la fenêtre (transparente,
+            // coins arrondis) n'était pas redessinée correctement jusqu'à un agrandissement / une réduction.
+            ApplyUiScale(Core.AppSettings.Current.UiScale);
             _adbManager = new AdbManager();
             _radarService = new RadarService(_adbManager);
             _fileExplorerService = new FileExplorerService(_adbManager);
