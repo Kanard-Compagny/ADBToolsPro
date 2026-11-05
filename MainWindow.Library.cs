@@ -471,12 +471,7 @@ namespace ADBToolsNew
                 return;
             }
 
-            // Fusion uniquement : une commande importée est considérée comme un doublon (et donc ignorée)
-            // si une commande existante partage le même Titre ET la même Commande — jamais de suppression
-            // ni de remplacement de l'existant, pour ne jamais faire perdre de commandes personnalisées.
-            var existingKeys = new HashSet<string>(_adbLibraryBase.Select(c => $"{c.Title}{c.Command}"));
-            var toAdd = imported.Where(c => !string.IsNullOrWhiteSpace(c.Title) && !string.IsNullOrWhiteSpace(c.Command)
-                                             && existingKeys.Add($"{c.Title}{c.Command}")).ToList();
+            var toAdd = NewLibraryItems(imported);
 
             int skipped = imported.Count - toAdd.Count;
 
@@ -496,6 +491,33 @@ namespace ADBToolsNew
             FilterLibrary_Changed(null, null);
 
             AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] ⬇️ Bibliothèque importée : {toAdd.Count} commande(s) ajoutée(s), {skipped} ignorée(s) (doublons).");
+        }
+
+        /// <summary>
+        /// Commandes à ajouter lors d'une fusion : une commande est un doublon (ignorée) si une commande existante
+        /// a le même Titre ET la même Commande — jamais de suppression ni de remplacement de l'existant, pour ne
+        /// jamais faire perdre de commandes personnalisées.
+        /// </summary>
+        private List<AdbCommandItem> NewLibraryItems(IEnumerable<AdbCommandItem> imported)
+        {
+            var existingKeys = new HashSet<string>(_adbLibraryBase.Select(c => c.Title + "\u0001" + c.Command));
+            return imported.Where(c => !string.IsNullOrWhiteSpace(c.Title) && !string.IsNullOrWhiteSpace(c.Command)
+                                       && existingKeys.Add(c.Title + "\u0001" + c.Command)).ToList();
+        }
+
+        /// <summary>Bibliothèque actuelle au format JSON (export et profil d'équipe).</summary>
+        private string LibraryToJson() => JsonSerializer.Serialize(_adbLibraryBase, new JsonSerializerOptions { WriteIndented = true });
+
+        /// <summary>Fusionne une bibliothèque JSON (profil d'équipe) : renvoie le nombre de commandes ajoutées.</summary>
+        private int MergeLibraryJson(string json)
+        {
+            var raw = JsonSerializer.Deserialize<List<AdbCommandItem>>(json) ?? new List<AdbCommandItem>();
+            var toAdd = NewLibraryItems(NormalizeLibraryItems(raw));
+            if (toAdd.Count == 0) return 0;
+            _adbLibraryBase.AddRange(toAdd);
+            SaveAdbLibrary();
+            FilterLibrary_Changed(null, null);
+            return toAdd.Count;
         }
 
         // 7. COPIER LA COMMANDE DANS LE PRESSE-PAPIERS

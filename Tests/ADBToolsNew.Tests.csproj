@@ -25,4 +25,9 @@
     <ProjectReference Include="..\ADBToolsNew.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
 </Project>

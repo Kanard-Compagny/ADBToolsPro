@@ -33,6 +33,10 @@ namespace ADBToolsNew.Core
         /// <summary>Dossier des rapports Word / RMA. Vide : dossier des captures.</summary>
         public string ReportsFolder { get; set; } = "";
 
+        // --- Profil d'équipe appliqué sur ce poste (affichage seulement)
+        public string TeamProfileName { get; set; } = "";
+        public DateTime? TeamProfileImported { get; set; }
+
         // ------------------------------------------------------------------ Lecture / écriture
 
         public static string DataFolder

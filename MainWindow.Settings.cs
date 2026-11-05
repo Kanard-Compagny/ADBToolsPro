@@ -29,7 +29,7 @@ namespace ADBToolsNew
 
         private string CurrentSettingsTag()
         {
-            foreach (var rb in new[] { SetNavGeneral, SetNavUpdates, SetNavOnboarding, SetNavTools, SetNavReports, SetNavAbout, SetNavUninstall })
+            foreach (var rb in new[] { SetNavGeneral, SetNavUpdates, SetNavOnboarding, SetNavTools, SetNavReports, SetNavTeam, SetNavAbout, SetNavUninstall })
                 if (rb != null && rb.IsChecked == true) return rb.Tag as string;
             return "General";
         }
@@ -49,11 +49,13 @@ namespace ADBToolsNew
             SettingsPanelReports.Visibility = tag == "Reports" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelUpdates.Visibility = tag == "Updates" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelOnboarding.Visibility = tag == "Onboarding" ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPanelTeam.Visibility = tag == "Team" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelUninstall.Visibility = tag == "Uninstall" ? Visibility.Visible : Visibility.Collapsed;
 
             if (tag == "General") { UpdateThemeUi(); UpdateGeneralUi(); }
             if (tag == "About") UpdateDiagnosticUi();
+            if (tag == "Team") UpdateTeamProfileUi();
             if (tag == "Tools" && SettingsToolsList.Children.Count == 0) _ = RefreshToolsListAsync(false);
             if (tag == "Reports") { UpdateReportTemplateStates(); UpdateReportSettingsUi(); }
             if (tag == "Updates") UpdateAppUpdateUi();
@@ -66,6 +68,7 @@ namespace ADBToolsNew
             else if (tag == "Reports") SetNavReports.IsChecked = true;
             else if (tag == "Updates") SetNavUpdates.IsChecked = true;
             else if (tag == "Onboarding") SetNavOnboarding.IsChecked = true;
+            else if (tag == "Team") SetNavTeam.IsChecked = true;
             else if (tag == "About") SetNavAbout.IsChecked = true;
             else if (tag == "Uninstall") SetNavUninstall.IsChecked = true;
             else SetNavGeneral.IsChecked = true;

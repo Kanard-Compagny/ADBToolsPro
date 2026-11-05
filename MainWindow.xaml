@@ -2816,6 +2816,12 @@
                                                 <TextBlock Text="Rapports Word" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </RadioButton>
+                                        <RadioButton x:Name="SetNavTeam" GroupName="SettingsNav" Tag="Team" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE716;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Profil d'équipe" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                         <Border Height="1" Background="{DynamicResource Line}" Margin="12,14,12,0"/>
                                         <TextBlock Text="ADB TOOLS" Style="{StaticResource SettingsGroupLabelStyle}"/>
                                         <RadioButton x:Name="SetNavAbout" GroupName="SettingsNav" Tag="About" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
@@ -3091,6 +3097,42 @@
                                     </Border>
                                 </StackPanel>
 
+                                <!-- Profil d'équipe -->
+                                <StackPanel x:Name="SettingsPanelTeam" Visibility="Collapsed">
+                                    <TextBlock Text="Profil d'équipe" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Configurer tous les postes d'une équipe de la même façon, avec un seul fichier." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border x:Name="TeamProfileAppliedCard" Style="{StaticResource SettingsCardStyle}" Visibility="Collapsed">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource OkFg}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <TextBlock x:Name="TxtTeamProfileApplied" Text="" FontSize="12.5" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Exporter le profil de ce poste" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Crée un fichier .adbprofil à partager avec l'équipe (dossier réseau, e-mail, clé USB). Le nom du technicien n'est jamais inclus." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <CheckBox x:Name="ChkTeamHeader" Content="En-tête des rapports : société, coordonnées et logo" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}"/>
+                                            <CheckBox x:Name="ChkTeamTemplates" Content="Modèles de rapport Word personnels" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}"/>
+                                            <CheckBox x:Name="ChkTeamLibrary" Content="Bibliothèque de commandes ADB" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}"/>
+                                            <CheckBox x:Name="ChkTeamUpdateShare" Content="Dossier de diffusion des mises à jour" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}"/>
+                                            <CheckBox x:Name="ChkTeamReportsFolder" Content="Dossier des rapports (utile s'il est sur un partage réseau)" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,14"/>
+                                            <WrapPanel>
+                                                <Button Content="Exporter le profil…" Click="BtnTeamExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Importer un profil" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="Applique un profil fourni par l'équipe. Son contenu est affiché avant d'être appliqué ; vos modèles actuels sont mis de côté et les commandes de la bibliothèque sont ajoutées sans rien supprimer. Vous pouvez aussi glisser un fichier .adbprofil sur ADBToolsNew.exe."
+                                                       FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <WrapPanel>
+                                                <Button Content="Importer un profil…" Click="BtnTeamImport_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
                                 <!-- À propos -->
                                 <StackPanel x:Name="SettingsPanelAbout" Visibility="Collapsed">
                                     <TextBlock Text="À propos" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
@@ -3218,7 +3260,7 @@
                     </Border>
                 </Grid>
             </Grid>
-            <Grid x:Name="OverlayDialog" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="999">
+            <Grid x:Name="OverlayDialog" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1002">
                 <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Width="420" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="25">
                     <StackPanel>
                         <TextBlock x:Name="DialogTitle" Text="Confirmation" Foreground="{DynamicResource Ink}" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>

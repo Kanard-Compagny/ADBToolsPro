@@ -110,6 +110,7 @@
     <Compile Include="Core\ToolsManager.cs" />
     <Compile Include="Core\AppUpdater.cs" />
     <Compile Include="Core\AppSettings.cs" />
+    <Compile Include="Core\TeamProfile.cs" />
     <Compile Include="DocumentWindow.xaml.cs">
       <DependentUpon>DocumentWindow.xaml</DependentUpon>
     </Compile>
@@ -195,6 +196,9 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.Onboarding.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.TeamProfile.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.ReportTemplates.cs">
