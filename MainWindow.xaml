@@ -2226,6 +2226,8 @@
                                                 <TextBlock x:Name="TxtLogAnalysisSource" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                 <TextBlock x:Name="TxtLogAnalysisPeriod" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap"/>
                                                 <TextBlock x:Name="TxtLogAnalysisVerdict" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                                <CheckBox x:Name="ChkLogOnlyTarget" Content="Masquer les plantages des autres applications" Style="{StaticResource ModernCheckBoxStyle}" FontSize="12" Margin="0,8,0,0" Visibility="Collapsed" Checked="ChkLogOnlyTarget_Changed" Unchecked="ChkLogOnlyTarget_Changed" ToolTip="Réseau, Wi-Fi, système et lecteur restent toujours affichés : ce sont des causes possibles pour l'application ciblée"/>
+                                                <TextBlock x:Name="TxtLogAnalysisTarget" Foreground="{DynamicResource BrandText}" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                     <Border Background="{DynamicResource BadBg}" CornerRadius="10" Padding="8,2" Margin="0,0,6,0"><TextBlock x:Name="TxtLogAnalysisBad" Foreground="{DynamicResource BadFg}" FontSize="11" FontWeight="SemiBold"/></Border>
                                                     <Border Background="{DynamicResource WarnBg}" CornerRadius="10" Padding="8,2" Margin="0,0,6,0"><TextBlock x:Name="TxtLogAnalysisWarn" Foreground="{DynamicResource WarnFg}" FontSize="11" FontWeight="SemiBold"/></Border>
@@ -2252,7 +2254,7 @@
                                                                             <ColumnDefinition Width="Auto"/>
                                                                         </Grid.ColumnDefinitions>
                                                                         <TextBlock Text="{Binding SeverityIcon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
-                                                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                                                        <TextBlock Grid.Column="1" Text="{Binding DisplayTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
                                                                         <TextBlock Grid.Column="2" Text="{Binding CountText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="6,1,0,0"/>
                                                                     </Grid>
                                                                     <TextBlock Text="{Binding AppLabel}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">

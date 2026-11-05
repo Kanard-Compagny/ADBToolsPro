@@ -208,19 +208,57 @@ namespace ADBToolsNew
             TxtLogAnalysisBad.Text = Loc.F("❌ {0} important(s)", analysis.BadCount);
             TxtLogAnalysisWarn.Text = Loc.F("⚠️ {0} à surveiller", analysis.WarnCount);
             TxtLogAnalysisInfo.Text = Loc.F("ℹ️ {0} info(s)", analysis.InfoCount);
-            // Liste remplacée seulement si les problèmes ont changé, en gardant la position de défilement :
-            // pendant la capture en direct, le panneau ne doit pas « sauter » toutes les 5 secondes.
-            string signature = string.Join("|", analysis.Findings.Select(f => f.Key + ":" + f.Count + ":" + (int)f.Severity));
-            if (signature != _lastLogAnalysisSignature || !silent)
-            {
-                double offset = LogFindingsScroll.VerticalOffset;
-                LogFindingsList.ItemsSource = analysis.Findings;
-                _lastLogAnalysisSignature = signature;
-                if (silent) Dispatcher.BeginInvoke(new Action(() => LogFindingsScroll.ScrollToVerticalOffset(offset)), DispatcherPriority.Loaded);
-                else LogFindingsScroll.ScrollToTop();
-            }
+            RenderLogFindings(keepScroll: silent, force: !silent);
             if (!_logAnalysisClosedByUser) LogAnalysisPanel.Visibility = Visibility.Visible;
             if (!silent) AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔎 Analyse des logs : {1}", DateTime.Now, analysis.Verdict));
+        }
+
+        /// <summary>Application ciblée dans la page Logs (champ « Cible » activé), sinon null.</summary>
+        private string CurrentLogTarget() =>
+            _packageFilterActive && !string.IsNullOrWhiteSpace(TxtPackageFilter?.Text) ? TxtPackageFilter.Text.Trim() : null;
+
+        /// <summary>
+        /// Affiche les problèmes : ceux de l'application ciblée en tête (🎯) ; option pour masquer les plantages
+        /// des AUTRES applications. Réseau, Wi-Fi, système et lecteur ne sont jamais masqués : ce sont des
+        /// ressources partagées, donc des causes possibles pour l'application ciblée.
+        /// </summary>
+        private void RenderLogFindings(bool keepScroll, bool force)
+        {
+            if (_lastLogAnalysis == null || LogFindingsList == null) return;
+            string target = CurrentLogTarget();
+            foreach (var f in _lastLogAnalysis.Findings) f.IsTarget = target != null && f.ConcernsApp(target, _targetForegroundPid);
+
+            bool hideOthers = target != null && ChkLogOnlyTarget.IsChecked == true;
+            var view = _lastLogAnalysis.Findings
+                .Where(f => !(hideOthers && f.Category == LogAnalyzer.CatCrash && !f.IsTarget))
+                .OrderBy(f => f.IsTarget ? 0 : 1)   // tri stable : l'ordre de gravité est conservé dans chaque groupe
+                .ToList();
+            int hidden = _lastLogAnalysis.Findings.Count - view.Count;
+
+            ChkLogOnlyTarget.Visibility = target != null ? Visibility.Visible : Visibility.Collapsed;
+            if (target != null)
+            {
+                int mine = view.Count(f => f.IsTarget);
+                TxtLogAnalysisTarget.Text = Loc.F("🎯 Cible : {0} — {1} problème(s) la concernent directement", target, mine)
+                                            + (hidden > 0 ? "\n" + Loc.F("{0} plantage(s) d'autres applications masqué(s)", hidden) : "");
+                TxtLogAnalysisTarget.Visibility = Visibility.Visible;
+            }
+            else TxtLogAnalysisTarget.Visibility = Visibility.Collapsed;
+
+            // Liste remplacée seulement si elle a changé, en gardant la position de défilement : pendant la
+            // capture en direct, le panneau ne doit pas « sauter » toutes les 5 secondes.
+            string signature = (target ?? "") + "#" + hideOthers + "#" + string.Join("|", view.Select(f => f.Key + ":" + f.Count + ":" + (int)f.Severity));
+            if (!force && signature == _lastLogAnalysisSignature) return;
+            double offset = LogFindingsScroll.VerticalOffset;
+            LogFindingsList.ItemsSource = view;
+            _lastLogAnalysisSignature = signature;
+            if (keepScroll) Dispatcher.BeginInvoke(new Action(() => LogFindingsScroll.ScrollToVerticalOffset(offset)), DispatcherPriority.Loaded);
+            else LogFindingsScroll.ScrollToTop();
+        }
+
+        private void ChkLogOnlyTarget_Changed(object sender, RoutedEventArgs e)
+        {
+            if (IsLoaded) RenderLogFindings(keepScroll: false, force: true);
         }
 
         private void SetLogAnalysisBusy(bool busy, System.Windows.Controls.Button button, string text)
@@ -237,13 +275,20 @@ namespace ADBToolsNew
         }
 
         /// <summary>Un clic sur un problème sélectionne sa première ligne dans le tableau (filtres retirés si besoin).</summary>
-        private void LogFinding_Click(object sender, MouseButtonEventArgs e)
+        private async void LogFinding_Click(object sender, MouseButtonEventArgs e)
         {
             if (!((sender as FrameworkElement)?.DataContext is LogFinding f) || f.FirstEntry == null) return;
             int index = _displayLogs.IndexOf(f.FirstEntry);
             if (index < 0 && _masterLogs.Contains(f.FirstEntry))
             {
-                // La ligne est masquée par un filtre : on revient à « Tous » sans recherche ni cible.
+                // La ligne est masquée par un filtre (cible, niveau, recherche) : on demande avant de les retirer.
+                string target = CurrentLogTarget();
+                bool ok = await ShowCustomDialogAsync(Loc.T("🔎 Analyse des logs"),
+                    target != null
+                        ? Loc.F("Cette ligne ne concerne pas l'application ciblée ({0}) : elle est masquée par les filtres.\n\nRetirer les filtres (cible comprise) pour l'afficher ?", target)
+                        : Loc.T("Cette ligne est masquée par les filtres (niveau ou recherche).\n\nRetirer les filtres pour l'afficher ?"),
+                    Loc.T("Afficher la ligne"), Loc.T("Annuler"), false);
+                if (!ok) return;
                 TxtLogSearch.Text = "";
                 if (_packageFilterActive) DeactivatePackageFilter();
                 RbLogAll.IsChecked = true;

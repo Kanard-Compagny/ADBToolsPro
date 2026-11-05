@@ -203,5 +203,22 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual(FindingSeverity.Info, scan.Single(x => x.Detail.Contains("Idle")).Severity);
             Assert.AreEqual(FindingSeverity.Bad, scan.Single(x => x.App == "MonAppli").Severity);
         }
+
+        [TestMethod]
+        public void Cible_ConcerneLApplicationEtSesProcessus()
+        {
+            var a = Run(Crash + "\n" +
+@"11-05 10:06:00.000  1000  1200 E ActivityManager: ANR in com.exemple.inventaire:sync (com.exemple.inventaire/.SyncService)
+11-05 10:06:00.000  1000  1200 E ActivityManager: Reason: executing service
+11-05 10:07:00.000  7777  7777 E AndroidRuntime: FATAL EXCEPTION: main
+11-05 10:07:00.000  7777  7777 E AndroidRuntime: Process: com.autre.appli, PID: 7777
+11-05 10:07:00.000  7777  7777 E AndroidRuntime: java.lang.IllegalStateException: boom
+11-05 10:08:00.000  4400  4400 W System.err: java.net.UnknownHostException: Unable to resolve host ""api.exemple.fr"": No address");
+            var mine = a.Findings.Where(f => f.ConcernsApp("com.exemple.inventaire", "4400")).ToList();
+            Assert.AreEqual(3, mine.Count, string.Join(" | ", mine.Select(f => f.Title + " " + f.App)));
+            Assert.IsFalse(a.Findings.Single(f => f.App == "com.autre.appli").ConcernsApp("com.exemple.inventaire", "4400"));
+            var f0 = mine[0]; f0.IsTarget = true;
+            StringAssert.StartsWith(f0.DisplayTitle, "🎯 ");
+        }
     }
 }

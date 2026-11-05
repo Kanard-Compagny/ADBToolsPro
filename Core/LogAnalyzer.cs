@@ -45,6 +45,22 @@ namespace ADBToolsNew.Core
             }
         }
         public string SampleText => string.Join("\n", Sample);
+        /// <summary>Concerne l'application ciblée dans la page Logs (mise en avant 🎯).</summary>
+        public bool IsTarget { get; set; }
+        public string DisplayTitle => IsTarget ? "🎯 " + Title : Title;
+
+        /// <summary>
+        /// Vrai si le problème vient de l'application <paramref name="package"/> (nom de package, ou l'un de ses
+        /// processus « package:service ») ou de son PID.
+        /// </summary>
+        public bool ConcernsApp(string package, string pid)
+        {
+            if (!string.IsNullOrEmpty(package) && !string.IsNullOrEmpty(App)
+                && (App == package || App.StartsWith(package + ":", StringComparison.Ordinal) || App.StartsWith(package + "/", StringComparison.Ordinal)))
+                return true;
+            return !string.IsNullOrEmpty(pid) && FirstEntry != null && FirstEntry.PID == pid
+                   && Category != LogAnalyzer.CatSystem && Category != LogAnalyzer.CatOverview;
+        }
         public bool HasSample => Sample.Count > 0;
         public string LinesLabel => Loc.T("Voir les lignes");
         public string AppLabel => string.IsNullOrEmpty(App) ? "" : App;

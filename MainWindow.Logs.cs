@@ -319,6 +319,7 @@ namespace ADBToolsNew
             }
 
             ApplyFiltersToExistingLogs();
+            RenderLogFindings(keepScroll: false, force: true); // analyse : l'application ciblée passe en tête
         }
 
         private void DeactivatePackageFilter()
@@ -328,6 +329,7 @@ namespace ADBToolsNew
             TxtPackageFilter.ToolTip = Loc.T("Nom de package exact (ex: com.zebra.launcher) — vide = toutes les applications");
             TogglePackageFilter.IsChecked = false;
             ApplyFiltersToExistingLogs();
+            RenderLogFindings(keepScroll: false, force: true);
         }
 
         private void BtnClearPackageFilter_Click(object sender, RoutedEventArgs e)
