@@ -860,7 +860,7 @@
             <!-- Padding gauche 29 (au lieu de 15) : aligne le centre du point de statut sur le centre des
                  icônes du menu en dessous (Margin=10 du template MenuButtonStyle + moitié de leur zone de
                  50px = 35px depuis le bord de la fenêtre). -->
-            <Border Grid.Row="1" Background="{DynamicResource ToolbarBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="29,10,15,10">
+            <Border x:Name="ConnectionBar" Grid.Row="1" Background="{DynamicResource ToolbarBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="29,10,15,10">
                 <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse x:Name="StatusIndicator" Width="12" Height="12" Fill="{DynamicResource DangerColor}" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Déconnecté"/>
@@ -1010,7 +1010,7 @@
                             <Button x:Name="BtnToggleSidebar" Click="BtnToggleSidebar_Click" Content="◀" Style="{StaticResource SideIconButtonStyle}" FontSize="14" HorizontalAlignment="Right" Width="30" Height="30"/>
                         </Grid>
 
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer x:Name="SideMenuScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <!-- Barre de défilement du menu : teinte verte assortie au menu (au lieu du gris des pages).
                                  Elle n'apparaît que si le menu ne tient pas en hauteur (VerticalScrollBarVisibility=Auto). -->
                             <ScrollViewer.Resources>
@@ -2791,6 +2791,18 @@
                                                 <TextBlock Text="Général" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </RadioButton>
+                                        <RadioButton x:Name="SetNavUpdates" GroupName="SettingsNav" Tag="Updates" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Mises à jour" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
+                                        <RadioButton x:Name="SetNavOnboarding" GroupName="SettingsNav" Tag="Onboarding" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Prise en main" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </RadioButton>
                                         <RadioButton x:Name="SetNavTools" GroupName="SettingsNav" Tag="Tools" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="&#xE90F;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
@@ -2806,12 +2818,6 @@
                                         </RadioButton>
                                         <Border Height="1" Background="{DynamicResource Line}" Margin="12,14,12,0"/>
                                         <TextBlock Text="ADB TOOLS" Style="{StaticResource SettingsGroupLabelStyle}"/>
-                                        <RadioButton x:Name="SetNavUpdates" GroupName="SettingsNav" Tag="Updates" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
-                                                <TextBlock Text="Mises à jour" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </RadioButton>
                                         <RadioButton x:Name="SetNavAbout" GroupName="SettingsNav" Tag="About" Style="{StaticResource SettingsNavStyle}" Checked="SettingsNav_Checked">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="13" Width="26" VerticalAlignment="Center"/>
@@ -3019,6 +3025,22 @@
                                                 <Button Content="📂 Ouvrir le dossier des modèles" Click="BtnTemplatesOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,10,0"/>
                                                 <Button Content="📄 Liste des balises" Click="BtnTemplatesTags_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
                                             </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Prise en main -->
+                                <StackPanel x:Name="SettingsPanelOnboarding" Visibility="Collapsed">
+                                    <TextBlock Text="Prise en main" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                    <TextBlock Text="Revoir l'accueil ou la visite guidée." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,14"/>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Prise en main" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                            <TextBlock Text="L'accueil présente ADB Tools et explique comment brancher un terminal ; la visite guidée montre où se trouve chaque outil." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                                            <WrapPanel>
+                                                <Button Content="Revoir l'accueil" Click="BtnShowWelcome_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button Content="Lancer la visite guidée" Click="BtnStartTour_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                                            </WrapPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -3242,6 +3264,80 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- Accueil (premier lancement, ou Paramètres ▸ Prise en main) -->
+            <Grid x:Name="WelcomeOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1000">
+                <Border Width="640" HorizontalAlignment="Center" VerticalAlignment="Center" UseLayoutRounding="True"
+                        Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="30,26">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Image Source="/Resources/logo_adbtools.png" Width="52" Height="52" Margin="0,0,16,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Bienvenue dans ADB Tools Pro" FontSize="21" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                <TextBlock Text="Diagnostic, contrôle et dépannage de terminaux Android de toutes marques, sans ligne de commande." FontSize="12.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="BRANCHER UN TERMINAL" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
+                        <Border Background="{DynamicResource Surface2}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource Brand}" VerticalAlignment="Top"><TextBlock Text="1" Foreground="{DynamicResource OnBrand}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource Ink}" Text="Sur le terminal, activez les options pour les développeurs : Paramètres ▸ À propos du téléphone ▸ touchez 7 fois « Numéro de build »."/>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource Brand}" VerticalAlignment="Top"><TextBlock Text="2" Foreground="{DynamicResource OnBrand}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource Ink}" Text="Dans les options pour les développeurs, activez le « Débogage USB », puis branchez le terminal avec un câble USB de données."/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource Brand}" VerticalAlignment="Top"><TextBlock Text="3" Foreground="{DynamicResource OnBrand}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource Ink}" Text="Acceptez l'autorisation qui s'affiche sur l'écran du terminal : il apparaît dans la liste en haut à gauche. Cliquez sur « Connecter »."/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="APPARENCE" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
+                        <WrapPanel x:Name="WelcomeThemeChoices" Margin="0,0,0,10">
+                            <RadioButton GroupName="WelcomeTheme" Tag="System" Content="Comme Windows" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
+                            <RadioButton GroupName="WelcomeTheme" Tag="Light" Content="Clair" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
+                            <RadioButton GroupName="WelcomeTheme" Tag="Dark" Content="Sombre" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
+                        </WrapPanel>
+                        <TextBlock Text="Tout se passe sur ce PC : aucune donnée de terminal n'est envoyée sur Internet. Ces réglages, et bien d'autres, se retrouvent dans Paramètres (en bas du menu)."
+                                   FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="Visite guidée" Click="BtnWelcomeTour_Click" Style="{StaticResource OutlineButtonStyle}" Height="36" Padding="18,0" Margin="0,0,10,0"/>
+                            <Button Content="Commencer" Click="BtnWelcomeClose_Click" Style="{StaticResource PrimaryButtonStyle}" Height="36" Padding="22,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Visite guidée : voile sombre percé autour de l'élément présenté + bulle d'explication (voir MainWindow.Onboarding.cs) -->
+            <Canvas x:Name="TourOverlay" Visibility="Collapsed" Grid.RowSpan="3" Panel.ZIndex="1001" Background="Transparent" ClipToBounds="True">
+                <Path x:Name="TourShade" Fill="#B4000000"/>
+                <Border x:Name="TourHighlight" BorderBrush="{DynamicResource Action}" BorderThickness="2" CornerRadius="8" IsHitTestVisible="False"/>
+                <Border x:Name="TourCallout" Width="340" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="18,16">
+                    <StackPanel>
+                        <TextBlock x:Name="TxtTourStep" Text="1 / 9" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                        <TextBlock x:Name="TxtTourTitle" Text="" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}" Margin="0,4,0,6"/>
+                        <TextBlock x:Name="TxtTourBody" Text="" FontSize="12.5" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" LineHeight="19" Margin="0,0,0,14"/>
+                        <Grid>
+                            <Button Content="Passer" Click="BtnTourSkip_Click" Style="{StaticResource SettingsLinkStyle}" HorizontalAlignment="Left" Foreground="{DynamicResource Muted}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnTourPrev" Content="Précédent" Click="BtnTourPrev_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnTourNext" Content="Suivant" Click="BtnTourNext_Click" Style="{StaticResource PrimaryButtonStyle}" Height="30" Padding="14,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Canvas>
 
             <!-- Outils tiers (adb/fastboot, scrcpy, FFmpeg) : versions installées, mises à jour, téléchargement.
                  Les lignes sont construites dans MainWindow.Tools.cs. -->

@@ -18,6 +18,9 @@ namespace ADBToolsNew.Core
         /// <summary>Console dépliée au démarrage.</summary>
         public bool ConsoleExpandedAtStartup { get; set; } = true;
 
+        /// <summary>Écran d'accueil déjà vu (il ne s'affiche qu'au premier lancement).</summary>
+        public bool WelcomeShown { get; set; }
+
         // --- Mises à jour
         public bool CheckUpdatesAtStartup { get; set; } = true;
         /// <summary>Dossier de diffusion de l'équipe (partage réseau où l'on dépose ADBToolsPro-X.Y.Z.zip). Vide : GitHub seulement.</summary>

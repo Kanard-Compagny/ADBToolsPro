@@ -194,6 +194,9 @@
     <Compile Include="MainWindow.SettingsGeneral.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.Onboarding.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainWindow.ReportTemplates.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>

@@ -29,7 +29,7 @@ namespace ADBToolsNew
 
         private string CurrentSettingsTag()
         {
-            foreach (var rb in new[] { SetNavGeneral, SetNavTools, SetNavReports, SetNavUpdates, SetNavAbout, SetNavUninstall })
+            foreach (var rb in new[] { SetNavGeneral, SetNavUpdates, SetNavOnboarding, SetNavTools, SetNavReports, SetNavAbout, SetNavUninstall })
                 if (rb != null && rb.IsChecked == true) return rb.Tag as string;
             return "General";
         }
@@ -48,6 +48,7 @@ namespace ADBToolsNew
             SettingsPanelTools.Visibility = tag == "Tools" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelReports.Visibility = tag == "Reports" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelUpdates.Visibility = tag == "Updates" ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPanelOnboarding.Visibility = tag == "Onboarding" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanelUninstall.Visibility = tag == "Uninstall" ? Visibility.Visible : Visibility.Collapsed;
 
@@ -64,6 +65,7 @@ namespace ADBToolsNew
             if (tag == "Tools") SetNavTools.IsChecked = true;
             else if (tag == "Reports") SetNavReports.IsChecked = true;
             else if (tag == "Updates") SetNavUpdates.IsChecked = true;
+            else if (tag == "Onboarding") SetNavOnboarding.IsChecked = true;
             else if (tag == "About") SetNavAbout.IsChecked = true;
             else if (tag == "Uninstall") SetNavUninstall.IsChecked = true;
             else SetNavGeneral.IsChecked = true;
