@@ -206,6 +206,8 @@ namespace ADBToolsNew
             // Taille de l'interface appliquée AVANT le premier affichage : appliquée après, la fenêtre (transparente,
             // coins arrondis) n'était pas redessinée correctement jusqu'à un agrandissement / une réduction.
             ApplyUiScale(Core.AppSettings.Current.UiScale);
+            // La découpe des coins arrondis suit chaque changement de taille réel du contenu.
+            AppContentGrid.SizeChanged += (s, e) => UpdateRootClip();
             _adbManager = new AdbManager();
             _radarService = new RadarService(_adbManager);
             _fileExplorerService = new FileExplorerService(_adbManager);

@@ -138,6 +138,7 @@ namespace ADBToolsNew
             // Texte net malgré l'agrandissement / la réduction : positions arrondies au pixel près.
             AppContentGrid.UseLayoutRounding = true;
             FitScaledContent();
+            UpdateRootClip();
         }
 
         /// <summary>

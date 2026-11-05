@@ -211,8 +211,14 @@ namespace ADBToolsNew
         private void UpdateRootClip()
         {
             if (RootBorder == null || !(RootBorder.Child is FrameworkElement content)) return;
-            double r = WindowState == WindowState.Maximized ? 0 : WindowCornerRadius - 1;
-            double w = content.ActualWidth, h = content.ActualHeight;
+            // Taille de l'interface (80 % … 130 %) : la découpe est exprimée dans les coordonnées du contenu,
+            // AVANT sa mise à l'échelle. On prend la taille imposée par FitScaledContent (ActualWidth n'est mis à
+            // jour qu'au passage de mise en page suivant : une découpe calculée avec l'ancienne valeur ne laissait
+            // voir que 80 % de la fenêtre).
+            double scale = _uiScale > 0 ? _uiScale : 1.0;
+            double r = WindowState == WindowState.Maximized ? 0 : (WindowCornerRadius - 1) / scale;
+            double w = double.IsNaN(content.Width) ? content.ActualWidth : content.Width;
+            double h = double.IsNaN(content.Height) ? content.ActualHeight : content.Height;
             content.Clip = (w > 0 && h > 0) ? new RectangleGeometry(new Rect(0, 0, w, h), r, r) : null;
         }
     }
