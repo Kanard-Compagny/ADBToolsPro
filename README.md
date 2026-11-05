@@ -83,6 +83,10 @@ Les seules connexions servent à télécharger et vérifier les **outils tiers**
 
 Ouvrez un **ticket** (« issue ») sur ce dépôt : un problème, un terminal à prendre en charge ou une idée.
 
+## Soutenir
+
+ADB Tools est gratuit et le restera, sans publicité. S'il vous fait gagner du temps, un don libre aide à le faire évoluer : [paypal.me/MrKanard](https://www.paypal.me/MrKanard).
+
 ## Licence
 
 Logiciel **libre et gratuit**, créé par **Mr.Kanard**, sous licence [GNU GPL v3](LICENSE) : chacun peut l'utiliser, le partager et l'améliorer, à condition que ses versions restent libres. Fourni sans aucune garantie.

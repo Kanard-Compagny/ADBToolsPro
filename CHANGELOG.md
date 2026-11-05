@@ -17,6 +17,7 @@ Une page **Paramètres** entièrement revue, sur le modèle de Scanalyse.
 - **En-tête des rapports** : votre société, vos coordonnées, votre nom et votre logo remplissent `{{MA_SOCIETE}}`, `{{COORDONNEES}}`, `{{TECHNICIEN}}` et `{{LOGO}}`. Les modèles fournis les affichent façon papier à lettres.
 - **Dossier des rapports** au choix (dossier des captures par défaut).
 - Une ligne de modèle qui ne contient qu'une balise vide disparaît du rapport.
+- Rapport Wi-Fi : graphiques clairs pour l'impression, sur toute la session, avec une échelle adaptée aux mesures.
 
 ### Historique
 - Chaque rapport exporté (Diagnostic SAV, RMA, Analyse Wi-Fi) est rangé dans l'**historique du terminal**, par numéro de série, avec les résultats de chaque test et une copie du rapport.
@@ -26,6 +27,7 @@ Une page **Paramètres** entièrement revue, sur le modèle de Scanalyse.
 - Exporter / importer un fichier **`.adbprofil`** : en-tête et logo, modèles Word, bibliothèque de commandes ADB, dossier des mises à jour, dossier des rapports. Le contenu est affiché avant d'être appliqué ; rien n'est supprimé.
 
 ### À propos et Désinstaller
+- Encart **Soutenir ADB Tools** (don libre, sans engagement).
 - Bloc **Diagnostic** à copier pour une demande d'aide, lien vers le dossier des données.
 - **Désinstaller** : efface les réglages (et vos données si vous le cochez), puis ouvre l'Explorateur sur le programme.
 

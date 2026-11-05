@@ -306,6 +306,14 @@ namespace ADBToolsNew
             }
         }
 
+        /// <summary>Lien de don (PayPal.me de Mr.Kanard), comme dans Scanalyse.</summary>
+        private const string DonateUrl = "https://www.paypal.me/MrKanard";
+
+        private void BtnDonate_Click(object sender, RoutedEventArgs e)
+        {
+            try { Process.Start(new ProcessStartInfo(DonateUrl) { UseShellExecute = true }); } catch { }
+        }
+
         private void BtnOpenDataFolder_Click(object sender, RoutedEventArgs e)
         {
             try { Process.Start(new ProcessStartInfo(AppSettings.DataFolder) { UseShellExecute = true }); } catch { }

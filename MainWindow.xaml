@@ -3209,6 +3209,27 @@
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>
+                                            <!-- Soutenir (comme Scanalyse) -->
+                                            <Border Background="{DynamicResource BrandSoft}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                                        <TextBlock Text="Soutenir ADB Tools" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                        <TextBlock Text="ADB Tools est gratuit et le restera, sans publicité. S'il vous fait gagner du temps, un don libre aide à le faire évoluer."
+                                                                   FontSize="12.5" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Click="BtnDonate_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" VerticalAlignment="Center"
+                                                            ToolTip="paypal.me/MrKanard">
+                                                        <StackPanel Orientation="Horizontal" Margin="14,0">
+                                                            <TextBlock Text="&#xEB52;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource Action}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="Faire un don" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
                                             <WrapPanel>
                                                 <Button Content="Quoi de neuf" Click="BtnShowReleaseNotes_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
                                                 <Button Content="Licence GPL v3" Click="BtnShowLicense_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,8"/>
