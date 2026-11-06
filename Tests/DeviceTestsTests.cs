@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text;
 using ADBToolsNew.Core;
@@ -73,6 +73,17 @@ namespace ADBToolsNew.Tests
             Assert.IsTrue(item.IsReported);
             item.Available = false;
             Assert.AreEqual("Absent sur ce terminal", item.SubText);
+        }
+
+        [TestMethod]
+        public void Confirmation_LaQuestionDevientUnConstat()
+        {
+            Assert.AreEqual("Le flash a clignoté normalement (3 fois).", DeviceTestText.Confirmed("flash", "✅", "Le flash a-t-il clignoté 3 fois ?"));
+            Assert.AreEqual("Défaut constaté par le technicien (voir commentaire).", DeviceTestText.Confirmed("speaker", "❌", "Les 3 bips…"));
+            Assert.AreEqual("Résultat constaté par le technicien.", DeviceTestText.Confirmed("gps", "✅", ""));
+            Assert.AreEqual("Photo 10 × 10", DeviceTestText.Confirmed("camera_back", "✅", "Photo 10 × 10"));
+            Assert.AreEqual("Touches détectées (1) : A ×1\nToutes les touches répondent.",
+                DeviceTestText.Confirmed("keys", "✅", "Touches détectées (1) : A ×1\nToutes les touches du clavier sont-elles dans la liste ?"));
         }
     }
 }

@@ -289,6 +289,30 @@ namespace ADBToolsNew.Core
             return m.Status == "bad" ? Loc.F("Échec du test ({0}).", reason) : "";
         }
 
+        /// <summary>
+        /// Texte du rapport une fois le résultat choisi par le technicien : la question (« Le flash a-t-il
+        /// clignoté ? ») devient un constat ; un résultat choisi sans mesure est indiqué comme tel.
+        /// </summary>
+        public static string Confirmed(string testId, string statusIcon, string details)
+        {
+            details = details ?? "";
+            bool ok = statusIcon == "✅";
+            string defect = Loc.T("Défaut constaté par le technicien (voir commentaire).");
+            switch (testId)
+            {
+                case "flash": return ok ? Loc.T("Le flash a clignoté normalement (3 fois).") : defect;
+                case "speaker": return ok ? Loc.T("Les 3 bips étaient audibles et nets.") : defect;
+                case "earpiece": return ok ? Loc.T("Les 3 bips étaient audibles dans l'écouteur.") : defect;
+                case "vibrator": return ok ? Loc.T("Les 3 vibrations ont été ressenties.") : defect;
+                case "keys":
+                    // Liste des touches gardée, sans la question finale.
+                    var lines = details.Replace("\r", "").Split('\n').Where(l => l.Length > 0 && l != Loc.T("Toutes les touches du clavier sont-elles dans la liste ?")).ToList();
+                    lines.Add(ok ? Loc.T("Toutes les touches répondent.") : Loc.T("Touche(s) défaillante(s) : voir commentaire."));
+                    return string.Join("\n", lines);
+            }
+            return details.Trim().Length > 0 ? details : Loc.T("Résultat constaté par le technicien.");
+        }
+
         public static string SensorName(string key)
         {
             switch (key)

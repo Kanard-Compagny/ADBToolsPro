@@ -241,6 +241,14 @@ namespace ADBToolsNew
             DevTestPhoto.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
             BtnDevTestOpenFile.Visibility = file != null && File.Exists(file) ? Visibility.Visible : Visibility.Collapsed;
             BtnDevTestPlay.Visibility = isWav ? Visibility.Visible : Visibility.Collapsed;
+
+            // Résultat retenu : bouton correspondant mis en avant (bord épais), les autres atténués.
+            foreach (var b in DevTestVerdictPanel.Children.OfType<Button>())
+            {
+                bool selected = (b.Tag as string) == it.Status;
+                b.BorderThickness = new Thickness(selected ? 2.5 : 1);
+                b.Opacity = selected || !it.IsReported ? 1.0 : 0.55;
+            }
             RefreshDevSummary();
         }
 
@@ -309,6 +317,7 @@ namespace ADBToolsNew
             if (it == null || !(sender is Button b) || !(b.Tag is string status)) return;
             it.Status = status;
             if (status == "⚪") { it.Details = ""; it.LocalFile = null; }
+            else it.Details = DeviceTestText.Confirmed(it.Id, status, it.Details); // la question devient un constat
             RefreshDevTestPanel();
         }
 

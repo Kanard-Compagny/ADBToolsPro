@@ -210,6 +210,26 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Choix du résultat d'un test (Tests du terminal) : couleur du statut, bord épais quand il est retenu. -->
+        <Style TargetType="Button" x:Key="VerdictButtonStyle">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.85"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="Button" x:Key="OutlineButtonStyle">
             <!-- Bouton secondaire, façon Scanalyse : fond de bloc, bordure fine, texte principal. -->
             <Setter Property="Background" Value="{DynamicResource Surface}"/>
@@ -274,6 +294,9 @@
             <Setter Property="Background" Value="{DynamicResource Surface}"/>
             <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="CaretBrush" Value="{DynamicResource Focus}"/>
+            <!-- Taille d'interface 80/90 % : avec l'arrondi au pixel, le curseur de 1 px disparaissait. -->
+            <Setter Property="UseLayoutRounding" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="False"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="Padding" Value="10,5"/>
@@ -3770,7 +3793,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="0,0,16,0">
-                                <ListBox x:Name="DevTestsList" Background="Transparent" BorderThickness="0" SelectionChanged="DevTestsList_SelectionChanged"
+                                <ListBox x:Name="DevTestsList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Ink}" SelectionChanged="DevTestsList_SelectionChanged"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem">
@@ -3799,12 +3822,37 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" FontSize="16" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource Ink}"/>
                                                 <StackPanel Grid.Column="1">
                                                     <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding SubText}" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding SubText}" FontSize="11">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="✅"><Setter Property="Foreground" Value="{DynamicResource OkFg}"/></DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="⚠️"><Setter Property="Foreground" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="❓"><Setter Property="Foreground" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="❌"><Setter Property="Foreground" Value="{DynamicResource BadFg}"/></DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </StackPanel>
-                                                <TextBlock Grid.Column="2" Text="{Binding Status}" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Status}" FontFamily="Segoe UI Emoji" FontSize="15" FontWeight="Bold" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="✅"><Setter Property="Foreground" Value="{DynamicResource OkFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="⚠️"><Setter Property="Foreground" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="❓"><Setter Property="Foreground" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="❌"><Setter Property="Foreground" Value="{DynamicResource BadFg}"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="⏳"><Setter Property="Foreground" Value="{DynamicResource BrandText}"/></DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -3830,10 +3878,10 @@
                                     <TextBlock x:Name="TxtDevTestResult" FontSize="13" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                                     <TextBlock Text="Résultat retenu" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,6"/>
                                     <WrapPanel x:Name="DevTestVerdictPanel" IsEnabled="False">
-                                        <Button Content="✅ Conforme" Tag="✅" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
-                                        <Button Content="⚠️ À surveiller" Tag="⚠️" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
-                                        <Button Content="❌ Non conforme" Tag="❌" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
-                                        <Button Content="⏭ Ne pas tester" Tag="⚪" Click="BtnDevTestVerdict_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,6" ToolTip="Le test n'apparaîtra pas dans le rapport"/>
+                                        <Button Content="✅ Conforme" Tag="✅" Click="BtnDevTestVerdict_Click" Style="{StaticResource VerdictButtonStyle}" Background="{DynamicResource OkBg}" Foreground="{DynamicResource OkFg}" BorderBrush="{DynamicResource OkFg}" Height="32" Padding="14,0" Margin="0,0,8,6"/>
+                                        <Button Content="⚠️ À surveiller" Tag="⚠️" Click="BtnDevTestVerdict_Click" Style="{StaticResource VerdictButtonStyle}" Background="{DynamicResource WarnBg}" Foreground="{DynamicResource WarnFg}" BorderBrush="{DynamicResource WarnFg}" Height="32" Padding="14,0" Margin="0,0,8,6"/>
+                                        <Button Content="❌ Non conforme" Tag="❌" Click="BtnDevTestVerdict_Click" Style="{StaticResource VerdictButtonStyle}" Background="{DynamicResource BadBg}" Foreground="{DynamicResource BadFg}" BorderBrush="{DynamicResource BadFg}" Height="32" Padding="14,0" Margin="0,0,8,6"/>
+                                        <Button Content="⏭ Ne pas tester" Tag="⚪" Click="BtnDevTestVerdict_Click" Style="{StaticResource VerdictButtonStyle}" Background="{DynamicResource Surface2}" Foreground="{DynamicResource Muted}" BorderBrush="{DynamicResource Line}" Height="32" Padding="14,0" Margin="0,0,8,6" ToolTip="Le test n'apparaîtra pas dans le rapport"/>
                                     </WrapPanel>
                                     <TextBox x:Name="TxtDevTestComment" Tag="Commentaire pour le rapport (facultatif)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="32" VerticalContentAlignment="Center" Margin="0,6,0,0" TextChanged="TxtDevTestComment_TextChanged"/>
                                 </StackPanel>
