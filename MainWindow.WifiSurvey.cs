@@ -136,6 +136,13 @@ namespace ADBToolsNew
 
                 var survey = WifiSurvey.Load(last);
                 ImportWifiSurvey(survey, serial);
+                // Le terminal est rebranché : on complète l'adresse MAC, que l'appli ne peut pas lire elle-même.
+                try
+                {
+                    string mac = await _radarService.GetDeviceMacAddressAsync(serial, null);
+                    if (!string.IsNullOrWhiteSpace(mac)) TxtWifiMac.Text = Loc.F("MAC : {0}", mac);
+                }
+                catch { /* facultatif */ }
                 TxtSurveyStatus.Text = Loc.F("✅ {0} relevé(s) copié(s) dans {1}. Le plus récent est affiché dans l'Analyse Wi-Fi.", files.Count, dir);
                 WifiSurveyOverlay.Visibility = Visibility.Collapsed;
             }

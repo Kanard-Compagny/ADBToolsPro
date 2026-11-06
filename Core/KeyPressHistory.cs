@@ -16,6 +16,7 @@ namespace ADBToolsNew.Core
             if (string.IsNullOrEmpty(rawKeyName)) return false;
             string upper = rawKeyName.ToUpperInvariant();
             return upper == "TL" || upper == "TR"
+                || upper.EndsWith("_TL") || upper.EndsWith("_TR")          // BTN_TL / BTN_TR (Zebra TC53)
                 || upper.Contains("TRIGGER")
                 || upper.Contains("SCAN");
         }

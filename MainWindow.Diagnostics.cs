@@ -151,6 +151,8 @@ namespace ADBToolsNew
         // --- VALIDATION MANUELLE ---
         private void BtnDiagPass_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("✅"); }
         private void BtnDiagFail_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("❌"); }
+        private void BtnDiagWarn_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("⚠️"); }
+        private void BtnDiagUntested_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("⚪"); }
 
         private void UpdateDiagStatus(string status)
         {

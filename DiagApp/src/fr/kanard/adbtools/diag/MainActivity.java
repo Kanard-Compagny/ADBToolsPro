@@ -226,9 +226,11 @@ public class MainActivity extends Activity {
         verdictRow.addView(vLabel);
         LinearLayout vr1 = new LinearLayout(this);
         vr1.setOrientation(LinearLayout.HORIZONTAL);
-        vr1.addView(verdictButton("✅ OK", "ok", C_OK_BG, C_OK_FG), weight());
-        vr1.addView(verdictButton("⚠️ À surveiller", "warn", C_WARN_BG, C_WARN_FG), weight());
-        vr1.addView(verdictButton("❌ HS", "bad", C_BAD_BG, C_BAD_FG), weight());
+        // Icônes seules (le libellé « À surveiller » prenait toute la place sur les petits écrans) ;
+        // le libellé complet reste lu par TalkBack via la description du bouton.
+        vr1.addView(iconVerdictButton("✅", "OK", "ok", C_OK_BG, C_OK_FG), verdictWeight());
+        vr1.addView(iconVerdictButton("⚠️", "À surveiller / Monitor", "warn", C_WARN_BG, C_WARN_FG), verdictWeight());
+        vr1.addView(iconVerdictButton("❌", "HS / Faulty", "bad", C_BAD_BG, C_BAD_FG), verdictWeight());
         verdictRow.addView(vr1);
         Button skip = verdictButton("⏭ Passer ce test / Skip", "skip", C_SURFACE2, C_MUTED);
         LinearLayout.LayoutParams sk = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
@@ -760,6 +762,20 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
         b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendVerdict(status); } });
         return b;
+    }
+
+    private Button iconVerdictButton(String icon, String description, String status, int bg, int fg) {
+        Button b = verdictButton(icon, status, bg, fg);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        b.setPadding(0, 0, 0, 0);
+        b.setContentDescription(description);
+        return b;
+    }
+
+    private LinearLayout.LayoutParams verdictWeight() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(58), 1f);
+        lp.setMargins(dp(4), 0, dp(4), 0);
+        return lp;
     }
 
     private void showVerdictRow() { verdictRow.setVisibility(View.VISIBLE); }

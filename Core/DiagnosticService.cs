@@ -222,8 +222,8 @@ namespace ADBToolsNew.Core
 
             // Repli robuste si "dumpsys wifi" ne remonte pas un SSID exploitable (notamment certains
             // terminaux Zebra, où le SSID apparaît comme "101" ou reste vide alors que le Wi-Fi est actif).
-            var mSsidPreview = Regex.Match(wifiOutput, @"(?<!B)SSID:\s*""?([^"",\r\n]+)""?");
-            string previewSsid = mSsidPreview.Success ? mSsidPreview.Groups[1].Value.Trim() : "Inconnu";
+            string previewSsid = WifiParsingHelpers.ExtractSsid(WifiParsingHelpers.WifiInfoScope(wifiOutput))
+                                 ?? WifiParsingHelpers.ExtractSsid(wifiOutput) ?? "Inconnu";
 
             string ssidOverride = null;
             if (WifiParsingHelpers.NeedsSsidFallback(previewSsid))
@@ -245,21 +245,25 @@ namespace ADBToolsNew.Core
         {
             string ssid = "Inconnu", bssid = "Inconnu", rssi = "N/A", linkSpeed = "N/A", freq = "N/A", ipAddr = "N/A", macAddr = "N/A";
 
-            // (?<!B) : ne pas confondre avec "BSSID:", qui contient lui aussi "SSID:".
-            var mSsid = Regex.Match(wifiOutput ?? "", @"(?<!B)SSID:\s*""?([^"",\r\n]+)""?");
-            if (mSsid.Success) ssid = mSsid.Groups[1].Value.Trim();
+            // On lit d'abord la ligne "mWifiInfo" (connexion en cours), puis tout le dump en repli.
+            string all = wifiOutput ?? "";
+            string scope = WifiParsingHelpers.WifiInfoScope(all);
+            Match First(string pattern) { var m = Regex.Match(scope, pattern); return m.Success ? m : Regex.Match(all, pattern); }
+
+            string foundSsid = WifiParsingHelpers.ExtractSsid(scope) ?? WifiParsingHelpers.ExtractSsid(all);
+            if (foundSsid != null) ssid = foundSsid;
             if (!string.IsNullOrEmpty(ssidOverride)) ssid = ssidOverride;
 
-            var mBssid = Regex.Match(wifiOutput ?? "", @"BSSID:\s*([0-9a-fA-F:]{17})");
-            if (mBssid.Success) bssid = mBssid.Groups[1].Value;
+            string foundBssid = WifiParsingHelpers.ExtractBssid(scope) ?? WifiParsingHelpers.ExtractBssid(all);
+            if (foundBssid != null) bssid = foundBssid;
 
-            var mRssi = Regex.Match(wifiOutput ?? "", @"RSSI:\s*(-?\d+)");
+            var mRssi = First(@"RSSI:\s*(-?\d+)");
             if (mRssi.Success) rssi = $"{mRssi.Groups[1].Value} dBm";
 
-            var mSpeed = Regex.Match(wifiOutput ?? "", @"Link speed:\s*(\d+\s*Mbps)");
+            var mSpeed = First(@"Link speed:\s*(\d+\s*Mbps)");
             if (mSpeed.Success) linkSpeed = mSpeed.Groups[1].Value;
 
-            var mFreq = Regex.Match(wifiOutput ?? "", @"Frequency:\s*(\d+\s*MHz)");
+            var mFreq = First(@"Frequency:\s*(\d+\s*MHz)");
             if (mFreq.Success) freq = mFreq.Groups[1].Value;
 
             var mIp = Regex.Match(ipOutput ?? "", @"inet\s+([0-9\.]+)/\d+");

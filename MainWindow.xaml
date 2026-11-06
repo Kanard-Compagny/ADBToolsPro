@@ -2486,6 +2486,8 @@
                                                             <ColumnDefinition Width="15"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
                                                         <StackPanel Grid.Column="0">
@@ -2493,8 +2495,11 @@
                                                             <TextBox x:Name="TxtDiagComment" Height="40" VerticalContentAlignment="Top" Padding="5" TextWrapping="Wrap"/>
                                                         </StackPanel>
 
-                                                        <Button x:Name="BtnDiagFail" Content="❌ FAIL" Click="BtnDiagFail_Click" Style="{StaticResource StatusFailButtonStyle}" Width="100" Height="40" Grid.Column="2" Margin="0,20,10,0"/>
-                                                        <Button x:Name="BtnDiagPass" Content="✅ PASS" Click="BtnDiagPass_Click" Style="{StaticResource StatusPassButtonStyle}" Width="100" Height="40" Grid.Column="3" Margin="0,20,0,0"/>
+                                                        <!-- Verdicts manuels : « Non testé » remet la ligne à zéro (elle sort alors du rapport comme non testée). -->
+                                                        <Button x:Name="BtnDiagUntested" Content="⚪ NON TESTÉ" Click="BtnDiagUntested_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource Surface2}" Foreground="{DynamicResource Muted}" BorderBrush="{DynamicResource Line}" FontWeight="SemiBold" Padding="12,0" MinWidth="100" Height="40" Grid.Column="2" Margin="0,20,10,0" ToolTip="Remettre ce test à « non testé »"/>
+                                                        <Button x:Name="BtnDiagFail" Content="❌ FAIL" Click="BtnDiagFail_Click" Style="{StaticResource StatusFailButtonStyle}" Width="100" Height="40" Grid.Column="3" Margin="0,20,10,0"/>
+                                                        <Button x:Name="BtnDiagWarn" Content="⚠️ À SURVEILLER" Click="BtnDiagWarn_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource WarnBg}" Foreground="{DynamicResource WarnFg}" BorderBrush="{DynamicResource WarnFg}" Padding="12,0" MinWidth="100" Height="40" Grid.Column="4" Margin="0,20,10,0"/>
+                                                        <Button x:Name="BtnDiagPass" Content="✅ PASS" Click="BtnDiagPass_Click" Style="{StaticResource StatusPassButtonStyle}" Width="100" Height="40" Grid.Column="5" Margin="0,20,0,0"/>
                                                     </Grid>
                                                 </StackPanel>
                                             </StackPanel>

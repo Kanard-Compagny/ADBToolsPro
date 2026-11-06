@@ -33,6 +33,23 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Wifi_Android11_SsidEtBssidDeLaConnexionEnCours()
+        {
+            string dump = "Supplicant state\n  SSID: DeploiTest BSSID: 00:00:00:00:00:00 nid: 1 state: ASSOCIATED\n"
+                        + "mWifiInfo SSID: \"DeploiTest\", BSSID: 18:49:f8:84:2b:e4, MAC: 02:00:00:00:00:00, Supplicant state: COMPLETED, RSSI: -52, Link speed: 573Mbps, Frequency: 5500MHz\n";
+            var r = DiagnosticService.ParseWifiCheck(dump, "inet 172.17.10.26/23\n link/ether a2:40:87:48:fa:91", "", "");
+            StringAssert.Contains(r.Details, "Réseau (SSID) : DeploiTest\n".Replace("\n", System.Environment.NewLine));
+            StringAssert.Contains(r.Details, "Point d'accès (BSSID) : 18:49:f8:84:2b:e4");
+            StringAssert.Contains(r.Details, "Puissance Signal (RSSI) : -52 dBm");
+
+            // Sans ligne mWifiInfo : SSID coupé avant "BSSID:", BSSID nul ignoré.
+            Assert.AreEqual("DeploiTest", WifiParsingHelpers.ExtractSsid("SSID: DeploiTest BSSID: 00:00:00:00:00:00 nid: 1"));
+            Assert.IsNull(WifiParsingHelpers.ExtractBssid("BSSID: 00:00:00:00:00:00 nid: 1"));
+            Assert.IsTrue(ScanTriggerKeys.IsScanTrigger("BTN_TL"));
+            Assert.IsFalse(ScanTriggerKeys.IsScanTrigger("KEY_VOLUMEUP"));
+        }
+
+        [TestMethod]
         public void Batterie_LibellesEtStatut()
         {
             Assert.AreEqual("Défaillance (Failure) ❌", BatteryLabels.Health(6));
