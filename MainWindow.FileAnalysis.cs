@@ -38,6 +38,16 @@ namespace ADBToolsNew
         private FileLogEntry _faScrollToEntry;
         private bool _faBusy, _faSuspendFilter;
         private ArchiveFile _faOpenFile;
+        private LogAnalysis _faFullAnalysis, _faShownAnalysis;
+        private List<LogCompareRow> _faCompareRows;
+        private string _faCompareText = "", _faShownScope = "";
+        private DispatcherTimer _faZoneTimer;
+        private CancellationTokenSource _faZoneCts;
+        private int _faZoneFrom = int.MinValue, _faZoneTo = int.MinValue;
+        private int _faVisibleFrom = -1, _faVisibleTo = -1;
+        private GridLength _faLeftWidth = new GridLength(250), _faRightWidth = new GridLength(400);
+        private Rectangle _faHereRect;
+        private Polygon _faHereMark;
 
         private void NavFileAnalysis_Click(object sender, RoutedEventArgs e)
         {
@@ -87,6 +97,10 @@ namespace ADBToolsNew
                 }
                 _faArchive = archive;
                 _faCompare = null;
+                _faCompareRows = null; _faCompareText = "";
+                _faFullAnalysis = null; _faShownAnalysis = null;
+                _faZoneFrom = _faZoneTo = int.MinValue;
+                _faVisibleFrom = _faVisibleTo = -1;
                 FaCompareGrid.ItemsSource = null;
                 TxtFaCompareSummary.Text = Loc.T("« Comparer avec… » ouvre un second relevé (B) et liste les erreurs et avertissements propres à l'un des deux, ou bien plus fréquents (par heure). A = relevé ouvert.");
 
@@ -100,7 +114,7 @@ namespace ADBToolsNew
 
                 TxtFaSummary.Text = Loc.F("{0} — {1} lignes de {2} journal(aux), du {3} au {4}.", archive.Title,
                     archive.Entries.Count.ToString("N0", CultureInfo.CurrentCulture), archive.LogFiles.Count(),
-                    LogFinding.ShortTime(archive.FirstTime), LogFinding.ShortTime(archive.LastTime))
+                    LogArchive.MinuteText(archive.SpanFrom), LogArchive.MinuteText(archive.SpanTo))
                     + (archive.Note.Length > 0 ? " " + archive.Note : "");
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗂️ Relevé ouvert : {1}", DateTime.Now, TxtFaSummary.Text));
                 BtnFaCompare.IsEnabled = archive.Entries.Count > 0;
@@ -112,16 +126,14 @@ namespace ADBToolsNew
                 _faFrom = int.MinValue; _faTo = int.MaxValue;
                 await ApplyFaFilterAsync();
 
-                // Analyse automatique sur tout le relevé.
+                // Analyse automatique de tout le relevé (gardée pour « De tout le relevé ») ; la zone regardée suit.
                 TxtFaFindingsSummary.Text = Loc.T("⏳ Analyse en cours…");
                 FaFindingsList.ItemsSource = null;
                 var analysis = await Task.Run(() => LogAnalyzer.Analyze(archive.Entries.Cast<LogEntry>().ToList(), archive.Title));
                 if (_faArchive != archive) return;
-                FaFindingsList.ItemsSource = analysis.Findings;
-                int bad = analysis.Findings.Count(f => f.Severity == FindingSeverity.Bad), warn = analysis.Findings.Count(f => f.Severity == FindingSeverity.Warn);
-                TxtFaFindingsSummary.Text = analysis.Findings.Count == 0 ? Loc.T("Aucun problème repéré.")
-                    : Loc.F("{0} problème(s) important(s), {1} point(s) à surveiller. Cliquez sur un constat pour voir la ligne.", bad, warn);
+                _faFullAnalysis = analysis;
                 RbFaFindings.IsChecked = true;
+                await RefreshFaFindingsAsync(force: true);
             }
             catch (Exception ex)
             {
@@ -227,6 +239,7 @@ namespace ADBToolsNew
             if (_faScrollToEntry != null) { idx = FindFaIndex(_faScrollToEntry.Index); _faScrollToEntry = null; }
             else if (_faScrollToMinute >= 0) { idx = view.FindIndex(x => x.Minute >= _faScrollToMinute); _faScrollToMinute = -1; }
             if (idx >= 0) ScrollFaTo(idx);
+            ScheduleFaZoneRefresh();
         }
 
         /// <summary>Position dans la vue filtrée de la ligne d'index global donné (ou de la plus proche qui suit).</summary>
@@ -361,6 +374,53 @@ namespace ADBToolsNew
             }
             TxtFaTimelineFrom.Text = LogArchive.MinuteText(_faBuckets[0].From);
             TxtFaTimelineTo.Text = LogArchive.MinuteText(_faBuckets[_faBuckets.Count - 1].To);
+
+            // « Vous êtes ici » : cadre sur la partie du relevé visible dans le tableau.
+            _faHereRect = new Rectangle { Height = h, Stroke = (Brush)FindResource("Ink"), StrokeThickness = 1.5, Fill = (Brush)FindResource("Brand"), Opacity = 0.35, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+            _faHereMark = new Polygon { Points = new PointCollection { new Point(-6, 0), new Point(6, 0), new Point(0, 8) }, Fill = (Brush)FindResource("Ink"), IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+            FaTimeline.Children.Add(_faHereRect);
+            FaTimeline.Children.Add(_faHereMark);
+            UpdateFaHere();
+        }
+
+        /// <summary>Met à jour le repère « vous êtes ici » (frise) et le texte de la zone affichée.</summary>
+        private void UpdateFaHere()
+        {
+            if (_faHereRect == null || _faBuckets.Count == 0 || _faVisibleFrom < 0)
+            {
+                if (TxtFaHere != null) TxtFaHere.Text = "";
+                return;
+            }
+            double w = FaTimeline.ActualWidth;
+            double x1 = MinuteToX(_faVisibleFrom, w), x2 = MinuteToX(_faVisibleTo + 1, w);
+            double width = Math.Max(3, x2 - x1);
+            double left = Math.Max(0, Math.Min(x1, w - width));
+            Canvas.SetLeft(_faHereRect, left);
+            _faHereRect.Width = width;
+            _faHereRect.Visibility = Visibility.Visible;
+            Canvas.SetLeft(_faHereMark, left + width / 2);
+            Canvas.SetTop(_faHereMark, 0);
+            _faHereMark.Visibility = Visibility.Visible;
+            string a = LogArchive.MinuteText(_faVisibleFrom), b = LogArchive.MinuteText(_faVisibleTo);
+            TxtFaHere.Text = "▼ " + Loc.F("Vous êtes ici : {0}", a == b ? a : a + " → " + (a.Substring(0, 5) == b.Substring(0, 5) ? b.Substring(6) : b));
+        }
+
+        private void FaGrid_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (_faView == null || _faView.Count == 0) { _faVisibleFrom = _faVisibleTo = -1; UpdateFaHere(); return; }
+            var sv = e.OriginalSource as ScrollViewer;
+            if (sv == null) return;
+            int first = Math.Max(0, Math.Min(_faView.Count - 1, (int)sv.VerticalOffset));
+            int last = Math.Max(first, Math.Min(_faView.Count - 1, (int)(sv.VerticalOffset + sv.ViewportHeight)));
+            int mf = -1, ml = -1;
+            for (int i = first; i <= last && mf < 0; i++) if (_faView[i].Minute >= 0) mf = _faView[i].Minute;
+            for (int i = last; i >= first && ml < 0; i--) if (_faView[i].Minute >= 0) ml = _faView[i].Minute;
+            if (mf < 0) return;
+            if (ml < mf) ml = mf;
+            bool changed = mf != _faVisibleFrom || ml != _faVisibleTo;
+            _faVisibleFrom = mf; _faVisibleTo = ml;
+            UpdateFaHere();
+            if (changed) ScheduleFaZoneRefresh();
         }
 
         private double MinuteToX(int minute, double w)
@@ -438,6 +498,107 @@ namespace ADBToolsNew
             return true;
         }
 
+        // ------------------------------------------------------------------ Constats de la zone regardée
+
+        private bool FaFindingsFollowZone => CmbFaFindingsScope == null || CmbFaFindingsScope.SelectedIndex != 1;
+
+        private int FaWindowMinutes => int.TryParse((CmbFaWindow.SelectedItem as ComboBoxItem)?.Tag as string, out int x) ? x : 5;
+
+        /// <summary>Zone regardée : la période choisie (incident…), sinon ± la fenêtre autour des lignes affichées.</summary>
+        private (int From, int To) CurrentFaZone()
+        {
+            if (_faFrom != int.MinValue) return (_faFrom, _faTo);
+            if (_faVisibleFrom < 0) return (int.MinValue, int.MinValue);
+            int w = FaWindowMinutes;
+            return (_faVisibleFrom - w, _faVisibleTo + w);
+        }
+
+        private void ScheduleFaZoneRefresh()
+        {
+            if (_faArchive == null || !FaFindingsFollowZone) return;
+            if (_faZoneTimer == null)
+            {
+                _faZoneTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                _faZoneTimer.Tick += async (s, a) => { _faZoneTimer.Stop(); await RefreshFaFindingsAsync(); };
+            }
+            _faZoneTimer.Stop();
+            _faZoneTimer.Start();
+        }
+
+        private async void CmbFaFindingsScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            await RefreshFaFindingsAsync(force: true);
+        }
+
+        /// <summary>Constats affichés : de tout le relevé, ou de la zone regardée (recalculés quand elle change).</summary>
+        private async Task RefreshFaFindingsAsync(bool force = false)
+        {
+            if (_faArchive == null || _faFullAnalysis == null) return;
+            var zone = FaFindingsFollowZone ? CurrentFaZone() : (int.MinValue, int.MinValue);
+            if (zone.Item1 == int.MinValue)
+            {
+                _faZoneFrom = _faZoneTo = int.MinValue;
+                ShowFaFindings(_faFullAnalysis, Loc.T("Tout le relevé"));
+                return;
+            }
+            if (!force && zone.Item1 == _faZoneFrom && zone.Item2 == _faZoneTo) return;
+            _faZoneFrom = zone.Item1; _faZoneTo = zone.Item2;
+
+            _faZoneCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _faZoneCts = cts;
+            var archive = _faArchive;
+            var sources = archive.LogFiles.Any(f => !f.Included) ? new HashSet<int>(archive.LogFiles.Where(f => f.Included).Select(f => f.SourceId)) : null;
+            int from = zone.Item1, to = zone.Item2;
+            string label = LogArchive.MinuteText(from) + " → " + LogArchive.MinuteText(to).Substring(6);
+            try
+            {
+                var analysis = await Task.Run(() =>
+                {
+                    var lines = archive.Range(from, to, sources);
+                    cts.Token.ThrowIfCancellationRequested();
+                    return LogAnalyzer.Analyze(lines.Cast<LogEntry>().ToList(), archive.Title);
+                }, cts.Token);
+                if (cts.IsCancellationRequested || archive != _faArchive) return;
+                ShowFaFindings(analysis, label);
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        private void ShowFaFindings(LogAnalysis analysis, string scope)
+        {
+            _faShownAnalysis = analysis;
+            _faShownScope = scope;
+            FaFindingsList.ItemsSource = analysis.Findings;
+            int bad = analysis.Findings.Count(f => f.Severity == FindingSeverity.Bad), warn = analysis.Findings.Count(f => f.Severity == FindingSeverity.Warn);
+            string head = Loc.F("Zone : {0} · {1} lignes.", scope, analysis.LinesAnalyzed.ToString("N0", CultureInfo.CurrentCulture));
+            TxtFaFindingsSummary.Text = head + " " + (analysis.Findings.Count == 0 ? Loc.T("Aucun problème repéré.")
+                : Loc.F("{0} problème(s) important(s), {1} point(s) à surveiller. Cliquez sur un constat pour voir la ligne.", bad, warn));
+        }
+
+        // ------------------------------------------------------------------ Lignes en grand
+
+        private void TglFaWide_Changed(object sender, RoutedEventArgs e)
+        {
+            if (FaLeftColumn == null) return;
+            bool wide = TglFaWide.IsChecked == true;
+            if (wide)
+            {
+                if (FaLeftColumn.Width.Value > 0) _faLeftWidth = FaLeftColumn.Width;
+                if (FaRightColumn.Width.Value > 0) _faRightWidth = FaRightColumn.Width;
+                FaLeftColumn.Width = new GridLength(0); FaRightColumn.Width = new GridLength(0);
+                FaLeftSplit.Width = new GridLength(0); FaRightSplit.Width = new GridLength(0);
+            }
+            else
+            {
+                FaLeftColumn.Width = _faLeftWidth; FaRightColumn.Width = _faRightWidth;
+                FaLeftSplit.Width = new GridLength(8); FaRightSplit.Width = new GridLength(8);
+            }
+            FaLeftPanel.Visibility = wide ? Visibility.Collapsed : Visibility.Visible;
+            FaRightPanel.Visibility = wide ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         // ------------------------------------------------------------------ Panneau de droite
 
         private void FaPanel_Checked(object sender, RoutedEventArgs e)
@@ -507,9 +668,11 @@ namespace ADBToolsNew
                 double ha = LogCompare.Hours(a.Entries), hb = LogCompare.Hours(b.Entries);
                 int ea = a.Entries.Count(x => x.Level == "E" || x.Level == "F"), eb = b.Entries.Count(x => x.Level == "E" || x.Level == "F");
                 FaCompareGrid.ItemsSource = rows;
+                _faCompareRows = rows;
                 TxtFaCompareSummary.Text = Loc.F("A : {0} ({1} h, {2} erreurs/h) · B : {3} ({4} h, {5} erreurs/h). {6} type(s) de message diffèrent nettement ; clic = les rechercher dans A.",
                     a.Title, ha.ToString("0.#", CultureInfo.CurrentCulture), (ea / ha).ToString("0", CultureInfo.CurrentCulture),
                     b.Title, hb.ToString("0.#", CultureInfo.CurrentCulture), (eb / hb).ToString("0", CultureInfo.CurrentCulture), rows.Count);
+                _faCompareText = TxtFaCompareSummary.Text;
             }
             catch (Exception ex)
             {
@@ -531,24 +694,102 @@ namespace ADBToolsNew
 
         // ------------------------------------------------------------------ Export
 
-        private async void BtnFaExport_Click(object sender, RoutedEventArgs e)
+        private void BtnFaExport_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnFaExport.ContextMenu == null) return;
+            BtnFaExport.ContextMenu.PlacementTarget = BtnFaExport;
+            BtnFaExport.ContextMenu.Placement = PlacementMode.Bottom;
+            BtnFaExport.ContextMenu.IsOpen = true;
+        }
+
+        private string FaExportBaseName => FileNameHelper.Sanitize(System.IO.Path.GetFileNameWithoutExtension(_faArchive?.Title ?? "releve"));
+
+        /// <summary>Filtres actifs, en clair (pour le rapport).</summary>
+        private string FaFiltersText()
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(TxtFaSearch.Text)) parts.Add(Loc.F("recherche « {0} »", TxtFaSearch.Text) + (TglFaRegex.IsChecked == true ? " (regex)" : ""));
+            var levels = FaLevelToggles.Where(x => x.IsChecked == true).Select(x => (string)x.Tag).ToList();
+            if (levels.Count < 6) parts.Add(Loc.F("niveaux {0}", string.Join(" ", levels)));
+            if (!string.IsNullOrWhiteSpace(TxtFaTag.Text)) parts.Add(Loc.F("tag « {0} »", TxtFaTag.Text));
+            if (!string.IsNullOrWhiteSpace(TxtFaPid.Text)) parts.Add(Loc.F("PID {0}", TxtFaPid.Text));
+            if (_faFrom != int.MinValue) parts.Add(Loc.F("période {0} → {1}", LogArchive.MinuteText(_faFrom), LogArchive.MinuteText(_faTo)));
+            return parts.Count == 0 ? Loc.T("aucun") : string.Join(" · ", parts);
+        }
+
+        private async void MenuFaExportReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            var dlg = new SaveFileDialog
+            {
+                Title = Loc.T("Rapport d'analyse"),
+                Filter = Loc.T("Page web (*.html)|*.html"),
+                FileName = FaExportBaseName + "_rapport.html",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            bool zoned = _faShownAnalysis != null && _faShownAnalysis != _faFullAnalysis && _faZoneFrom != int.MinValue;
+            var opt = new LogReport.Options
+            {
+                Title = _faArchive.Title,
+                Archive = _faArchive,
+                Analysis = _faShownAnalysis ?? _faFullAnalysis,
+                View = _faView,
+                From = zoned ? _faZoneFrom : int.MinValue,
+                To = zoned ? _faZoneTo : int.MaxValue,
+                ScopeText = string.IsNullOrEmpty(_faShownScope) ? Loc.T("Tout le relevé") : _faShownScope,
+                FiltersText = FaFiltersText(),
+                Compare = _faCompareRows,
+                CompareText = _faCompareText,
+                AppVersion = AppUpdater.CurrentVersion.ToString(3),
+            };
+            string path = dlg.FileName;
+            try
+            {
+                string html = await Task.Run(() => LogReport.BuildHtml(opt));
+                File.WriteAllText(path, html, new UTF8Encoding(false));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📄 Rapport d'analyse enregistré : {1}", DateTime.Now, path));
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); } catch { /* pas de navigateur associé */ }
+            }
+            catch (Exception ex)
+            {
+                await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
+            }
+        }
+
+        private void MenuFaExportTxt_Click(object sender, RoutedEventArgs e) => ExportFaLines(false);
+        private void MenuFaExportCsv_Click(object sender, RoutedEventArgs e) => ExportFaLines(true);
+
+        private async void ExportFaLines(bool csv)
         {
             if (_faArchive == null || _faView.Count == 0) return;
             var dlg = new SaveFileDialog
             {
                 Title = Loc.T("Exporter les lignes affichées"),
-                Filter = Loc.T("Fichier texte (*.txt)|*.txt"),
-                FileName = FileNameHelper.Sanitize(System.IO.Path.GetFileNameWithoutExtension(_faArchive.Title)) + "_selection.txt",
+                Filter = csv ? Loc.T("Fichier CSV (*.csv)|*.csv") : Loc.T("Fichier texte (*.txt)|*.txt"),
+                FileName = FaExportBaseName + (csv ? "_lignes.csv" : "_lignes.txt"),
             };
             if (dlg.ShowDialog(this) != true) return;
             var view = _faView;
-            string path = dlg.FileName;
+            string path = dlg.FileName, filters = FaFiltersText(), title = _faArchive.Title;
             try
             {
                 await Task.Run(() =>
                 {
-                    using (var w = new StreamWriter(path, false, new UTF8Encoding(false)))
-                        foreach (var x in view) w.WriteLine($"{x.Time} {x.PID,6} {x.Level} {x.Tag}: {x.Message}   [{x.Source}]");
+                    // CSV : séparateur « ; » et BOM pour une ouverture directe dans Excel (version française).
+                    using (var w = new StreamWriter(path, false, new UTF8Encoding(csv)))
+                    {
+                        if (csv)
+                        {
+                            w.WriteLine(string.Join(";", Loc.T("Heure"), Loc.T("Fichier"), "PID", Loc.T("Niveau"), Loc.T("Tag"), Loc.T("Message")));
+                            foreach (var x in view)
+                                w.WriteLine(string.Join(";", Csv(x.Time), Csv(x.Source), Csv(x.PID), Csv(x.Level), Csv(x.Tag), Csv(x.Message)));
+                        }
+                        else
+                        {
+                            w.WriteLine("# " + title + " — " + Loc.F("{0} ligne(s), filtres : {1}", view.Count, filters));
+                            foreach (var x in view) w.WriteLine($"{x.Time} {x.PID,6} {x.Level} {x.Tag}: {x.Message}   [{x.Source}]");
+                        }
+                    }
                 });
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💾 {1} ligne(s) exportée(s) : {2}", DateTime.Now, view.Count, path));
             }
@@ -556,6 +797,12 @@ namespace ADBToolsNew
             {
                 await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
             }
+        }
+
+        private static string Csv(string s)
+        {
+            s = s ?? "";
+            return s.IndexOfAny(new[] { ';', '"', '\n', '\r' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
         }
     }
 }

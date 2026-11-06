@@ -191,7 +191,7 @@ namespace ADBToolsNew.Core
         private static readonly Regex ScannerTrouble = new Regex(@"abort|fault|not (?:ready|respond\w*|available|connected|initiali[sz]ed|supported)|no response|unavailable|disconnect|\blost\b|\bstuck\b|\bhang(?:s|ing)?\b|\breset\b|\bre-?init|\bdeinit|\bdied\b|\bdead\b|closed unexpectedly|not opened|already in use|\bbusy\b", OI);
         // Traces de routine du lecteur Zebra qui contiennent pourtant un mot d'erreur : elles apparaissent à chaque
         // appui sur la gâchette, terminal en bon état compris (relevé RxLogger TC53 analysé en conditions réelles).
-        private static readonly Regex ZebraScannerNoise = new Regex(@"Polling \d+ms Timeout|Invalid iDecodeIndex|picklist calibration failed|DecCalibrateImage Unsuccessful|Setting Parameter for Control is failed|Aim_type param|No decode timer|engineId =|^\s*ImagerAdapter::(?:Start|Stop)Streaming|\[ImagerAdapter::(?:Start|Stop)Streaming\]|DecoderHandlerDoDataCallback\] \+", OI);
+        private static readonly Regex ZebraScannerNoise = new Regex(@"Polling \d+ms Timeout|Invalid iDecodeIndex|picklist calibration failed|DecCalibrateImage Unsuccessful|Setting Parameter for Control is failed|Aim_type param|No decode timer|Invalid resource ID|engineId =|^\s*ImagerAdapter::(?:Start|Stop)Streaming|\[ImagerAdapter::(?:Start|Stop)Streaming\]|DecoderHandlerDoDataCallback\] \+", OI);
         // Le moteur de lecture ne fournit plus d'image : l'éclair s'allume, puis rien n'est lu.
         private static readonly Regex ScannerNoFrames = new Regex(@"More than \d+ Null frames? received", OI);
         // Journal Zebra : appui sur la gâchette et lecture réussie (pour repérer les appuis restés sans lecture).

@@ -104,6 +104,32 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Rapport_HtmlAutonomeAvecConstatsEtContexte()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "adbt_rep_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                var a = LogArchive.Open(MakeRx(dir));
+                var analysis = LogAnalyzer.Analyze(a.Entries.Cast<LogEntry>().ToList(), a.Title);
+                string html = LogReport.BuildHtml(new LogReport.Options
+                {
+                    Title = a.Title, Archive = a, Analysis = analysis, View = a.Entries, ScopeText = "Tout le relevé", FiltersText = "aucun",
+                });
+                StringAssert.StartsWith(html, "<!DOCTYPE html>");
+                StringAssert.Contains(html, "Zebra TC53E");
+                StringAssert.Contains(html, "le capteur ne renvoie plus d&#39;image");     // titre du constat, échappé
+                StringAssert.Contains(html, "<span class=\"hl\">");                     // ligne du constat surlignée dans son contexte
+                StringAssert.Contains(html, "<svg");
+                Assert.IsFalse(html.Contains("<script"));
+
+                // Période réelle : les lignes d'avant la mise à l'heure ne faussent pas le résumé.
+                Assert.AreEqual(LogArchive.ToMinute("11-05 08:00:00.000"), a.SpanFrom);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [TestMethod]
         public void Comparaison_MessagesPropresOuPlusFrequents()
         {
             FileLogEntry E(string time, string lvl, string tag, string msg) => new FileLogEntry { Time = time, Level = lvl, Tag = tag, Message = msg, Minute = LogArchive.ToMinute(time) };

@@ -121,6 +121,7 @@
     <Compile Include="Core\LogAnalyzer.cs" />
     <Compile Include="Core\LogImport.cs" />
     <Compile Include="Core\LogArchive.cs" />
+    <Compile Include="Core\LogReport.cs" />
     <Compile Include="MainWindow.FileAnalysis.cs" />
     <Compile Include="MainWindow.Recorder.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />

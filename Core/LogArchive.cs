@@ -123,6 +123,34 @@ namespace ADBToolsNew.Core
 
         public IEnumerable<ArchiveFile> LogFiles => Files.Where(f => f.IsLog);
         public IEnumerable<ArchiveFile> OtherFiles => Files.Where(f => !f.IsLog);
+        private int _spanFrom = -2, _spanTo = -2;
+        /// <summary>
+        /// Période réelle du relevé (minutes), sans les quelques lignes datées d'avant la mise à l'heure du terminal
+        /// (01/01, 02/03…) : sert au résumé et à la frise.
+        /// </summary>
+        public int SpanFrom { get { ComputeSpan(); return _spanFrom; } }
+        public int SpanTo { get { ComputeSpan(); return _spanTo; } }
+        private void ComputeSpan()
+        {
+            if (_spanFrom != -2) return;
+            var m = Entries.Where(e => e.Minute >= 0).Select(e => e.Minute).ToList();
+            if (m.Count == 0) { _spanFrom = _spanTo = -1; return; }
+            m.Sort();
+            _spanFrom = m[(int)(m.Count * 0.002)];
+            _spanTo = m[Math.Min(m.Count - 1, (int)(m.Count * 0.9995))];
+        }
+
+        /// <summary>Lignes datées entre deux minutes (incluses), journaux choisis seulement (null = tous).</summary>
+        public List<FileLogEntry> Range(int from, int to, HashSet<int> sources = null) =>
+            Entries.Where(e => e.Minute >= from && e.Minute <= to && (sources == null || sources.Contains(e.SourceId))).ToList();
+
+        /// <summary>Lignes qui entourent une ligne du relevé (contexte d'un constat).</summary>
+        public List<FileLogEntry> Around(int index, int before = 8, int after = 8)
+        {
+            int a = Math.Max(0, index - before), b = Math.Min(Entries.Count - 1, index + after);
+            return a > b ? new List<FileLogEntry>() : Entries.GetRange(a, b - a + 1);
+        }
+
         public string FirstTime => Entries.FirstOrDefault(e => e.Minute >= 0)?.Time ?? "";
         public string LastTime => Entries.LastOrDefault(e => e.Minute >= 0)?.Time ?? "";
 

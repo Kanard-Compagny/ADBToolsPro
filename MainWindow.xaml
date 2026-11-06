@@ -3626,9 +3626,10 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition x:Name="FaTimelineRow" Height="110" MinHeight="70"/>
+                                    <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*" MinHeight="150"/>
                                 </Grid.RowDefinitions>
 
                                 <Grid Grid.Row="0" Margin="0,0,0,12">
@@ -3645,7 +3646,15 @@
                                         <Button x:Name="BtnFaOpenFolder" Content="📁 Ouvrir un dossier…" Click="BtnFaOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
                                         <Button x:Name="BtnFaCompare" Content="⚖️ Comparer avec…" Click="BtnFaCompare_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Ouvrir un second relevé (ex. terminal sans correctif) et voir les messages qui diffèrent"/>
                                         <Button x:Name="BtnFaRecorder" Content="🎙 Enregistreur terrain…" Click="BtnOpenRecorder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" ToolTip="Faire enregistrer au terminal, débranché, le journal complet et les incidents signalés par l'utilisateur"/>
-                                        <Button x:Name="BtnFaExport" Content="💾 Exporter la sélection" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Enregistrer les lignes affichées (filtres appliqués) en .txt"/>
+                                        <Button x:Name="BtnFaExport" Content="💾 Exporter ▾" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Rapport d'analyse (HTML, imprimable en PDF) ou lignes affichées (.txt, .csv)">
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="📄 Rapport d'analyse (.html, imprimable en PDF)" Click="MenuFaExportReport_Click"/>
+                                                    <MenuItem Header="📜 Lignes affichées (.txt)" Click="MenuFaExportTxt_Click"/>
+                                                    <MenuItem Header="📊 Lignes affichées (.csv, Excel)" Click="MenuFaExportCsv_Click"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
                                     </WrapPanel>
                                 </Grid>
 
@@ -3664,7 +3673,8 @@
                                             <ToggleButton x:Name="TglFaV" Content="V" Tag="V" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,14,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Détaillé (verbose)"/>
                                             <TextBox x:Name="TxtFaTag" Tag="Tag / application" Style="{StaticResource PlaceholderTextBoxStyle}" Width="160" Height="32" VerticalContentAlignment="Center" TextChanged="FaFilter_Changed" Margin="0,0,6,6"/>
                                             <TextBox x:Name="TxtFaPid" Tag="PID" Style="{StaticResource PlaceholderTextBoxStyle}" Width="70" Height="32" VerticalContentAlignment="Center" TextChanged="FaFilter_Changed" Margin="0,0,6,6"/>
-                                            <Button Content="✖ Effacer les filtres" Click="BtnFaClearFilters_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="10,0" Margin="0,0,0,6"/>
+                                            <Button Content="✖ Effacer les filtres" Click="BtnFaClearFilters_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="10,0" Margin="0,0,6,6"/>
+                                            <ToggleButton x:Name="TglFaWide" Content="⛶ Lignes en grand" Style="{StaticResource ModernToggleStyle}" Height="32" MinWidth="140" Margin="0,0,0,6" Checked="TglFaWide_Changed" Unchecked="TglFaWide_Changed" ToolTip="Masquer les panneaux de gauche et de droite pour lire les lignes sur toute la largeur"/>
                                         </WrapPanel>
                                         <WrapPanel>
                                             <TextBlock Text="🎯 Aller à l'incident :" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -3685,14 +3695,17 @@
                                 </Border>
 
                                 <!-- Frise : lignes (vert) et erreurs (rouge) dans le temps ; clic = aller à ce moment -->
-                                <Border Grid.Row="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,0,10">
+                                <Border Grid.Row="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="10,6">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="56"/>
+                                            <RowDefinition Height="*" MinHeight="36"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Text="Frise : nombre de lignes (vert) et d'erreurs (rouge) — cliquez pour vous placer à ce moment, ⚠️ = incident signalé depuis le terminal" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                        <Grid>
+                                            <TextBlock Text="Frise : nombre de lignes (vert) et d'erreurs (rouge) — cliquez pour vous placer à ce moment, ⚠️ = incident signalé depuis le terminal" FontSize="11" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,0,260,0"/>
+                                            <TextBlock x:Name="TxtFaHere" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrandText}" HorizontalAlignment="Right" ToolTip="Zone affichée dans le tableau (cadre sur la frise)"/>
+                                        </Grid>
                                         <Canvas x:Name="FaTimeline" Grid.Row="1" Background="Transparent" ClipToBounds="True" MouseLeftButtonUp="FaTimeline_Click" SizeChanged="FaTimeline_SizeChanged" Cursor="Hand"/>
                                         <Grid Grid.Row="2">
                                             <TextBlock x:Name="TxtFaTimelineFrom" FontSize="10" Foreground="{DynamicResource Muted}" HorizontalAlignment="Left"/>
@@ -3701,17 +3714,25 @@
                                     </Grid>
                                 </Border>
 
-                                <ProgressBar x:Name="FaProgress" Grid.Row="3" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,6"/>
+                                <!-- Poignée : agrandir / réduire la frise -->
+                                <GridSplitter Grid.Row="3" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Center" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" Background="Transparent" Cursor="SizeNS" ToolTip="Glisser pour agrandir ou réduire la frise"/>
 
-                                <Grid Grid.Row="4" Margin="0,0,0,10">
+                                <ProgressBar x:Name="FaProgress" Grid.Row="4" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,6"/>
+
+                                <Grid Grid.Row="5" Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="250"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="400"/>
+                                        <ColumnDefinition x:Name="FaLeftColumn" Width="250" MinWidth="0"/>
+                                        <ColumnDefinition x:Name="FaLeftSplit" Width="8"/>
+                                        <ColumnDefinition Width="*" MinWidth="300"/>
+                                        <ColumnDefinition x:Name="FaRightSplit" Width="8"/>
+                                        <ColumnDefinition x:Name="FaRightColumn" Width="400" MinWidth="0"/>
                                     </Grid.ColumnDefinitions>
+                                    <!-- Poignées : glisser pour élargir ou réduire les panneaux -->
+                                    <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="Transparent" Cursor="SizeWE" ToolTip="Glisser pour élargir ou réduire"/>
+                                    <GridSplitter Grid.Column="3" Width="8" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="Transparent" Cursor="SizeWE" ToolTip="Glisser pour élargir ou réduire"/>
 
                                     <!-- Fichiers du relevé -->
-                                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="0,0,10,0">
+                                    <Border x:Name="FaLeftPanel" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
                                         <DockPanel>
                                             <TextBlock DockPanel.Dock="Top" Text="Journaux (cochés = affichés)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="12,10,12,6"/>
                                             <ListBox x:Name="FaLogFilesList" DockPanel.Dock="Top" MaxHeight="260" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -3744,7 +3765,7 @@
                                     </Border>
 
                                     <!-- Lignes -->
-                                    <Border Grid.Column="1" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
+                                    <Border Grid.Column="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="*"/>
@@ -3752,7 +3773,7 @@
                                             </Grid.RowDefinitions>
                                             <DataGrid x:Name="FaGrid" Background="Transparent" SelectionMode="Single" SelectionUnit="FullRow" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False"
                                                       HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="23" FontSize="12" EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Item" SelectionChanged="FaGrid_SelectionChanged">
+                                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Item" SelectionChanged="FaGrid_SelectionChanged" ScrollViewer.ScrollChanged="FaGrid_ScrollChanged">
                                                 <DataGrid.RowStyle>
                                                     <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                                         <Setter Property="Background" Value="Transparent"/>
@@ -3818,7 +3839,7 @@
                                     </Border>
 
                                     <!-- Panneau de droite : constats, fichier annexe, fiche terminal, comparaison -->
-                                    <Border Grid.Column="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="10,0,0,0">
+                                    <Border x:Name="FaRightPanel" Grid.Column="4" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
                                         <DockPanel>
                                             <WrapPanel DockPanel.Dock="Top" Margin="10,10,10,4">
                                                 <RadioButton x:Name="RbFaFindings" GroupName="FaPanel" Content="🔎 Constats" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
@@ -3828,6 +3849,13 @@
                                             </WrapPanel>
                                             <Grid>
                                                 <DockPanel x:Name="FaFindingsPanel">
+                                                    <WrapPanel DockPanel.Dock="Top" Margin="12,0,12,6">
+                                                        <TextBlock Text="Constats :" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                        <ComboBox x:Name="CmbFaFindingsScope" Width="220" Height="28" SelectedIndex="0" SelectionChanged="CmbFaFindingsScope_SelectionChanged" ToolTip="Zone regardée : la période choisie (incident), sinon la fenêtre autour des lignes affichées ; elle suit le défilement">
+                                                            <ComboBoxItem Content="De la zone regardée"/>
+                                                            <ComboBoxItem Content="De tout le relevé"/>
+                                                        </ComboBox>
+                                                    </WrapPanel>
                                                     <TextBlock x:Name="TxtFaFindingsSummary" DockPanel.Dock="Top" Text="Aucun relevé ouvert." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
                                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
                                                         <ItemsControl x:Name="FaFindingsList" ItemTemplate="{StaticResource LogFindingCardTemplate}"/>
