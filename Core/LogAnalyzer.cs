@@ -149,6 +149,7 @@ namespace ADBToolsNew.Core
         public static string CatSystem => Loc.T("Système et matériel");
         public static string CatNetwork => Loc.T("Réseau et Wi-Fi");
         public static string CatScanner => Loc.T("Lecteur code-barres");
+        public static string CatIncident => Loc.T("Incidents signalés");
         public static string CatOverview => Loc.T("Vue d'ensemble");
 
         private const RegexOptions O = RegexOptions.Compiled | RegexOptions.CultureInvariant;
@@ -487,6 +488,18 @@ namespace ADBToolsNew.Core
                         Detail = host.Length > 0 ? "" : ConnectLabel(type),
                         Advice = Loc.T("Vérifier que le serveur est accessible depuis le réseau du terminal (pare-feu, proxy, VPN) et que le signal Wi-Fi est suffisant."),
                     }, mergeWindow: 30);
+                    continue;
+                }
+
+                // ---------------- Incident signalé par l'utilisateur sur le terminal (enregistreur terrain)
+                if (tag == LogArchive.IncidentTag)
+                {
+                    Add(map, "incident|" + i, i, e, CatIncident, 0, FindingSeverity.Bad, () => new LogFinding
+                    {
+                        Title = Loc.T("Incident signalé sur le terminal"),
+                        Detail = Shorten(msg),
+                        Advice = Loc.T("Regarder ce qui précède ce moment : plantages, blocages, coupures Wi-Fi, mémoire, lecteur (cliquez pour vous y placer)."),
+                    });
                     continue;
                 }
 

@@ -40,6 +40,13 @@ namespace ADBToolsNew
                         Loc.T("OK"), "", false);
                     return false;
                 }
+                if (await HasPendingRecordingAsync(serial))
+                {
+                    await ShowCustomDialogAsync(Loc.T("🧪 Appli de diagnostic"),
+                        Loc.T("Un enregistrement terrain est encore sur le terminal : récupérez-le d'abord (Analyse de fichiers ▸ Enregistreur terrain ▸ Récupérer l'enregistrement)."),
+                        Loc.T("OK"), "", false);
+                    return false;
+                }
                 await _adbManager.ExecuteAsync($"-s {serial} uninstall {DiagApp.Package}");
                 res = await _adbManager.ExecuteAsync($"-s {serial} install -t -g {apk}", TimeSpan.FromSeconds(90));
             }
@@ -71,6 +78,12 @@ namespace ADBToolsNew
             {
                 // Une mesure Wi-Fi sans câble n'a pas été récupérée : désinstaller l'appli effacerait le relevé.
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🚶 Appli de diagnostic laissée sur {1} : une mesure Wi-Fi sans câble n'a pas encore été récupérée (Analyse Wi-Fi ▸ Mesure sans câble).", DateTime.Now, serial));
+                return;
+            }
+            if (await HasPendingRecordingAsync(serial))
+            {
+                // Un enregistrement terrain n'a pas été récupéré : désinstaller l'appli l'effacerait.
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎙 Appli de diagnostic laissée sur {1} : un enregistrement terrain n'a pas encore été récupéré (Analyse de fichiers ▸ Enregistreur terrain).", DateTime.Now, serial));
                 return;
             }
             try

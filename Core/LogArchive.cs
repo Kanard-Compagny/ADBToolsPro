@@ -313,7 +313,7 @@ namespace ADBToolsNew.Core
                         lines++;
                         if (!string.IsNullOrEmpty(LogImport.ParseAny(line).Time)) logs++;
                     }
-                    return logs >= 5 && logs * 3 >= lines;
+                    return lines > 0 && logs >= Math.Min(5, lines) && logs * 3 >= lines;
                 }
             }
             catch { return false; }

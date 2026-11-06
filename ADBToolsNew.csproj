@@ -122,6 +122,7 @@
     <Compile Include="Core\LogImport.cs" />
     <Compile Include="Core\LogArchive.cs" />
     <Compile Include="MainWindow.FileAnalysis.cs" />
+    <Compile Include="MainWindow.Recorder.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />
     <Compile Include="Core\DeviceTests.cs" />

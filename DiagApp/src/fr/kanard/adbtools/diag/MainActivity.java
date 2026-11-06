@@ -30,6 +30,7 @@ import android.widget.ImageView;
 import android.graphics.drawable.GradientDrawable;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -94,6 +95,11 @@ public class MainActivity extends Activity {
     // Mesure Wi-Fi autonome
     private LinearLayout surveyButtons;
     private final Runnable surveyRefresh = new Runnable() { @Override public void run() { refreshSurvey(); } };
+
+    // Enregistreur de terrain
+    private LinearLayout recorderButtons;
+    private final Runnable recorderRefresh = new Runnable() { @Override public void run() { refreshRecorder(); } };
+    private long recorderStartRequestedAt;
 
     // Test « clavier »
     private boolean keysMode;
@@ -210,12 +216,28 @@ public class MainActivity extends Activity {
         b2.topMargin = dp(10);
         surveyButtons.addView(markBtn, b1);
         surveyButtons.addView(stopBtn, b2);
+
+        recorderButtons = new LinearLayout(this);
+        recorderButtons.setOrientation(LinearLayout.VERTICAL);
+        recorderButtons.setVisibility(View.GONE);
+        Button incBtn = button("⚠️ Signaler un incident / Report an incident", true);
+        incBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        incBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askIncident(); } });
+        Button recStopBtn = button("⏹ Arrêter l'enregistrement / Stop recording", false);
+        recStopBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopRecorder(); } });
+        LinearLayout.LayoutParams r1 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(64));
+        r1.topMargin = dp(16);
+        LinearLayout.LayoutParams r2 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
+        r2.topMargin = dp(10);
+        recorderButtons.addView(incBtn, r1);
+        recorderButtons.addView(recStopBtn, r2);
         // Boutons en bas de l'écran, à portée de pouce (mesure Wi-Fi et résultat des tests).
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.VERTICAL);
         bottomBar.setBackgroundColor(C_BG);
         bottomBar.setPadding(dp(16), dp(4), dp(16), dp(16));
         bottomBar.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        bottomBar.addView(recorderButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // Résultat du test choisi directement sur le terminal (le PC le reçoit et passe au test suivant).
         verdictRow = new LinearLayout(this);
@@ -269,6 +291,7 @@ public class MainActivity extends Activity {
         resumed = true;
         if (scanMode) enableScanOutputs();
         if (pendingCmd != null) { String c = pendingCmd; pendingCmd = null; handle(c); }
+        else if (RecorderService.running != null) showRecorder();
         else if (SurveyService.running != null) showSurvey();
         else if (wifiEntry) {
             setLogo(true);
@@ -294,6 +317,7 @@ public class MainActivity extends Activity {
         setScanMode(false);
         keysMode = false;
         hideSurvey();
+        hideRecorder();
         verdictRow.setVisibility(View.GONE);
         activeTestId = null;
         stepText = pendingExtras == null ? "" : pendingExtras.getString("step", "");
@@ -308,6 +332,14 @@ public class MainActivity extends Activity {
             case "survey_stop":
                 if (SurveyService.running != null) SurveyService.running.stopSurvey("pc");
                 else Out.result("survey_stop", "na", Out.obj("reason", "not_running"));
+                setMessage("Prêt / Ready");
+                return;
+            case "record":
+                startRecorder(pendingExtras);
+                return;
+            case "record_stop":
+                if (RecorderService.running != null) RecorderService.running.stopRecording("pc");
+                else Out.result("record_stop", "na", Out.obj("reason", "not_running"));
                 setMessage("Prêt / Ready");
                 return;
             case "probe":
@@ -517,6 +549,132 @@ public class MainActivity extends Activity {
                 pulse, quality, sec / 3600, (sec / 60) % 60, sec % 60, s.lastSsid, s.lastBssid, s.lastPing, lossPct,
                 s.samples, s.roams, s.disconnects, s.marks, events.length() > 0 ? "\n\n" + events : ""));
         handler.postDelayed(surveyRefresh, 1000);
+    }
+
+    // ------------------------------------------------------------------ Enregistreur de terrain
+
+    private void startRecorder(Bundle extras) {
+        Intent i = new Intent(this, RecorderService.class);
+        if (extras != null) {
+            i.putExtra(RecorderService.EXTRA_TARGET, extras.getString(RecorderService.EXTRA_TARGET, ""));
+            i.putExtra(RecorderService.EXTRA_DURATION, parseInt(extras.get(RecorderService.EXTRA_DURATION), 0));
+            i.putExtra(RecorderService.EXTRA_INTERVAL, parseInt(extras.get(RecorderService.EXTRA_INTERVAL), 15));
+        }
+        recorderStartRequestedAt = System.currentTimeMillis();
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        showRecorder();
+    }
+
+    private void showRecorder() {
+        keepVisibleWhenLocked(true); // le bouton « Incident » reste accessible sans déverrouiller
+        titleView.setText("Enregistreur / Recorder");
+        setLogo(false);
+        card.setVisibility(View.VISIBLE);
+        setMessage("Utilisez le terminal normalement. Au moindre problème, appuyez sur « Signaler un incident » (aussi dans la notification).\n"
+                + "Use the device as usual. When a problem occurs, press \"Report an incident\" (also in the notification).");
+        recorderButtons.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(recorderRefresh);
+        refreshRecorder();
+    }
+
+    private void hideRecorder() {
+        handler.removeCallbacks(recorderRefresh);
+        if (recorderButtons != null) recorderButtons.setVisibility(View.GONE);
+    }
+
+    private void refreshRecorder() {
+        RecorderService s = RecorderService.running;
+        if (s == null && System.currentTimeMillis() - recorderStartRequestedAt < 15000) {
+            bigView.setText("…");
+            bigView.setTextColor(C_MUTED);
+            detailView.setText("⏳ Démarrage de l'enregistrement… / Starting…");
+            handler.postDelayed(recorderRefresh, 500);
+            return;
+        }
+        if (s == null) {
+            recorderButtons.setVisibility(View.GONE);
+            keepVisibleWhenLocked(false);
+            if (titleView.getText().toString().startsWith("Enregistreur")) {
+                bigView.setText("");
+                detailView.setText("Enregistrement terminé / Recording finished");
+                setMessage("Rebranchez le terminal au PC et récupérez l'enregistrement dans ADB Tools (Analyse de fichiers ▸ Enregistreur).\n"
+                        + "Plug the device back into the PC and retrieve the recording in ADB Tools.");
+            }
+            return;
+        }
+        long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
+        bigView.setText(String.format(java.util.Locale.US, "%02d:%02d:%02d", sec / 3600, (sec / 60) % 60, sec % 60));
+        bigView.setTextColor(C_BRAND_TEXT);
+        String remaining = "";
+        if (s.endAt > 0) {
+            long left = Math.max(0, (s.endAt - System.currentTimeMillis()) / 60000);
+            remaining = "\nFin dans " + (left / 60) + " h " + String.format(java.util.Locale.US, "%02d", left % 60) + " / Ends in " + (left / 60) + " h " + String.format(java.util.Locale.US, "%02d", left % 60);
+        }
+        String events = s.recentText();
+        detailView.setText((sec % 2 == 0 ? "●" : "○") + "  Enregistrement en cours / Recording" + remaining
+                + "\n\n⚠️ " + s.incidents + " incident(s) signalé(s)"
+                + "\n📜 " + String.format(java.util.Locale.US, "%,d", s.logLines) + " lignes de journal · " + (s.logBytes / (1024 * 1024)) + " Mo"
+                + (s.logsReadable ? "" : "\n⚠ Journal système non accessible (droit non accordé) : seuls les relevés sont enregistrés.")
+                + (s.target.length() > 0 ? "\n🎯 " + s.target : "")
+                + (s.lastBattery.length() > 0 ? "\n🔋 " + s.lastBattery : "")
+                + (s.lastWifi.length() > 0 ? "\n📶 " + s.lastWifi : "")
+                + (events.length() > 0 ? "\n\n" + events : ""));
+        handler.postDelayed(recorderRefresh, 1000);
+    }
+
+    /** Incident : motif rapide en un geste, précision facultative. */
+    private void askIncident() {
+        final RecorderService s = RecorderService.running;
+        if (s == null) return;
+        final EditText note = new EditText(this);
+        note.setHint("Précisez si besoin / Details (optional)");
+        note.setSingleLine(false);
+        final String[] reasons = { "Le lecteur ne lit pas / Scanner not reading", "Application bloquée ou lente / App frozen or slow",
+                "Application fermée toute seule / App closed by itself", "Wi-Fi ou réseau coupé / Wi-Fi or network down",
+                "Terminal lent ou redémarré / Device slow or restarted", "Autre / Other" };
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(4), dp(16), 0);
+        final AlertDialog[] dlg = new AlertDialog[1];
+        for (final String r : reasons) {
+            Button b = button(r, false);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    String extra = note.getText().toString().trim();
+                    s.incident(r.split(" / ")[0] + (extra.length() > 0 ? " — " + extra : ""));
+                    if (dlg[0] != null) dlg[0].dismiss();
+                    Toast.makeText(MainActivity.this, "Incident noté / Incident recorded", Toast.LENGTH_SHORT).show();
+                }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+            lp.topMargin = dp(6);
+            box.addView(b, lp);
+        }
+        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        nl.topMargin = dp(10);
+        box.addView(note, nl);
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(box);
+        dlg[0] = new AlertDialog.Builder(this)
+                .setTitle("⚠️ Que se passe-t-il ? / What happened?")
+                .setView(sv)
+                .setNegativeButton("✖", null)
+                .show();
+    }
+
+    private void confirmStopRecorder() {
+        new AlertDialog.Builder(this)
+                .setTitle("⏹")
+                .setMessage("Arrêter l'enregistrement ? / Stop recording?")
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        RecorderService s = RecorderService.running;
+                        if (s != null) s.stopRecording("user");
+                    }
+                })
+                .setNegativeButton("✖", null)
+                .show();
     }
 
     private void askMark() {

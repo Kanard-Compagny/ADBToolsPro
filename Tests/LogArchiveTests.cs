@@ -71,6 +71,39 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Enregistrement_IncidentsFusionnesEtSignales()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "adbt_rec_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                File.WriteAllLines(Path.Combine(dir, "logcat_000.txt"), new[]
+                {
+                    "11-06 10:00:00.000  1000  1000 I ActivityManager: Start proc 4321:com.exemple/u0a12",
+                    "11-06 10:00:05.000  5762  6864 E ScannerFramework: [ImagerAdapter::getFrameThreadProc] More than 10 Null frame received",
+                    "11-06 10:00:20.000  1000  1000 I ActivityManager: Displayed com.exemple/.Main",
+                });
+                File.WriteAllLines(Path.Combine(dir, "events.txt"), new[]
+                {
+                    "11-06 09:59:50.000 12345 12345 I ADBTools-Rec: Batterie 86 % · 31.5 °C | Mémoire libre 2100 Mo / 3800 Mo | Wi-Fi -54 dBm Reseau",
+                    "11-06 10:00:10.000 12345 12345 W ADBTools-Incident: Incident n°1 signalé sur le terminal : Le lecteur ne lit pas",
+                });
+                File.WriteAllLines(Path.Combine(dir, "snapshot_incident_01.txt"), new[] { "=== Incident n°1", "mCurrentFocus=Window{com.exemple/.Main}" });
+
+                var a = LogArchive.Open(dir);
+                CollectionAssert.AreEqual(new[] { "ADBTools-Rec", "ActivityManager", "ScannerFramework", "ADBTools-Incident", "ActivityManager" }, a.Entries.Select(e => e.Tag).ToArray());
+                Assert.IsTrue(a.OtherFiles.Any(f => f.Name == "snapshot_incident_01.txt" && f.Kind == ArchiveFileKind.Snapshot));
+                Assert.AreEqual(1, a.Timeline(a.Entries).Sum(b => b.Incidents));
+
+                var findings = LogAnalyzer.Analyze(a.Entries.Cast<LogEntry>().ToList()).Findings;
+                var inc = findings.Single(f => f.Category == LogAnalyzer.CatIncident);
+                StringAssert.Contains(inc.Detail, "Le lecteur ne lit pas");
+                Assert.AreSame(a.Entries[3], inc.FirstEntry);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [TestMethod]
         public void Comparaison_MessagesPropresOuPlusFrequents()
         {
             FileLogEntry E(string time, string lvl, string tag, string msg) => new FileLogEntry { Time = time, Level = lvl, Tag = tag, Message = msg, Minute = LogArchive.ToMinute(time) };

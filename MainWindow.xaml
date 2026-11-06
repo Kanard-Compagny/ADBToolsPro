@@ -3644,6 +3644,7 @@
                                         <Button x:Name="BtnFaOpenFile" Content="📂 Ouvrir un fichier…" Click="BtnFaOpenFile_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" ToolTip="Archive .zip (RxLogger, bugreport), logcat .txt / .log"/>
                                         <Button x:Name="BtnFaOpenFolder" Content="📁 Ouvrir un dossier…" Click="BtnFaOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
                                         <Button x:Name="BtnFaCompare" Content="⚖️ Comparer avec…" Click="BtnFaCompare_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Ouvrir un second relevé (ex. terminal sans correctif) et voir les messages qui diffèrent"/>
+                                        <Button x:Name="BtnFaRecorder" Content="🎙 Enregistreur terrain…" Click="BtnOpenRecorder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" ToolTip="Faire enregistrer au terminal, débranché, le journal complet et les incidents signalés par l'utilisateur"/>
                                         <Button x:Name="BtnFaExport" Content="💾 Exporter la sélection" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Enregistrer les lignes affichées (filtres appliqués) en .txt"/>
                                     </WrapPanel>
                                 </Grid>
@@ -4226,6 +4227,66 @@
                             <Button Content="📂 Ouvrir un relevé…" Click="BtnSurveyOpenFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,6" ToolTip="Relevé déjà récupéré (.jsonl)"/>
                         </WrapPanel>
                         <TextBlock x:Name="TxtSurveyStatus" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Enregistreur terrain : l'appli de diagnostic enregistre journal, état du terminal et incidents signalés
+                 pendant plusieurs heures, terminal débranché — MainWindow.Recorder.cs -->
+            <Grid x:Name="RecorderOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1000">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Width="680" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24,20">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="🎙 Enregistreur terrain" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                            <Button Content="✖" Click="BtnRecorderClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="32" Height="32" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <TextBlock Text="Quand les logs habituels ne suffisent pas : le terminal est confié à l'utilisateur, débranché, pendant plusieurs heures. Il enregistre le journal Android complet, son état (batterie, température, mémoire, stockage, Wi-Fi), les coupures Wi-Fi, et chaque incident que l'utilisateur signale d'un appui (« Signaler un incident », aussi dans la notification) avec l'état du système à cet instant. Au retour, l'enregistrement s'ouvre dans Analyse de fichiers, positionné sur les incidents."
+                                   FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <TextBlock Text="1. Démarrer l'enregistrement (terminal branché en USB)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="140"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Application métier suivie (facultatif)" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbRecorderTarget" Height="30" IsEditable="True" ToolTip="Sa mémoire est relevée à chaque incident ; ses plantages et blocages ressortent dans l'analyse"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Relevé de l'état" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbRecorderInterval" Height="30" SelectedIndex="1">
+                                    <ComboBoxItem Content="Toutes les 10 s" Tag="10"/>
+                                    <ComboBoxItem Content="Toutes les 15 s" Tag="15"/>
+                                    <ComboBoxItem Content="Toutes les 30 s" Tag="30"/>
+                                    <ComboBoxItem Content="Toutes les minutes" Tag="60"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Durée maximale" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbRecorderDuration" Height="30" SelectedIndex="3">
+                                    <ComboBoxItem Content="Jusqu'à l'arrêt" Tag="0"/>
+                                    <ComboBoxItem Content="1 heure" Tag="60"/>
+                                    <ComboBoxItem Content="2 heures" Tag="120"/>
+                                    <ComboBoxItem Content="4 heures" Tag="240"/>
+                                    <ComboBoxItem Content="8 heures" Tag="480"/>
+                                    <ComboBoxItem Content="12 heures" Tag="720"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Android 13 et plus : le terminal demande « Autoriser l'accès à tous les journaux de l'appareil ? » au démarrage — répondez Autoriser, sinon seul l'état du terminal est enregistré."
+                                   FontSize="11" Foreground="{DynamicResource WarnFg}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                        <Button x:Name="BtnRecorderStart" Content="⏺ Démarrer l'enregistrement sur le terminal" Click="BtnRecorderStart_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" HorizontalAlignment="Left" Padding="16,0" Margin="0,0,0,18"/>
+
+                        <TextBlock Text="2. Au retour : rebranchez le terminal" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,8"/>
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button x:Name="BtnRecorderFetch" Content="📥 Récupérer l'enregistrement" Click="BtnRecorderFetch_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6" ToolTip="Arrête l'enregistrement s'il tourne encore, le copie sur le PC et l'ouvre dans Analyse de fichiers"/>
+                            <Button Content="📂 Ouvrir un enregistrement…" Click="BtnRecorderOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,6" ToolTip="Dossier déjà récupéré"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="TxtRecorderStatus" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
             </Grid>
