@@ -6,6 +6,7 @@
 - **Test du lecteur code-barres** (Diagnostics SAV ▸ Laboratoire) : l'appli de diagnostic est installée sur le terminal le temps du test, puis désinstallée. Lectures en direct (données avec caractères invisibles, longueur, symbologie transmise sur Zebra et Honeywell, estimée sur les autres marques), gâchette détectée (délai jusqu'à la lecture, lectures ratées, taux de réussite), cadence, contrôle d'une liste de codes attendus. Résultat reporté dans « Optique Scanner » du diagnostic SAV et du rapport Word, export .csv.
 - **Mesure Wi-Fi sans câble** (Analyse Wi-Fi) : le terminal mesure le Wi-Fi tout seul, débranché du PC, pendant que vous parcourez le site (signal, borne, canal, débit, ping chaque seconde ; changements de borne, coupures). Des repères posés sur le terminal (« Quai 3 »…) donnent un bilan par zone. Au retour, le relevé est récupéré, affiché dans l'Analyse Wi-Fi et repris dans le rapport Word.
 - **Mises à jour, comme dans Scanalyse** : la pastille « Mise à jour X » s'affiche dans la barre de titre, à côté de la version ; un clic ouvre la fenêtre d'installation avec les nouveautés de la version, puis « Installer et redémarrer ».
+- **Autres améliorations** : dans le diagnostic SAV, une ligne peut aussi être passée « À surveiller » ou remise à « Non testé » ; SSID et point d'accès corrects dans le check-up Wi-Fi sous Android 11.
 
 ## Installation
 1. Déjà en 1.1.1 ou plus : **Paramètres ▸ Mises à jour ▸ Installer** (ou dossier de diffusion de l'équipe).

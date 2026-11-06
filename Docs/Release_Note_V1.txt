@@ -94,6 +94,11 @@ MISES À JOUR, COMME DANS SCANALYSE
     la version. Un clic ouvre la fenêtre d'installation avec les nouveautés,
     puis « Installer et redémarrer ».
 
+AUTRES AMÉLIORATIONS
+  - Diagnostic SAV : en plus de PASS et FAIL, une ligne peut être passée
+    « À surveiller » ou remise à « Non testé ».
+  - Check-up Wi-Fi : SSID et point d'accès (BSSID) corrects sous Android 11.
+
 ================================================================================
 2 bis. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
 ================================================================================

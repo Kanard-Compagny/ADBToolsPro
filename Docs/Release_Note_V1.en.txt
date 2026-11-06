@@ -91,6 +91,11 @@ UPDATES, AS IN SCANALYSE
     click opens the install window with what's new, then "Install and
     restart".
 
+OTHER IMPROVEMENTS
+  - Service diagnostics: besides PASS and FAIL, a row can be set to
+    "Monitor" or reset to "Not tested".
+  - Wi-Fi check-up: correct SSID and access point (BSSID) on Android 11.
+
 ================================================================================
 2b. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
