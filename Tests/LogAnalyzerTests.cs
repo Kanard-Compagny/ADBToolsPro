@@ -189,6 +189,64 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Import_RxLogger_JournauxRecentsFusionnesDansLOrdre()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "adbt_rx_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string zipPath = Path.Combine(dir, "RxLogger.zip");
+                using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+                {
+                    void Write(string name, params string[] lines)
+                    {
+                        using (var w = new StreamWriter(zip.CreateEntry("RxLogger/" + name).Open()))
+                        {
+                            w.WriteLine("DEVICE: Zebra/TC53E/TC53E SERIAL NUMBER: 0 ANDROID VERSION: 14");
+                            foreach (var l in lines) w.WriteLine(l);
+                        }
+                    }
+                    Write("Main1.txt", "11-05 08:00:00.000  100  100 I Ancien: avant", "11-05 08:30:00.000  100  100 I Ancien: suite");
+                    Write("Main0.txt", "11-05 09:07:00.000  200  200 I Recent: incident");
+                    Write("Crash0.txt", "02-03 08:19:21.687   628   628 F libc    : date fantaisiste",
+                                        "11-05 08:45:00.000  300  300 E AndroidRuntime: FATAL EXCEPTION: main");
+                    Write("Radio0.txt", "11-05 08:46:00.000  400  400 I Radio: ignoré");
+                }
+                var list = LogImport.LoadFile(zipPath);
+                CollectionAssert.AreEqual(new[] { "Ancien", "Ancien", "AndroidRuntime", "Recent" }, list.Select(x => x.Tag).ToArray());
+                StringAssert.Contains(LogImport.LastImportNote, "Main0.txt, Main1.txt");
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [TestMethod]
+        public void Scanner_Zebra_ImageAbsenteEtGachetteSansLecture()
+        {
+            var sb = new System.Text.StringBuilder();
+            // 08:50 : appuis suivis de lectures (normal), avec les traces de routine bruyantes.
+            for (int k = 0; k < 9; k++)
+            {
+                sb.AppendLine($"11-05 08:50:{k:00}.000  5762  6864 I ScannerFramework: [TriggerAdapter::TriggerKeyEvent] Event 'HardKeyDownEvent' received on Decision tree scanner:0 code:2e8");
+                sb.AppendLine($"11-05 08:50:{k:00}.100  1329 19165 E ScannerFramework: [ImagerAdapter::privV4lGetFrameHandle] Polling 35ms Timeout: 0");
+                sb.AppendLine($"11-05 08:50:{k:00}.200  5762  6268 E ScannerFramework: IMGKIT [ImgKitCWrapper::GetGS1FlexiScriptDecodeData] Error - Invalid iDecodeIndex = 0");
+                sb.AppendLine($"11-05 08:50:{k:00}.300  5762  6268 I ScannerFramework: [DecoderHandlerManager::DecoderHandlerDoDataCallback] Decoded data received successfully");
+            }
+            // 09:07 : l'éclair s'allume, aucune image, aucune lecture.
+            for (int k = 0; k < 12; k++)
+                sb.AppendLine($"11-05 09:07:{k:00}.000  5762  6864 I ScannerFramework: [TriggerAdapter::TriggerKeyEvent] Event 'HardKeyDownEvent' received on Decision tree scanner:0 code:2e8");
+            sb.AppendLine("11-05 09:07:30.000  1329 19165 E ScannerFramework: [ImagerAdapter::getFrameThreadProc] More than 10 Null frame received");
+            sb.AppendLine("11-05 09:07:31.000  5762  6864 E ScannerFramework: [DecoderHandler::DecodeFrame] picklist calibration failed!");
+
+            var scan = Run(sb.ToString()).Findings.Where(x => x.Category == LogAnalyzer.CatScanner).ToList();
+            Assert.IsFalse(scan.Any(x => x.Detail.Contains("Polling") || x.Detail.Contains("iDecodeIndex") || x.Detail.Contains("picklist")));
+            Assert.AreEqual(FindingSeverity.Bad, scan.Single(x => x.Title.Contains("image")).Severity);
+            var dead = scan.Single(x => x.Title.Contains("gâchette"));
+            Assert.AreEqual(12, dead.Count);
+            StringAssert.Contains(dead.Detail, "09:07 : 12 appuis");
+            Assert.AreEqual(2, scan.Count);
+        }
+
+        [TestMethod]
         public void Scanner_PasDeFauxPositifsDuSysteme()
         {
             var a = Run(

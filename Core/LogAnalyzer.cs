@@ -188,6 +188,15 @@ namespace ADBToolsNew.Core
         // Signes de panne propres au lecteur, même sans le mot « error » : moteur qui ne répond plus, qui s'arrête
         // ou se réinitialise (cas typique : un éclair à l'ouverture puis plus aucune lecture).
         private static readonly Regex ScannerTrouble = new Regex(@"abort|fault|not (?:ready|respond\w*|available|connected|initiali[sz]ed|supported)|no response|unavailable|disconnect|\blost\b|\bstuck\b|\bhang(?:s|ing)?\b|\breset\b|\bre-?init|\bdeinit|\bdied\b|\bdead\b|closed unexpectedly|not opened|already in use|\bbusy\b", OI);
+        // Traces de routine du lecteur Zebra qui contiennent pourtant un mot d'erreur : elles apparaissent à chaque
+        // appui sur la gâchette, terminal en bon état compris (relevé RxLogger TC53 analysé en conditions réelles).
+        private static readonly Regex ZebraScannerNoise = new Regex(@"Polling \d+ms Timeout|Invalid iDecodeIndex|picklist calibration failed|DecCalibrateImage Unsuccessful|Setting Parameter for Control is failed|Aim_type param|No decode timer|engineId =|^\s*ImagerAdapter::(?:Start|Stop)Streaming|\[ImagerAdapter::(?:Start|Stop)Streaming\]|DecoderHandlerDoDataCallback\] \+", OI);
+        // Le moteur de lecture ne fournit plus d'image : l'éclair s'allume, puis rien n'est lu.
+        private static readonly Regex ScannerNoFrames = new Regex(@"More than \d+ Null frames? received", OI);
+        // Journal Zebra : appui sur la gâchette et lecture réussie (pour repérer les appuis restés sans lecture).
+        private static readonly Regex ZebraTriggerDown = new Regex(@"TriggerKeyEvent\] Event 'HardKeyDownEvent'", OI);
+        private static readonly Regex ZebraDecodeOk = new Regex(@"Decoded data received successfully", OI);
+
         // Messages de réussite qui contiennent un mot d'erreur (« no error », « ERROR_NONE », « 0 failed »…).
         private static readonly Regex SuccessWords = new Regex(@"\bsuccess(?:ful(?:ly)?)?\b|\bno error|error_none|errors?\s*[:=]\s*0\b|\b0 fail", OI);
         private static readonly Regex Digits = new Regex(@"0x[0-9a-fA-F]+|\d+", O);
@@ -207,6 +216,8 @@ namespace ADBToolsNew.Core
             LogEntry firstConn = null; string firstConnTime = "", lastConnTime = "";
             int battMin = 101; double battMaxTemp = double.MinValue; string battBadHealth = null; LogEntry battEntry = null;
             var errorTags = new Dictionary<string, int>(StringComparer.Ordinal);
+            // Appuis gâchette / lectures par minute (journal Zebra) : minute → (appuis, lectures, première ligne).
+            var trigMinutes = new SortedDictionary<string, (int Press, int Ok, int Index)>(StringComparer.Ordinal);
 
             for (int i = 0; i < entries.Count; i++)
             {
@@ -480,6 +491,31 @@ namespace ADBToolsNew.Core
                 }
 
                 // ---------------- Lecteur code-barres
+                if (tag == "ScannerFramework" && (e.Time ?? "").Length >= 11)
+                {
+                    bool down = ZebraTriggerDown.IsMatch(msg), ok = !down && ZebraDecodeOk.IsMatch(msg);
+                    if (down || ok)
+                    {
+                        string minute = e.Time.Substring(0, 11);
+                        trigMinutes.TryGetValue(minute, out var tm);
+                        if (tm.Press == 0 && tm.Ok == 0) tm.Index = i;
+                        if (down) tm.Press++; else tm.Ok++;
+                        trigMinutes[minute] = tm;
+                        continue;
+                    }
+                }
+                if (ScannerNoFrames.IsMatch(msg))
+                {
+                    Add(map, "scan_noframe", i, e, CatScanner, 3, FindingSeverity.Bad, () => new LogFinding
+                    {
+                        Title = Loc.T("Lecteur : le capteur ne renvoie plus d'image"),
+                        App = tag,
+                        Detail = Shorten(msg),
+                        Advice = Loc.T("Le lecteur s'allume (éclair) mais le moteur de lecture ne fournit aucune image, donc rien n'est lu. Nettoyer la fenêtre du lecteur et redémarrer ; si cela se répète, faire contrôler le moteur de lecture et sa nappe (retour SAV)."),
+                    });
+                    continue;
+                }
+                if (ZebraScannerNoise.IsMatch(msg)) continue;
                 // Journal du lecteur lui-même (tag), ou erreur d'une application qui cite le lecteur ; pas les
                 // journaux du système qui le mentionnent seulement (suivi des processus, installation…).
                 bool scannerTag = ScannerTag.IsMatch(tag) && !NotBarcode.IsMatch(tag);
@@ -549,6 +585,24 @@ namespace ADBToolsNew.Core
                     Advice = advice, Count = 1, FirstEntry = battEntry, FirstTime = battEntry.Time ?? "", LastTime = battEntry.Time ?? "",
                 };
                 map[f.Key] = f;
+            }
+
+            // Gâchette pressée à répétition sans aucune lecture : le symptôme que voit l'utilisateur.
+            var dead = trigMinutes.Where(p => p.Value.Press >= 8 && p.Value.Ok == 0).ToList();
+            if (dead.Count > 0)
+            {
+                int presses = dead.Sum(p => p.Value.Press);
+                var firstIdx = dead[0].Value.Index;
+                map["scan_deadtrigger"] = new LogFinding
+                {
+                    Key = "scan_deadtrigger", Category = CatScanner, CategoryOrder = 3, Severity = FindingSeverity.Bad,
+                    Title = Loc.T("Lecteur : appuis sur la gâchette sans lecture"),
+                    App = "ScannerFramework",
+                    Detail = string.Join("\n", dead.OrderByDescending(p => p.Value.Press).Take(4).OrderBy(p => p.Key)
+                                 .Select(p => Loc.F("{0} : {1} appuis, aucune lecture", p.Key.Substring(6), p.Value.Press))),
+                    Advice = Loc.T("L'utilisateur appuie sans que rien ne soit lu. Faire un Test du lecteur (Diagnostics SAV) : si le taux de réussite reste bas sur des codes en bon état, le lecteur est à faire contrôler."),
+                    Count = presses, FirstEntry = entries[firstIdx], FirstTime = dead[0].Key + ":00.000", LastTime = dead[dead.Count - 1].Key + ":59.999",
+                };
             }
 
             var top = errorTags.OrderByDescending(p => p.Value).Take(5).ToList();

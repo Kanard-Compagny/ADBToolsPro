@@ -70,10 +70,14 @@ namespace ADBToolsNew.Core
         /// <summary>Lit un fichier de logs (.txt, .log, bugreport .zip). Lève une exception explicite sinon.</summary>
         public static List<LogEntry> LoadFile(string path)
         {
+            LastImportNote = "";
             if (string.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
             {
                 using (var zip = ZipFile.OpenRead(path))
                 {
+                    var rx = LoadRxLogger(zip);
+                    if (rx != null) return rx;
+
                     // Le rapport principal : bugreport-*.txt (le plus gros .txt à la racine), sinon le plus gros .txt.
                     var txt = zip.Entries.Where(z => z.Name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)).ToList();
                     var main = txt.Where(z => z.Name.StartsWith("bugreport", StringComparison.OrdinalIgnoreCase) && !z.FullName.Contains("/"))
@@ -97,6 +101,70 @@ namespace ADBToolsNew.Core
                     throw new InvalidDataException(Loc.T("Ce fichier ne contient pas de lignes de log Android reconnues."));
                 return list;
             }
+        }
+
+        /// <summary>Volume de logs « Main » lu dans une archive RxLogger (les plus récents d'abord).</summary>
+        public const long RxLoggerMainBudget = 110L * 1024 * 1024;
+
+        private static readonly Regex RxLogFile = new Regex(@"^(Main|System|Crash)(\d+)\.txt$", RegexOptions.IgnoreCase);
+
+        /// <summary>Note sur le dernier fichier lu (journaux d'une archive RxLogger retenus), vide sinon.</summary>
+        public static string LastImportNote { get; private set; } = "";
+
+        /// <summary>
+        /// Archive RxLogger (Zebra) : le journal est découpé en Main0 (le plus récent), Main1… plus System et Crash.
+        /// On lit les Main les plus récents dans la limite d'un volume raisonnable, avec System et Crash (petits,
+        /// plantages et ANR), puis on remet tout dans l'ordre chronologique. Null si ce n'est pas une archive RxLogger.
+        /// </summary>
+        private static List<LogEntry> LoadRxLogger(ZipArchive zip)
+        {
+            var files = zip.Entries.Select(z => new { Entry = z, M = RxLogFile.Match(z.Name) }).Where(x => x.M.Success)
+                .Select(x => new { x.Entry, Kind = x.M.Groups[1].Value.ToLowerInvariant(), Index = int.Parse(x.M.Groups[2].Value) }).ToList();
+            var mains = files.Where(f => f.Kind == "main").OrderBy(f => f.Index).ToList();
+            if (mains.Count == 0 || (mains.Count == 1 && files.Count == 1 && !zip.Entries.Any(z => z.FullName.IndexOf("RxLogger", StringComparison.OrdinalIgnoreCase) >= 0)))
+                return null;
+
+            var chosen = new List<ZipArchiveEntry>();
+            long total = 0;
+            foreach (var m in mains)
+            {
+                if (chosen.Count > 0 && total + m.Entry.Length > RxLoggerMainBudget) break;
+                chosen.Add(m.Entry); total += m.Entry.Length;
+            }
+            var others = files.Where(f => f.Kind != "main").Select(f => f.Entry).ToList();
+
+            var all = new List<(string Key, int Order, LogEntry Entry)>();
+            int order = 0;
+            string minKey = null, maxKey = null;
+            void Read(ZipArchiveEntry entry, bool isMain)
+            {
+                using (var s = entry.Open())
+                {
+                    string lastTime = "";
+                    foreach (var e in ParseLines(ReadLines(s), true))
+                    {
+                        if (!string.IsNullOrEmpty(e.Time)) lastTime = e.Time;
+                        if (isMain && lastTime.Length > 0)
+                        {
+                            if (minKey == null || string.CompareOrdinal(lastTime, minKey) < 0) minKey = lastTime;
+                            if (maxKey == null || string.CompareOrdinal(lastTime, maxKey) > 0) maxKey = lastTime;
+                        }
+                        // System / Crash : seulement la période couverte par les Main retenus (pas d'autres jours,
+                        // ni les dates fantaisistes d'avant la mise à l'heure du terminal).
+                        if (!isMain && (minKey == null || string.CompareOrdinal(lastTime, minKey) < 0 || string.CompareOrdinal(lastTime, maxKey) > 0)) continue;
+                        all.Add((lastTime, order++, e));
+                    }
+                }
+            }
+            foreach (var entry in chosen.AsEnumerable().Reverse()) Read(entry, true);
+            foreach (var entry in others) Read(entry, false);
+
+            var sorted = all.OrderBy(x => x.Key, StringComparer.Ordinal).ThenBy(x => x.Order).Select(x => x.Entry).ToList();
+            string from = minKey ?? "", to = maxKey ?? "";
+            string skipped = mains.Count > chosen.Count
+                ? " " + Loc.F("({0} journal(aux) plus ancien(s) non lu(s))", mains.Count - chosen.Count) : "";
+            LastImportNote = Loc.F("Archive RxLogger : {0} retenu(s), avec System et Crash — du {1} au {2}.", string.Join(", ", chosen.Select(z => z.Name)), from, to) + skipped;
+            return sorted;
         }
 
         private static IEnumerable<string> ReadLines(Stream s)

@@ -141,6 +141,8 @@ namespace ADBToolsNew
             {
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📂 Lecture de {1}…", DateTime.Now, Path.GetFileName(path)));
                 var entries = await Task.Run(() => LogImport.LoadFile(path));
+                if (!string.IsNullOrEmpty(LogImport.LastImportNote))
+                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 {1}", DateTime.Now, LogImport.LastImportNote));
                 if (entries.Count == 0)
                 {
                     await ShowCustomDialogAsync(Loc.T("📂 Ouvrir un fichier"), Loc.T("Ce fichier ne contient pas de lignes de log Android reconnues."), Loc.T("OK"), "", false);
