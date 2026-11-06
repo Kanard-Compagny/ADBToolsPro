@@ -32,14 +32,16 @@ ANALYSE AUTOMATIQUE DES LOGS (page Logs)
     revue, même les lignes masquées par les filtres.
   - « Analyse rapide du terminal » : lit le journal actuel du terminal
     (logcat -d) et l'analyse en un clic, sans lancer la capture.
-  - « Ouvrir un fichier » : logcat enregistré (.txt, .log) ou bugreport (.zip)
+  - « Ouvrir un fichier » : logcat enregistré (.txt, .log), bugreport (.zip)
+    ou archive RxLogger Zebra (.zip, journaux les plus récents fusionnés)
     reçu d'un client ou d'un collègue.
   - Ce qui est repéré : plantages d'applications (Java et natifs), applications
     figées (ANR), services relancés, mémoire saturée, stockage plein, batterie
     (niveau, température, état), chauffe, redémarrages, Wi-Fi (déconnexions et
     leur raison, mot de passe refusé, DHCP, itinérance), DNS, serveurs
     injoignables, certificats, et lecteur code-barres de toutes marques
-    (DataWedge, Honeywell, Datalogic, Newland, Urovo...).
+    (DataWedge, Honeywell, Datalogic, Newland, Urovo...), dont le capteur qui
+    ne renvoie plus d'image et les appuis sur la gâchette restés sans lecture.
   - Problèmes regroupés et triés du plus grave au moins grave, avec un conseil
     pour chacun ; un clic montre la ligne dans le tableau. Rapport à copier ou
     à exporter en .txt pour un ticket.

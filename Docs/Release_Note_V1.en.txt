@@ -28,14 +28,16 @@ AUTOMATIC LOG ANALYSIS (Logs page)
     hidden by filters.
   - "Quick device analysis": reads the current device log (logcat -d) and
     analyses it in one click, without starting the capture.
-  - "Open a file": saved logcat (.txt, .log) or bugreport (.zip) received from
-    a customer or a colleague.
+  - "Open a file": saved logcat (.txt, .log), bugreport (.zip) or Zebra
+    RxLogger archive (.zip, latest logs merged) received from a customer or a
+    colleague.
   - What is detected: app crashes (Java and native), frozen apps (ANR),
     restarted services, memory pressure, full storage, battery (level,
     temperature, health), overheating, restarts, Wi-Fi (disconnections and
     their reason, rejected password, DHCP, roaming), DNS, unreachable servers,
     certificates, and barcode scanners of all brands (DataWedge, Honeywell,
-    Datalogic, Newland, Urovo...).
+    Datalogic, Newland, Urovo...), including a sensor that no longer returns
+    images and trigger presses that produce no read.
   - Problems are grouped and sorted from most to least serious, each with a
     piece of advice; a click shows the line in the table. Report to copy or
     export as .txt for a ticket.
