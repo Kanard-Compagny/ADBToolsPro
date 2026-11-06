@@ -15,6 +15,9 @@
     <WarningLevel>4</WarningLevel>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <!-- Processus 64 bits sur Windows 64 bits : les relevés RxLogger / bugreport complets dépassent vite la
+         mémoire d'un processus 32 bits. -->
+    <Prefer32Bit>false</Prefer32Bit>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
@@ -117,6 +120,8 @@
     <Compile Include="Core\Loc.cs" />
     <Compile Include="Core\LogAnalyzer.cs" />
     <Compile Include="Core\LogImport.cs" />
+    <Compile Include="Core\LogArchive.cs" />
+    <Compile Include="MainWindow.FileAnalysis.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />
     <Compile Include="Core\DeviceTests.cs" />

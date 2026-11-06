@@ -1,0 +1,561 @@
+﻿using ADBToolsNew.Core;
+using Microsoft.Win32;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+
+namespace ADBToolsNew
+{
+    /// <summary>
+    /// Page « Analyse de fichiers » : relevé complet reçu du terrain (archive RxLogger, bugreport, dossier, logcat),
+    /// tous journaux fusionnés, recherche au fil de la frappe, filtres, « aller à l'incident », frise, constats de
+    /// l'analyse automatique, fichiers annexes (ANR, tombstones, snapshots), fiche terminal et comparaison de deux
+    /// relevés. Moteur : Core/LogArchive.cs.
+    /// </summary>
+    public partial class MainWindow
+    {
+        private const int FileAnalysisTabIndex = 11;
+        private LogArchive _faArchive, _faCompare;
+        private List<FileLogEntry> _faView = new List<FileLogEntry>();
+        private List<LogArchive.TimelineBucket> _faBuckets = new List<LogArchive.TimelineBucket>();
+        private CancellationTokenSource _faFilterCts;
+        private DispatcherTimer _faDebounce;
+        private int _faFrom = int.MinValue, _faTo = int.MaxValue;
+        private int _faScrollToMinute = -1;
+        private FileLogEntry _faScrollToEntry;
+        private bool _faBusy, _faSuspendFilter;
+        private ArchiveFile _faOpenFile;
+
+        private void NavFileAnalysis_Click(object sender, RoutedEventArgs e)
+        {
+            if (MainTabControl == null) return;
+            MainTabControl.SelectedIndex = FileAnalysisTabIndex;
+            UpdateNavButtonsUI(BtnNavFileAnalysis);
+        }
+
+        // ------------------------------------------------------------------ Ouverture
+
+        private async void BtnFaOpenFile_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = Loc.T("Ouvrir un relevé de logs"),
+                Filter = Loc.T("Relevés de logs (*.zip;*.txt;*.log)|*.zip;*.txt;*.log|Tous les fichiers (*.*)|*.*"),
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            await LoadFileAnalysisAsync(dlg.FileName);
+        }
+
+        private async void BtnFaOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string path = PickFolder(Loc.T("Dossier du relevé (RxLogger décompressé, bugreport…)"));
+            if (path != null) await LoadFileAnalysisAsync(path);
+        }
+
+        private static string PickFolder(string description)
+        {
+            using (var dlg = new System.Windows.Forms.FolderBrowserDialog { Description = description, ShowNewFolderButton = false })
+                return dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dlg.SelectedPath : null;
+        }
+
+        /// <summary>Ouvre un relevé dans la page (appelé aussi à la récupération d'un enregistrement du terminal).</summary>
+        internal async Task LoadFileAnalysisAsync(string path)
+        {
+            if (_faBusy) return;
+            SetFaBusy(true);
+            var progress = new Progress<string>(s => TxtFaSummary.Text = s);
+            try
+            {
+                var archive = await Task.Run(() => LogArchive.Open(path, progress));
+                if (archive.Entries.Count == 0 && !archive.Files.Any())
+                {
+                    await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.T("Aucun journal ni fichier exploitable dans ce relevé."), Loc.T("OK"), "", false);
+                    return;
+                }
+                _faArchive = archive;
+                _faCompare = null;
+                FaCompareGrid.ItemsSource = null;
+                TxtFaCompareSummary.Text = Loc.T("« Comparer avec… » ouvre un second relevé (B) et liste les erreurs et avertissements propres à l'un des deux, ou bien plus fréquents (par heure). A = relevé ouvert.");
+
+                FaLogFilesList.ItemsSource = archive.LogFiles.ToList();
+                FaOtherFilesList.ItemsSource = archive.OtherFiles.ToList();
+                FaDeviceList.ItemsSource = archive.Device;
+                TxtFaDeviceEmpty.Visibility = archive.Device.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                TxtFaFileContent.Text = "";
+                TxtFaFileTitle.Text = Loc.T("Choisissez un fichier dans « Autres fichiers ».");
+                _faOpenFile = null;
+
+                TxtFaSummary.Text = Loc.F("{0} — {1} lignes de {2} journal(aux), du {3} au {4}.", archive.Title,
+                    archive.Entries.Count.ToString("N0", CultureInfo.CurrentCulture), archive.LogFiles.Count(),
+                    LogFinding.ShortTime(archive.FirstTime), LogFinding.ShortTime(archive.LastTime))
+                    + (archive.Note.Length > 0 ? " " + archive.Note : "");
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🗂️ Relevé ouvert : {1}", DateTime.Now, TxtFaSummary.Text));
+                BtnFaCompare.IsEnabled = archive.Entries.Count > 0;
+                BtnFaExport.IsEnabled = archive.Entries.Count > 0;
+
+                _faSuspendFilter = true;
+                ResetFaFilterControls();
+                _faSuspendFilter = false;
+                _faFrom = int.MinValue; _faTo = int.MaxValue;
+                await ApplyFaFilterAsync();
+
+                // Analyse automatique sur tout le relevé.
+                TxtFaFindingsSummary.Text = Loc.T("⏳ Analyse en cours…");
+                FaFindingsList.ItemsSource = null;
+                var analysis = await Task.Run(() => LogAnalyzer.Analyze(archive.Entries.Cast<LogEntry>().ToList(), archive.Title));
+                if (_faArchive != archive) return;
+                FaFindingsList.ItemsSource = analysis.Findings;
+                int bad = analysis.Findings.Count(f => f.Severity == FindingSeverity.Bad), warn = analysis.Findings.Count(f => f.Severity == FindingSeverity.Warn);
+                TxtFaFindingsSummary.Text = analysis.Findings.Count == 0 ? Loc.T("Aucun problème repéré.")
+                    : Loc.F("{0} problème(s) important(s), {1} point(s) à surveiller. Cliquez sur un constat pour voir la ligne.", bad, warn);
+                RbFaFindings.IsChecked = true;
+            }
+            catch (Exception ex)
+            {
+                await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Lecture impossible : {0}", ex.Message), Loc.T("OK"), "", false);
+            }
+            finally
+            {
+                SetFaBusy(false);
+            }
+        }
+
+        private void SetFaBusy(bool busy)
+        {
+            _faBusy = busy;
+            FaProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+            BtnFaOpenFile.IsEnabled = !busy;
+            BtnFaOpenFolder.IsEnabled = !busy;
+            if (busy) { BtnFaCompare.IsEnabled = false; BtnFaExport.IsEnabled = false; }
+            else if (_faArchive != null) { BtnFaCompare.IsEnabled = _faArchive.Entries.Count > 0; BtnFaExport.IsEnabled = _faArchive.Entries.Count > 0; }
+        }
+
+        private IEnumerable<ToggleButton> FaLevelToggles => new[] { TglFaF, TglFaE, TglFaW, TglFaI, TglFaD, TglFaV };
+
+        private void ResetFaFilterControls()
+        {
+            TxtFaSearch.Text = "";
+            TglFaRegex.IsChecked = false;
+            foreach (var t in FaLevelToggles) t.IsChecked = true;
+            TxtFaTag.Text = "";
+            TxtFaPid.Text = "";
+            TxtFaIncident.Text = "";
+        }
+
+        // ------------------------------------------------------------------ Filtres
+
+        private void FaFilter_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_faSuspendFilter || _faArchive == null) return;
+            if (_faDebounce == null)
+            {
+                _faDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                _faDebounce.Tick += async (s, a) => { _faDebounce.Stop(); await ApplyFaFilterAsync(); };
+            }
+            _faDebounce.Stop();
+            _faDebounce.Start();
+        }
+
+        private void FaSource_Changed(object sender, RoutedEventArgs e) => FaFilter_Changed(sender, e);
+
+        private LogFilter BuildFaFilter()
+        {
+            var f = new LogFilter
+            {
+                Text = TxtFaSearch.Text ?? "",
+                Regex = TglFaRegex.IsChecked == true,
+                Tag = TxtFaTag.Text ?? "",
+                Pid = TxtFaPid.Text ?? "",
+                FromMinute = _faFrom,
+                ToMinute = _faTo,
+            };
+            var levels = FaLevelToggles.Where(t => t.IsChecked == true).Select(t => (string)t.Tag).ToList();
+            if (levels.Count < 6) f.Levels = new HashSet<string>(levels);
+            var files = _faArchive.LogFiles.ToList();
+            if (files.Any(x => !x.Included)) f.Sources = new HashSet<int>(files.Where(x => x.Included).Select(x => x.SourceId));
+            return f;
+        }
+
+        private async Task ApplyFaFilterAsync()
+        {
+            if (_faArchive == null) return;
+            _faFilterCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _faFilterCts = cts;
+            var filter = BuildFaFilter();
+            var archive = _faArchive;
+            List<FileLogEntry> view;
+            try
+            {
+                view = await Task.Run(() => archive.Filter(filter, cts.Token), cts.Token);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (ArgumentException)
+            {
+                TxtFaCount.Text = Loc.T("⚠️ Expression régulière invalide");
+                return;
+            }
+            catch (AggregateException ex) when (ex.InnerException is OperationCanceledException) { return; }
+            if (cts.IsCancellationRequested || archive != _faArchive) return;
+
+            _faView = view;
+            FaGrid.ItemsSource = view;
+            TxtFaCount.Text = Loc.F("{0} ligne(s) affichée(s) sur {1}", view.Count.ToString("N0", CultureInfo.CurrentCulture), archive.Entries.Count.ToString("N0", CultureInfo.CurrentCulture));
+            TxtFaPeriod.Text = _faFrom == int.MinValue ? "" : Loc.F("Période : {0} → {1}", LogArchive.MinuteText(_faFrom), LogArchive.MinuteText(_faTo).Substring(6));
+            BtnFaAllPeriod.IsEnabled = _faFrom != int.MinValue;
+
+            // Frise : sur les journaux cochés (sans les autres filtres), pour garder la vue d'ensemble.
+            var timelineSource = filter.Sources == null ? archive.Entries : archive.Entries.Where(x => filter.Sources.Contains(x.SourceId)).ToList();
+            _faBuckets = await Task.Run(() => archive.Timeline(timelineSource));
+            DrawFaTimeline();
+
+            // Défilement demandé (incident, frise, « voir autour »).
+            int idx = -1;
+            if (_faScrollToEntry != null) { idx = FindFaIndex(_faScrollToEntry.Index); _faScrollToEntry = null; }
+            else if (_faScrollToMinute >= 0) { idx = view.FindIndex(x => x.Minute >= _faScrollToMinute); _faScrollToMinute = -1; }
+            if (idx >= 0) ScrollFaTo(idx);
+        }
+
+        /// <summary>Position dans la vue filtrée de la ligne d'index global donné (ou de la plus proche qui suit).</summary>
+        private int FindFaIndex(int globalIndex)
+        {
+            int lo = 0, hi = _faView.Count - 1, best = -1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (_faView[mid].Index >= globalIndex) { best = mid; hi = mid - 1; } else lo = mid + 1;
+            }
+            return best;
+        }
+
+        private void ScrollFaTo(int index)
+        {
+            if (index < 0 || index >= _faView.Count) return;
+            var item = _faView[index];
+            FaGrid.SelectedItem = item;
+            FaGrid.UpdateLayout();
+            FaGrid.ScrollIntoView(item);
+            // Ligne visée au milieu de l'écran plutôt que collée en bas.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var sv = FindVisualChild<ScrollViewer>(FaGrid);
+                if (sv != null) sv.ScrollToVerticalOffset(Math.Max(0, index - sv.ViewportHeight / 2));
+            }), DispatcherPriority.Background);
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var r = FindVisualChild<T>(child);
+                if (r != null) return r;
+            }
+            return null;
+        }
+
+        private async void BtnFaClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            _faSuspendFilter = true;
+            ResetFaFilterControls();
+            foreach (var f in _faArchive.LogFiles) f.Included = true;
+            _faSuspendFilter = false;
+            _faFrom = int.MinValue; _faTo = int.MaxValue;
+            _faScrollToEntry = FaGrid.SelectedItem as FileLogEntry;
+            await ApplyFaFilterAsync();
+        }
+
+        // ------------------------------------------------------------------ Incident et période
+
+        private void TxtFaIncident_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) BtnFaGoIncident_Click(sender, e);
+        }
+
+        private async void BtnFaGoIncident_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            int t = _faArchive.ParseIncidentTime(TxtFaIncident.Text);
+            if (t < 0)
+            {
+                TxtFaCount.Text = Loc.T("⚠️ Heure non reconnue (ex. 9h07, 09:07 ou 05/11 9h07)");
+                return;
+            }
+            int w = int.TryParse((CmbFaWindow.SelectedItem as ComboBoxItem)?.Tag as string, out int x) ? x : 5;
+            _faFrom = t - w; _faTo = t + w;
+            _faScrollToMinute = t;
+            await ApplyFaFilterAsync();
+        }
+
+        private async void BtnFaAllPeriod_Click(object sender, RoutedEventArgs e)
+        {
+            _faFrom = int.MinValue; _faTo = int.MaxValue;
+            _faScrollToEntry = FaGrid.SelectedItem as FileLogEntry;
+            await ApplyFaFilterAsync();
+        }
+
+        // ------------------------------------------------------------------ Frise
+
+        private void FaTimeline_SizeChanged(object sender, SizeChangedEventArgs e) => DrawFaTimeline();
+
+        private void DrawFaTimeline()
+        {
+            if (FaTimeline == null) return;
+            FaTimeline.Children.Clear();
+            double w = FaTimeline.ActualWidth, h = FaTimeline.ActualHeight;
+            if (_faBuckets.Count == 0 || w < 10 || h < 10) { TxtFaTimelineFrom.Text = ""; TxtFaTimelineTo.Text = ""; return; }
+            int maxLines = Math.Max(1, _faBuckets.Max(b => b.Lines)), maxErr = Math.Max(1, _faBuckets.Max(b => b.Errors));
+            double bw = w / _faBuckets.Count;
+            var okBrush = (Brush)FindResource("OkFg"); var badBrush = (Brush)FindResource("BadFg"); var warnBrush = (Brush)FindResource("WarnFg");
+            var brand = (Brush)FindResource("Brand");
+
+            if (_faFrom != int.MinValue)
+            {
+                double x1 = MinuteToX(_faFrom, w), x2 = MinuteToX(_faTo + 1, w);
+                var r = new Rectangle { Width = Math.Max(2, x2 - x1), Height = h, Fill = brand, Opacity = 0.18 };
+                Canvas.SetLeft(r, x1); FaTimeline.Children.Add(r);
+            }
+            for (int i = 0; i < _faBuckets.Count; i++)
+            {
+                var b = _faBuckets[i];
+                if (b.Lines > 0)
+                {
+                    double lh = Math.Max(1, h * Math.Sqrt(b.Lines / (double)maxLines));
+                    var r = new Rectangle { Width = Math.Max(1, bw - 1), Height = lh, Fill = okBrush, Opacity = 0.45 };
+                    Canvas.SetLeft(r, i * bw); Canvas.SetTop(r, h - lh); FaTimeline.Children.Add(r);
+                }
+                if (b.Errors > 0)
+                {
+                    double eh = Math.Max(2, h * 0.85 * Math.Sqrt(b.Errors / (double)maxErr));
+                    var r = new Rectangle { Width = Math.Max(1, bw - 1), Height = eh, Fill = badBrush, Opacity = 0.8 };
+                    Canvas.SetLeft(r, i * bw); Canvas.SetTop(r, h - eh); FaTimeline.Children.Add(r);
+                }
+                if (b.Incidents > 0)
+                {
+                    var l = new Line { X1 = i * bw + bw / 2, X2 = i * bw + bw / 2, Y1 = 0, Y2 = h, Stroke = warnBrush, StrokeThickness = 2 };
+                    FaTimeline.Children.Add(l);
+                    var tb = new TextBlock { Text = "⚠", Foreground = warnBrush, FontSize = 12, FontWeight = FontWeights.Bold };
+                    Canvas.SetLeft(tb, i * bw + bw / 2 + 2); Canvas.SetTop(tb, 0); FaTimeline.Children.Add(tb);
+                }
+            }
+            if (FaGrid.SelectedItem is FileLogEntry sel && sel.Minute >= 0)
+            {
+                double x = MinuteToX(sel.Minute, w);
+                FaTimeline.Children.Add(new Line { X1 = x, X2 = x, Y1 = 0, Y2 = h, Stroke = (Brush)FindResource("Ink"), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 2 } });
+            }
+            TxtFaTimelineFrom.Text = LogArchive.MinuteText(_faBuckets[0].From);
+            TxtFaTimelineTo.Text = LogArchive.MinuteText(_faBuckets[_faBuckets.Count - 1].To);
+        }
+
+        private double MinuteToX(int minute, double w)
+        {
+            int lo = _faBuckets[0].From, hi = _faBuckets[_faBuckets.Count - 1].To + 1;
+            return Math.Max(0, Math.Min(w, (minute - lo) / (double)Math.Max(1, hi - lo) * w));
+        }
+
+        private async void FaTimeline_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (_faBuckets.Count == 0 || _faArchive == null) return;
+            double w = FaTimeline.ActualWidth;
+            int i = Math.Max(0, Math.Min(_faBuckets.Count - 1, (int)(e.GetPosition(FaTimeline).X / (w / _faBuckets.Count))));
+            int minute = _faBuckets[i].From;
+            if (_faFrom != int.MinValue && (minute < _faFrom || minute > _faTo))
+            {
+                _faFrom = int.MinValue; _faTo = int.MaxValue; // hors de la période affichée : on revient à tout le relevé
+                _faScrollToMinute = minute;
+                await ApplyFaFilterAsync();
+                return;
+            }
+            int idx = _faView.FindIndex(x => x.Minute >= minute);
+            if (idx >= 0) ScrollFaTo(idx);
+        }
+
+        // ------------------------------------------------------------------ Ligne sélectionnée
+
+        private void FaGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var sel = FaGrid.SelectedItem as FileLogEntry;
+            BtnFaContext.IsEnabled = sel != null;
+            BtnFaCopyLine.IsEnabled = sel != null;
+            TxtFaDetail.Text = sel == null ? Loc.T("Sélectionnez une ligne pour voir le message complet.")
+                : $"{sel.Time}  [{sel.Source}]  {sel.PID}  {sel.Level}  {sel.Tag}\n{sel.Message}";
+            DrawFaTimeline();
+        }
+
+        private async void BtnFaContext_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(FaGrid.SelectedItem is FileLogEntry sel)) return;
+            _faSuspendFilter = true;
+            TxtFaSearch.Text = ""; TxtFaTag.Text = ""; TxtFaPid.Text = "";
+            foreach (var t in FaLevelToggles) t.IsChecked = true;
+            _faSuspendFilter = false;
+            if (_faFrom != int.MinValue && (sel.Minute < _faFrom || sel.Minute > _faTo)) { _faFrom = int.MinValue; _faTo = int.MaxValue; }
+            _faScrollToEntry = sel;
+            await ApplyFaFilterAsync();
+        }
+
+        private void BtnFaCopyLine_Click(object sender, RoutedEventArgs e)
+        {
+            try { Clipboard.SetText(TxtFaDetail.Text ?? ""); } catch { /* presse-papiers occupé */ }
+        }
+
+        /// <summary>Clic sur un constat de la page : la ligne concernée, filtres retirés si elle est masquée.</summary>
+        private async void FaGoToEntry(FileLogEntry entry)
+        {
+            if (entry == null || _faArchive == null) return;
+            int idx = FindFaIndex(entry.Index);
+            if (idx >= 0 && _faView[idx] == entry) { ScrollFaTo(idx); return; }
+            _faSuspendFilter = true;
+            ResetFaFilterControls();
+            foreach (var f in _faArchive.LogFiles) f.Included = true;
+            _faSuspendFilter = false;
+            _faFrom = int.MinValue; _faTo = int.MaxValue;
+            _faScrollToEntry = entry;
+            await ApplyFaFilterAsync();
+        }
+
+        /// <summary>Appelé par le clic sur une carte de constat : vrai si la carte appartient à cette page.</summary>
+        private bool TryHandleFaFindingClick(object sender, LogFinding f)
+        {
+            if (!(sender is DependencyObject d) || FaFindingsList == null || !FaFindingsList.IsAncestorOf(d)) return false;
+            FaGoToEntry(f?.FirstEntry as FileLogEntry);
+            return true;
+        }
+
+        // ------------------------------------------------------------------ Panneau de droite
+
+        private void FaPanel_Checked(object sender, RoutedEventArgs e)
+        {
+            if (FaFindingsPanel == null) return;
+            FaFindingsPanel.Visibility = RbFaFindings.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaFilePanel.Visibility = RbFaFile.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaDevicePanel.Visibility = RbFaDevice.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaComparePanel.Visibility = RbFaCompare.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void FaOtherFilesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!(FaOtherFilesList.SelectedItem is ArchiveFile f) || _faArchive == null) return;
+            _faOpenFile = f;
+            RbFaFile.IsChecked = true;
+            TxtFaFileTitle.Text = f.Icon + " " + f.FullName + " — " + f.KindText + " · " + f.SizeText;
+            TxtFaFileContent.Text = Loc.T("⏳ Lecture…");
+            var archive = _faArchive;
+            try
+            {
+                string text = await Task.Run(() => archive.ReadText(f));
+                if (_faOpenFile == f) TxtFaFileContent.Text = text;
+            }
+            catch (Exception ex) { TxtFaFileContent.Text = Loc.F("Lecture impossible : {0}", ex.Message); }
+        }
+
+        private void TxtFaFileSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) BtnFaFileNext_Click(sender, e);
+        }
+
+        private void BtnFaFileNext_Click(object sender, RoutedEventArgs e)
+        {
+            string q = TxtFaFileSearch.Text ?? "", text = TxtFaFileContent.Text ?? "";
+            if (q.Length == 0 || text.Length == 0) return;
+            int start = TxtFaFileContent.SelectionStart + Math.Max(1, TxtFaFileContent.SelectionLength);
+            int i = text.IndexOf(q, Math.Min(start, text.Length), StringComparison.OrdinalIgnoreCase);
+            if (i < 0) i = text.IndexOf(q, StringComparison.OrdinalIgnoreCase); // reprise au début
+            if (i < 0) { TxtFaFileTitle.Text = Loc.F("« {0} » introuvable dans ce fichier.", q); return; }
+            TxtFaFileContent.Focus();
+            TxtFaFileContent.Select(i, q.Length);
+            TxtFaFileContent.ScrollToLine(TxtFaFileContent.GetLineIndexFromCharacterIndex(i));
+        }
+
+        // ------------------------------------------------------------------ Comparaison de deux relevés
+
+        private async void BtnFaCompare_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null || _faBusy) return;
+            var dlg = new OpenFileDialog
+            {
+                Title = Loc.T("Relevé à comparer (B)"),
+                Filter = Loc.T("Relevés de logs (*.zip;*.txt;*.log)|*.zip;*.txt;*.log|Tous les fichiers (*.*)|*.*"),
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            SetFaBusy(true);
+            RbFaCompare.IsChecked = true;
+            TxtFaCompareSummary.Text = Loc.T("⏳ Lecture du relevé B…");
+            var a = _faArchive;
+            try
+            {
+                var progress = new Progress<string>(s => TxtFaCompareSummary.Text = s);
+                var b = await Task.Run(() => LogArchive.Open(dlg.FileName, progress));
+                _faCompare = b;
+                var rows = await Task.Run(() => LogCompare.Compare(a.Entries, b.Entries));
+                double ha = LogCompare.Hours(a.Entries), hb = LogCompare.Hours(b.Entries);
+                int ea = a.Entries.Count(x => x.Level == "E" || x.Level == "F"), eb = b.Entries.Count(x => x.Level == "E" || x.Level == "F");
+                FaCompareGrid.ItemsSource = rows;
+                TxtFaCompareSummary.Text = Loc.F("A : {0} ({1} h, {2} erreurs/h) · B : {3} ({4} h, {5} erreurs/h). {6} type(s) de message diffèrent nettement ; clic = les rechercher dans A.",
+                    a.Title, ha.ToString("0.#", CultureInfo.CurrentCulture), (ea / ha).ToString("0", CultureInfo.CurrentCulture),
+                    b.Title, hb.ToString("0.#", CultureInfo.CurrentCulture), (eb / hb).ToString("0", CultureInfo.CurrentCulture), rows.Count);
+            }
+            catch (Exception ex)
+            {
+                TxtFaCompareSummary.Text = Loc.F("Lecture impossible : {0}", ex.Message);
+            }
+            finally { SetFaBusy(false); }
+        }
+
+        private void FaCompareGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!(FaCompareGrid.SelectedItem is LogCompareRow r)) return;
+            // Le modèle de message devient une recherche : chiffres et adresses remplacés par un motif.
+            _faSuspendFilter = true;
+            TglFaRegex.IsChecked = true;
+            TxtFaTag.Text = r.Tag;
+            _faSuspendFilter = false;
+            TxtFaSearch.Text = Regex.Escape(r.Template).Replace(@"\#", "#").Replace("#", "[0-9a-fA-Fx]+");
+        }
+
+        // ------------------------------------------------------------------ Export
+
+        private async void BtnFaExport_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null || _faView.Count == 0) return;
+            var dlg = new SaveFileDialog
+            {
+                Title = Loc.T("Exporter les lignes affichées"),
+                Filter = Loc.T("Fichier texte (*.txt)|*.txt"),
+                FileName = FileNameHelper.Sanitize(System.IO.Path.GetFileNameWithoutExtension(_faArchive.Title)) + "_selection.txt",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            var view = _faView;
+            string path = dlg.FileName;
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (var w = new StreamWriter(path, false, new UTF8Encoding(false)))
+                        foreach (var x in view) w.WriteLine($"{x.Time} {x.PID,6} {x.Level} {x.Tag}: {x.Message}   [{x.Source}]");
+                });
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💾 {1} ligne(s) exportée(s) : {2}", DateTime.Now, view.Count, path));
+            }
+            catch (Exception ex)
+            {
+                await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
+            }
+        }
+    }
+}

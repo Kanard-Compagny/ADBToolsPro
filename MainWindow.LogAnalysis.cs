@@ -280,6 +280,7 @@ namespace ADBToolsNew
         private async void LogFinding_Click(object sender, MouseButtonEventArgs e)
         {
             if (!((sender as FrameworkElement)?.DataContext is LogFinding f) || f.FirstEntry == null) return;
+            if (TryHandleFaFindingClick(sender, f)) return; // carte de la page « Analyse de fichiers »
             int index = _displayLogs.IndexOf(f.FirstEntry);
             if (index < 0 && _masterLogs.Contains(f.FirstEntry))
             {

@@ -836,6 +836,62 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Carte d'un constat de l'analyse des logs (page Logs et page Analyse de fichiers). -->
+        <DataTemplate x:Key="LogFindingCardTemplate">
+            <Border x:Name="Card" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="3,1,1,1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Cursor="Hand" MouseLeftButtonUp="LogFinding_Click" ToolTip="{Binding Category}">
+                <Border.Resources>
+                    <BooleanToVisibilityConverter x:Key="B2V"/>
+                </Border.Resources>
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding SeverityIcon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                        <TextBlock Grid.Column="2" Text="{Binding CountText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="6,1,0,0"/>
+                    </Grid>
+                    <TextBlock Text="{Binding AppLabel}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AppLabel}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding TimeText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Detail}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Advice}" Foreground="{DynamicResource TextSecondary}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Advice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ToggleButton x:Name="SampleToggle" Content="{Binding LinesLabel}" Visibility="{Binding HasSample, Converter={StaticResource B2V}}" Style="{StaticResource ModernToggleStyle}" HorizontalAlignment="Left" Height="24" Padding="8,0" FontSize="11" Margin="0,6,0,0"/>
+                    <TextBox Text="{Binding SampleText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="10" TextWrapping="NoWrap" MaxHeight="220" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="{DynamicResource ConsoleBg}" Foreground="{DynamicResource ConsoleInk}" BorderThickness="0" Padding="6" Margin="0,6,0,0"
+                             Visibility="{Binding IsChecked, ElementName=SampleToggle, Converter={StaticResource B2V}}"/>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding SeverityKey}" Value="bad"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource BadFg}"/></DataTrigger>
+                <DataTrigger Binding="{Binding SeverityKey}" Value="warn"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource WarnFg}"/></DataTrigger>
+                <DataTrigger Binding="{Binding SeverityKey}" Value="info"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource InfoFg}"/></DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
     </Window.Resources>
 
     <!-- Cadre de la fenêtre : coins arrondis et ombre douce en fenêtre normale, plein écran sans marge
@@ -1123,6 +1179,13 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="⚖️" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Text="Comparateur" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="BtnNavFileAnalysis" Click="NavFileAnalysis_Click" Style="{StaticResource MenuButtonStyle}" ToolTip="Analyse complète d'un relevé reçu (RxLogger, bugreport, logcat)">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🗂️" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Analyse de fichiers" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
                                     </StackPanel>
                                 </Button>
 
@@ -2275,64 +2338,7 @@
                                                 <Button Content="💾 Exporter (.txt)" Click="BtnExportLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" ToolTip="Enregistre le rapport d'analyse dans le dossier des captures"/>
                                             </StackPanel>
                                             <ScrollViewer x:Name="LogFindingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
-                                                <ItemsControl x:Name="LogFindingsList">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border x:Name="Card" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="3,1,1,1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Cursor="Hand" MouseLeftButtonUp="LogFinding_Click" ToolTip="{Binding Category}">
-                                                                <Border.Resources>
-                                                                    <BooleanToVisibilityConverter x:Key="B2V"/>
-                                                                </Border.Resources>
-                                                                <StackPanel>
-                                                                    <Grid>
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <TextBlock Text="{Binding SeverityIcon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
-                                                                        <TextBlock Grid.Column="1" Text="{Binding DisplayTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
-                                                                        <TextBlock Grid.Column="2" Text="{Binding CountText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="6,1,0,0"/>
-                                                                    </Grid>
-                                                                    <TextBlock Text="{Binding AppLabel}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
-                                                                        <TextBlock.Style>
-                                                                            <Style TargetType="TextBlock">
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding AppLabel}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </TextBlock.Style>
-                                                                    </TextBlock>
-                                                                    <TextBlock Text="{Binding TimeText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0"/>
-                                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0">
-                                                                        <TextBlock.Style>
-                                                                            <Style TargetType="TextBlock">
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding Detail}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </TextBlock.Style>
-                                                                    </TextBlock>
-                                                                    <TextBlock Text="{Binding Advice}" Foreground="{DynamicResource TextSecondary}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,0">
-                                                                        <TextBlock.Style>
-                                                                            <Style TargetType="TextBlock">
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding Advice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </TextBlock.Style>
-                                                                    </TextBlock>
-                                                                    <ToggleButton x:Name="SampleToggle" Content="{Binding LinesLabel}" Visibility="{Binding HasSample, Converter={StaticResource B2V}}" Style="{StaticResource ModernToggleStyle}" HorizontalAlignment="Left" Height="24" Padding="8,0" FontSize="11" Margin="0,6,0,0"/>
-                                                                    <TextBox Text="{Binding SampleText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="10" TextWrapping="NoWrap" MaxHeight="220" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="{DynamicResource ConsoleBg}" Foreground="{DynamicResource ConsoleInk}" BorderThickness="0" Padding="6" Margin="0,6,0,0"
-                                                                             Visibility="{Binding IsChecked, ElementName=SampleToggle, Converter={StaticResource B2V}}"/>
-                                                                </StackPanel>
-                                                            </Border>
-                                                            <DataTemplate.Triggers>
-                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="bad"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource BadFg}"/></DataTrigger>
-                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="warn"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource WarnFg}"/></DataTrigger>
-                                                                <DataTrigger Binding="{Binding SeverityKey}" Value="info"><Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource InfoFg}"/></DataTrigger>
-                                                            </DataTemplate.Triggers>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
+                                                <ItemsControl x:Name="LogFindingsList" ItemTemplate="{StaticResource LogFindingCardTemplate}">
                                                 </ItemsControl>
                                             </ScrollViewer>
                                         </DockPanel>
@@ -3612,6 +3618,268 @@
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
+                            </Grid>
+                        </TabItem>
+                        <!-- Analyse de fichiers : relevé complet (RxLogger, bugreport, dossier, logcat) — MainWindow.FileAnalysis.cs -->
+                        <TabItem>
+                            <Grid Margin="15,0,15,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Analyse de fichiers" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                        <TextBlock x:Name="TxtFaSummary" Text="Ouvrez un relevé reçu du terrain : archive RxLogger, bugreport, dossier décompressé ou logcat. Tous les journaux sont fusionnés dans l'ordre chronologique." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                                        <Button x:Name="BtnFaOpenFile" Content="📂 Ouvrir un fichier…" Click="BtnFaOpenFile_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" ToolTip="Archive .zip (RxLogger, bugreport), logcat .txt / .log"/>
+                                        <Button x:Name="BtnFaOpenFolder" Content="📁 Ouvrir un dossier…" Click="BtnFaOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
+                                        <Button x:Name="BtnFaCompare" Content="⚖️ Comparer avec…" Click="BtnFaCompare_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Ouvrir un second relevé (ex. terminal sans correctif) et voir les messages qui diffèrent"/>
+                                        <Button x:Name="BtnFaExport" Content="💾 Exporter la sélection" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Enregistrer les lignes affichées (filtres appliqués) en .txt"/>
+                                    </WrapPanel>
+                                </Grid>
+
+                                <!-- Recherche et filtres -->
+                                <Border Grid.Row="1" Style="{StaticResource SettingsCardStyle}" Padding="12,10" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <TextBox x:Name="TxtFaSearch" Tag="Rechercher dans les messages et les tags…" Style="{StaticResource PlaceholderTextBoxStyle}" Width="320" Height="32" VerticalContentAlignment="Center" TextChanged="FaFilter_Changed" Margin="0,0,6,6" ToolTip="Recherche au fil de la frappe"/>
+                                            <ToggleButton x:Name="TglFaRegex" Content=".*" Style="{StaticResource ModernToggleStyle}" Width="34" Height="32" Margin="0,0,14,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Expression régulière"/>
+                                            <TextBlock Text="Niveau :" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,6,6"/>
+                                            <ToggleButton x:Name="TglFaF" Content="F" Tag="F" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,3,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Fatal"/>
+                                            <ToggleButton x:Name="TglFaE" Content="E" Tag="E" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,3,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Erreur"/>
+                                            <ToggleButton x:Name="TglFaW" Content="W" Tag="W" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,3,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Avertissement"/>
+                                            <ToggleButton x:Name="TglFaI" Content="I" Tag="I" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,3,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Information"/>
+                                            <ToggleButton x:Name="TglFaD" Content="D" Tag="D" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,3,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Débogage"/>
+                                            <ToggleButton x:Name="TglFaV" Content="V" Tag="V" IsChecked="True" Style="{StaticResource ModernToggleStyle}" Width="30" Height="32" Margin="0,0,14,6" Checked="FaFilter_Changed" Unchecked="FaFilter_Changed" ToolTip="Détaillé (verbose)"/>
+                                            <TextBox x:Name="TxtFaTag" Tag="Tag / application" Style="{StaticResource PlaceholderTextBoxStyle}" Width="160" Height="32" VerticalContentAlignment="Center" TextChanged="FaFilter_Changed" Margin="0,0,6,6"/>
+                                            <TextBox x:Name="TxtFaPid" Tag="PID" Style="{StaticResource PlaceholderTextBoxStyle}" Width="70" Height="32" VerticalContentAlignment="Center" TextChanged="FaFilter_Changed" Margin="0,0,6,6"/>
+                                            <Button Content="✖ Effacer les filtres" Click="BtnFaClearFilters_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="10,0" Margin="0,0,0,6"/>
+                                        </WrapPanel>
+                                        <WrapPanel>
+                                            <TextBlock Text="🎯 Aller à l'incident :" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox x:Name="TxtFaIncident" Tag="ex. 9h07 ou 05/11 9h07" Style="{StaticResource PlaceholderTextBoxStyle}" Width="150" Height="32" VerticalContentAlignment="Center" KeyDown="TxtFaIncident_KeyDown" Margin="0,0,6,0"/>
+                                            <ComboBox x:Name="CmbFaWindow" Width="90" Height="32" SelectedIndex="1" Margin="0,0,6,0" ToolTip="Fenêtre autour de l'heure de l'incident">
+                                                <ComboBoxItem Content="± 2 min" Tag="2"/>
+                                                <ComboBoxItem Content="± 5 min" Tag="5"/>
+                                                <ComboBoxItem Content="± 15 min" Tag="15"/>
+                                                <ComboBoxItem Content="± 30 min" Tag="30"/>
+                                                <ComboBoxItem Content="± 1 h" Tag="60"/>
+                                            </ComboBox>
+                                            <Button Content="Aller" Click="BtnFaGoIncident_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,6,0"/>
+                                            <Button x:Name="BtnFaAllPeriod" Content="Toute la période" Click="BtnFaAllPeriod_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,14,0"/>
+                                            <TextBlock x:Name="TxtFaPeriod" Text="" Foreground="{DynamicResource BrandText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                            <TextBlock x:Name="TxtFaCount" Text="" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Frise : lignes (vert) et erreurs (rouge) dans le temps ; clic = aller à ce moment -->
+                                <Border Grid.Row="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="56"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Frise : nombre de lignes (vert) et d'erreurs (rouge) — cliquez pour vous placer à ce moment, ⚠️ = incident signalé depuis le terminal" FontSize="11" Foreground="{DynamicResource Muted}"/>
+                                        <Canvas x:Name="FaTimeline" Grid.Row="1" Background="Transparent" ClipToBounds="True" MouseLeftButtonUp="FaTimeline_Click" SizeChanged="FaTimeline_SizeChanged" Cursor="Hand"/>
+                                        <Grid Grid.Row="2">
+                                            <TextBlock x:Name="TxtFaTimelineFrom" FontSize="10" Foreground="{DynamicResource Muted}" HorizontalAlignment="Left"/>
+                                            <TextBlock x:Name="TxtFaTimelineTo" FontSize="10" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <ProgressBar x:Name="FaProgress" Grid.Row="3" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,6"/>
+
+                                <Grid Grid.Row="4" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="250"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="400"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Fichiers du relevé -->
+                                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="0,0,10,0">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Top" Text="Journaux (cochés = affichés)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="12,10,12,6"/>
+                                            <ListBox x:Name="FaLogFilesList" DockPanel.Dock="Top" MaxHeight="260" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding Included, Mode=TwoWay}" Checked="FaSource_Changed" Unchecked="FaSource_Changed" Style="{StaticResource ModernCheckBoxStyle}">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding InfoText}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </CheckBox>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <TextBlock DockPanel.Dock="Top" Text="Autres fichiers (clic = ouvrir)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="12,12,12,6"/>
+                                            <ListBox x:Name="FaOtherFilesList" Background="Transparent" BorderThickness="0" SelectionChanged="FaOtherFilesList_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" ToolTip="{Binding FullName}">
+                                                            <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0" VerticalAlignment="Top"/>
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Ink}" TextTrimming="CharacterEllipsis" MaxWidth="190"/>
+                                                                <TextBlock Text="{Binding InfoText}" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- Lignes -->
+                                    <Border Grid.Column="1" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <DataGrid x:Name="FaGrid" Background="Transparent" SelectionMode="Single" SelectionUnit="FullRow" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False"
+                                                      HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="23" FontSize="12" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Item" SelectionChanged="FaGrid_SelectionChanged">
+                                                <DataGrid.RowStyle>
+                                                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Level}" Value="F">
+                                                                <Setter Property="Foreground" Value="{DynamicResource BadFg}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource BadBg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="E">
+                                                                <Setter Property="Foreground" Value="{DynamicResource BadFg}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource BadBg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="W">
+                                                                <Setter Property="Foreground" Value="{DynamicResource WarnFg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="I">
+                                                                <Setter Property="Foreground" Value="{DynamicResource OkFg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="D">
+                                                                <Setter Property="Foreground" Value="{DynamicResource InfoFg}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tag}" Value="ADBTools-Incident">
+                                                                <Setter Property="Foreground" Value="{DynamicResource WarnFg}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource WarnBg}"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource SideActiveBg}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DataGrid.RowStyle>
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="135"/>
+                                                    <DataGridTextColumn Header="Fichier" Binding="{Binding Source}" Width="80"/>
+                                                    <DataGridTextColumn Header="PID" Binding="{Binding PID}" Width="55"/>
+                                                    <DataGridTextColumn Header="Lvl" Binding="{Binding Level}" Width="32"/>
+                                                    <DataGridTextColumn Header="Application / Tag" Binding="{Binding Tag}" Width="170"/>
+                                                    <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                            <!-- Ligne sélectionnée : message complet et contexte -->
+                                            <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="10,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox x:Name="TxtFaDetail" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="90" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Ink}" Text="Sélectionnez une ligne pour voir le message complet."/>
+                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                        <Button x:Name="BtnFaContext" Content="🔍 Voir autour" Click="BtnFaContext_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,0,4" IsEnabled="False" ToolTip="Retirer la recherche et les filtres de niveau / tag / PID et afficher cette ligne au milieu des autres"/>
+                                                        <Button x:Name="BtnFaCopyLine" Content="📋 Copier" Click="BtnFaCopyLine_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" IsEnabled="False"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Panneau de droite : constats, fichier annexe, fiche terminal, comparaison -->
+                                    <Border Grid.Column="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Margin="10,0,0,0">
+                                        <DockPanel>
+                                            <WrapPanel DockPanel.Dock="Top" Margin="10,10,10,4">
+                                                <RadioButton x:Name="RbFaFindings" GroupName="FaPanel" Content="🔎 Constats" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaFile" GroupName="FaPanel" Content="📄 Fichier" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaDevice" GroupName="FaPanel" Content="📱 Terminal" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaCompare" GroupName="FaPanel" Content="⚖️ Comparaison" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                            </WrapPanel>
+                                            <Grid>
+                                                <DockPanel x:Name="FaFindingsPanel">
+                                                    <TextBlock x:Name="TxtFaFindingsSummary" DockPanel.Dock="Top" Text="Aucun relevé ouvert." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,0">
+                                                        <ItemsControl x:Name="FaFindingsList" ItemTemplate="{StaticResource LogFindingCardTemplate}"/>
+                                                    </ScrollViewer>
+                                                </DockPanel>
+                                                <DockPanel x:Name="FaFilePanel" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtFaFileTitle" DockPanel.Dock="Top" Text="Choisissez un fichier dans « Autres fichiers »." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,6"/>
+                                                    <Grid DockPanel.Dock="Top" Margin="12,0,12,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox x:Name="TxtFaFileSearch" Tag="Rechercher dans ce fichier…" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" KeyDown="TxtFaFileSearch_KeyDown"/>
+                                                        <Button Grid.Column="1" Content="Suivant ▸" Click="BtnFaFileNext_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0" Margin="6,0,0,0"/>
+                                                    </Grid>
+                                                    <TextBox x:Name="TxtFaFileContent" IsReadOnly="True" FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="{DynamicResource ConsoleBg}" Foreground="{DynamicResource ConsoleInk}" BorderThickness="0" Padding="8" Margin="10,0,10,10" AcceptsReturn="True"/>
+                                                </DockPanel>
+                                                <ScrollViewer x:Name="FaDevicePanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="12,0,12,10">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Retrouvé dans le relevé (en-têtes RxLogger, snapshot ou bugreport)." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                                        <ItemsControl x:Name="FaDeviceList">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,0,0,6">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="150"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock Text="{Binding Key}" Foreground="{DynamicResource Muted}"/>
+                                                                        <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock x:Name="TxtFaDeviceEmpty" Text="Aucune information sur le terminal dans ce relevé." Foreground="{DynamicResource Muted}" Visibility="Collapsed"/>
+                                                    </StackPanel>
+                                                </ScrollViewer>
+                                                <DockPanel x:Name="FaComparePanel" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtFaCompareSummary" DockPanel.Dock="Top" Text="« Comparer avec… » ouvre un second relevé (B) et liste les erreurs et avertissements propres à l'un des deux, ou bien plus fréquents (par heure). A = relevé ouvert." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
+                                                    <DataGrid x:Name="FaCompareGrid" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="None" Background="Transparent" FontSize="11" Margin="6,0,6,10" SelectionChanged="FaCompareGrid_SelectionChanged">
+                                                        <DataGrid.Columns>
+                                                            <DataGridTextColumn Header="Écart" Binding="{Binding Verdict}" Width="110"/>
+                                                            <DataGridTextColumn Header="A /h" Binding="{Binding RateAText}" Width="44"/>
+                                                            <DataGridTextColumn Header="B /h" Binding="{Binding RateBText}" Width="44"/>
+                                                            <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="90"/>
+                                                            <DataGridTextColumn Header="Message" Binding="{Binding Template}" Width="*"/>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                </DockPanel>
+                                            </Grid>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </TabItem>
                     </TabControl>

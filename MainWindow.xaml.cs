@@ -515,7 +515,7 @@ namespace ADBToolsNew
         private void UpdateNavButtonsUI(Button activeBtn)
         {
             // Liste complète de tous les boutons du menu latéral (BtnNavLibrary ajouté à la fin)
-            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavSettings };
+            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavSettings };
 
             foreach (var btn in navBtns)
             {
