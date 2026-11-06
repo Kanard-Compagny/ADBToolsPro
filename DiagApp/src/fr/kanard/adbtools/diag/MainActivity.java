@@ -210,14 +210,19 @@ public class MainActivity extends Activity {
         b2.topMargin = dp(10);
         surveyButtons.addView(markBtn, b1);
         surveyButtons.addView(stopBtn, b2);
-        root.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        // Boutons en bas de l'écran, à portée de pouce (mesure Wi-Fi et résultat des tests).
+        LinearLayout bottomBar = new LinearLayout(this);
+        bottomBar.setOrientation(LinearLayout.VERTICAL);
+        bottomBar.setBackgroundColor(C_BG);
+        bottomBar.setPadding(dp(16), dp(4), dp(16), dp(16));
+        bottomBar.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // Résultat du test choisi directement sur le terminal (le PC le reçoit et passe au test suivant).
         verdictRow = new LinearLayout(this);
         verdictRow.setOrientation(LinearLayout.VERTICAL);
         verdictRow.setVisibility(View.GONE);
         TextView vLabel = text("Résultat du test / Test result", 13, C_MUTED, false);
-        vLabel.setPadding(0, dp(18), 0, dp(6));
+        vLabel.setPadding(0, dp(8), 0, dp(6));
         verdictRow.addView(vLabel);
         LinearLayout vr1 = new LinearLayout(this);
         vr1.setOrientation(LinearLayout.HORIZONTAL);
@@ -229,9 +234,12 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams sk = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
         sk.topMargin = dp(8);
         verdictRow.addView(skip, sk);
-        root.addView(verdictRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        outer.addView(root, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        frame.addView(outer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        bottomBar.addView(verdictRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(root, new android.widget.ScrollView.LayoutParams(android.widget.ScrollView.LayoutParams.MATCH_PARENT, android.widget.ScrollView.LayoutParams.WRAP_CONTENT));
+        outer.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        outer.addView(bottomBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        frame.addView(outer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(frame);
 
         Intent launch = getIntent();
@@ -289,6 +297,7 @@ public class MainActivity extends Activity {
         stepText = pendingExtras == null ? "" : pendingExtras.getString("step", "");
         bigView.setText("");
         detailView.setText("");
+        resetCardStyle();
         card.setVisibility(View.GONE);
         switch (cmd) {
             case "survey":
@@ -321,7 +330,8 @@ public class MainActivity extends Activity {
         current = t;
         activeTestId = t.id();
         Out.state(t.id(), "started");
-        titleView.setText(label(cmd) + (stepText.length() > 0 ? "  ·  " + stepText : ""));
+        titleView.setText(stepText.length() > 0 ? "Test " + stepText : "Diagnostic");
+        showTestCard(label(cmd));
         showVerdictRow();
         try {
             t.start();
@@ -387,7 +397,8 @@ public class MainActivity extends Activity {
         Out.state(t.id(), "stopped");
         showPreview(false);
         titleView.setText("Diagnostic"); setLogo(false);
-        setMessage("Test terminé : validez ici ou sur le PC / Test finished: confirm here or on the PC");
+        setMessage("Choisissez le résultat en bas de l'écran, ou sur le PC.\nChoose the result at the bottom of the screen, or on the PC.");
+        detailView.setText((stepText.length() > 0 ? "Test " + stepText + "   ·   " : "") + "✔ Terminé / Finished");
     }
 
     // ------------------------------------------------------------------ Aide aux tests
@@ -404,7 +415,14 @@ public class MainActivity extends Activity {
     TextureView preview() { return preview; }
 
     void showPreview(final boolean on) {
-        runLater(new Runnable() { @Override public void run() { preview.setVisibility(on ? View.VISIBLE : View.GONE); } }, 0);
+        runLater(new Runnable() {
+            @Override public void run() {
+                preview.setVisibility(on ? View.VISIBLE : View.GONE);
+                // Aperçu caméra : la carte du test s'efface pour laisser voir l'image.
+                if (on) card.setVisibility(View.GONE);
+                else if (activeTestId != null && !keysMode && !scanMode) card.setVisibility(View.VISIBLE);
+            }
+        }, 0);
     }
 
     // ------------------------------------------------------------------ Mesure Wi-Fi autonome
@@ -525,7 +543,7 @@ public class MainActivity extends Activity {
     private void startKeys() {
         keysMode = true;
         keys.clear();
-        titleView.setText("Clavier / Keypad");
+        titleView.setText(stepText.length() > 0 ? "Clavier / Keypad · " + stepText : "Clavier / Keypad");
         setMessage("Appuyez sur chaque touche du terminal / Press every key on the device");
         Out.state("keys", "started");
     }
@@ -745,6 +763,27 @@ public class MainActivity extends Activity {
     }
 
     private void showVerdictRow() { verdictRow.setVisibility(View.VISIBLE); }
+
+    /** Test en cours bien visible : nom en grand, étape de l'enchaînement, état. */
+    private void showTestCard(String name) {
+        bigView.setText(name.replace(" / ", "\n"));
+        bigView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        bigView.setTextColor(C_INK);
+        detailView.setTypeface(Typeface.DEFAULT_BOLD);
+        detailView.setTextColor(C_BRAND_TEXT);
+        detailView.setText((stepText.length() > 0 ? "Test " + stepText + "   ·   " : "") + "⏳ En cours… / Running…");
+        card.setBackground(rounded(C_SURFACE, C_BRAND, 12));
+        card.setVisibility(View.VISIBLE);
+    }
+
+    /** Remet la carte dans son style « valeurs » (lecteur, mesure Wi-Fi, clavier). */
+    private void resetCardStyle() {
+        bigView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
+        bigView.setTextColor(C_BRAND_TEXT);
+        detailView.setTypeface(Typeface.MONOSPACE);
+        detailView.setTextColor(C_INK);
+        card.setBackground(rounded(C_SURFACE, C_LINE, 12));
+    }
 
     /** Le technicien tranche sur le terminal : le test en cours s'arrête, le PC reçoit le résultat. */
     private void sendVerdict(String status) {

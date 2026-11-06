@@ -205,12 +205,60 @@ namespace ADBToolsNew.Core
             return ExpectedCodes.Contains(d);
         }
 
-        public void AddTrigger(DateTime at) => _triggers.Add(at);
+        private readonly List<KeyValuePair<string, DateTime>> _keys = new List<KeyValuePair<string, DateTime>>();
+
+        /// <summary>
+        /// Touche de la gâchette : reconnue par son nom (TRIGGER, SCAN…), sinon apprise — la touche appuyée juste
+        /// avant la première lecture. Les noms varient selon la marque et la version du système.
+        /// </summary>
+        public string TriggerKey { get; private set; }
+        public int KeyPressCount => _keys.Count;
+        public string LastKeyName => _keys.Count == 0 ? null : _keys[_keys.Count - 1].Key;
+
+        /// <summary>Appui sur une touche physique (getevent), quelle qu'elle soit.</summary>
+        public void AddKeyPress(string name, DateTime at)
+        {
+            name = name ?? "";
+            _keys.Add(new KeyValuePair<string, DateTime>(name, at));
+            if (TriggerKey == null && ScanTriggerKeys.IsScanTrigger(name)) SetTriggerKey(name);
+            else if (name == TriggerKey) _triggers.Add(at);
+        }
+
+        public void AddTrigger(DateTime at) => AddKeyPress("TRIGGER", at);
+
+        private static bool Learnable(string name)
+        {
+            string u = (name ?? "").ToUpperInvariant();
+            return u.Length > 0 && !u.Contains("VOLUME") && !u.Contains("POWER") && !u.Contains("HOME") && !u.Contains("BACK")
+                   && !u.Contains("MENU") && !u.Contains("APPSELECT") && !u.Contains("WAKEUP");
+        }
+
+        private void SetTriggerKey(string name)
+        {
+            TriggerKey = name;
+            _triggers.Clear();
+            _triggersWithRead.Clear();
+            _triggers.AddRange(_keys.Where(k => k.Key == name).Select(k => k.Value));
+            foreach (var r in Reads) { r.TriggerDelayMs = null; Link(r); }
+        }
 
         public ScanRead AddRead(ScanRead r)
         {
             r.Index = Reads.Count + 1;
-            // Gâchette la plus récente, sans lecture, dans la fenêtre précédant la lecture.
+            if (TriggerKey == null)
+            {
+                var prev = _keys.LastOrDefault(k => k.Value <= r.Time && r.Time - k.Value <= TriggerWindow && Learnable(k.Key));
+                if (prev.Key != null) SetTriggerKey(prev.Key);
+            }
+            Link(r);
+            r.Expected = Check(r.Data);
+            Reads.Add(r);
+            return r;
+        }
+
+        /// <summary>Gâchette la plus récente, sans lecture, dans la fenêtre précédant la lecture.</summary>
+        private void Link(ScanRead r)
+        {
             for (int i = _triggers.Count - 1; i >= 0; i--)
             {
                 var t = _triggers[i];
@@ -221,9 +269,6 @@ namespace ADBToolsNew.Core
                 r.TriggerDelayMs = (r.Time - t).TotalMilliseconds;
                 break;
             }
-            r.Expected = Check(r.Data);
-            Reads.Add(r);
-            return r;
         }
 
         public int TriggerCount => _triggers.Count;

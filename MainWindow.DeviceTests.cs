@@ -168,15 +168,25 @@ namespace ADBToolsNew
                 {
                     var item = _devItems.FirstOrDefault(i => i.Id == m.Test);
                     if (item == null) break;
-                    item.Status = DeviceTestText.StatusIcon(m.Status);
-                    item.Details = DeviceTestText.Result(m);
+                    if (item.ManualVerdict)
+                    {
+                        // Le technicien a déjà tranché (clic un peu avant la fin du test) : on garde son choix,
+                        // la mesure ne sert qu'à compléter le détail s'il était vide.
+                        if (string.IsNullOrWhiteSpace(item.Details) || item.Details == Loc.T("Résultat constaté par le technicien."))
+                            item.Details = DeviceTestText.Confirmed(item.Id, item.Status, DeviceTestText.Result(m));
+                    }
+                    else
+                    {
+                        item.Status = DeviceTestText.StatusIcon(m.Status);
+                        item.Details = DeviceTestText.Result(m);
+                    }
                     if (m.Status == "na") item.Available = false;
                     string remote = m.Str("file");
                     if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
                     if (SelectedDevTest == item) RefreshDevTestPanel();
                     RefreshDevSummary();
                     // Résultat mesuré : test suivant ; « à confirmer » : on attend le choix du technicien.
-                    if (m.Status != "confirm") ChainAdvance(item.Id, m.Status == "na" ? 0.5 : 3.0);
+                    if (m.Status != "confirm" && !item.ManualVerdict) ChainAdvance(item.Id, m.Status == "na" ? 0.5 : 3.0);
                     break;
                 }
 
@@ -187,6 +197,7 @@ namespace ADBToolsNew
                     if (item == null) break;
                     string icon = DeviceTestText.StatusIcon(m.Status);
                     item.Status = icon;
+                    item.ManualVerdict = icon != "⚪";
                     if (icon == "⚪") { item.Details = ""; item.LocalFile = null; }
                     else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
                     if (SelectedDevTest == item) RefreshDevTestPanel();
@@ -328,6 +339,7 @@ namespace ADBToolsNew
             it.Status = "⏳";
             it.Details = "";
             it.LocalFile = null;
+            it.ManualVerdict = false;
             TxtDevTestLive.Text = "";
             _devCurrent = it.Id;
             RefreshDevTestPanel();
@@ -425,6 +437,7 @@ namespace ADBToolsNew
             var it = SelectedDevTest;
             if (it == null || !(sender is Button b) || !(b.Tag is string status)) return;
             it.Status = status;
+            it.ManualVerdict = status != "⚪";
             if (status == "⚪") { it.Details = ""; it.LocalFile = null; }
             else it.Details = DeviceTestText.Confirmed(it.Id, status, it.Details); // la question devient un constat
             RefreshDevTestPanel();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text;
 using ADBToolsNew.Core;
@@ -74,6 +74,24 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual("❌", s.Verdict(DateTime.Now).Icon);
             s.AddRead(new ScanRead { Time = DateTime.Now, Data = "OK" });
             Assert.AreEqual("✅", s.Verdict(DateTime.Now).Icon);
+        }
+
+        [TestMethod]
+        public void Gachette_NomInconnu_ApprisAvantLaPremiereLecture()
+        {
+            var s = new ScanTestSession();
+            var t0 = new DateTime(2026, 11, 6, 8, 0, 0);
+            s.AddKeyPress("KEY_VOLUMEUP", t0.AddMilliseconds(-500));      // ignorée pour l'apprentissage
+            s.AddKeyPress("KEY_F12", t0);
+            s.AddRead(new ScanRead { Time = t0.AddMilliseconds(250), Data = "A" });
+            s.AddKeyPress("KEY_F12", t0.AddSeconds(10));                 // appui sans lecture
+            s.AddKeyPress("KEY_F12", t0.AddSeconds(20));
+            s.AddRead(new ScanRead { Time = t0.AddSeconds(20.2), Data = "B" });
+            Assert.AreEqual("KEY_F12", s.TriggerKey);
+            Assert.AreEqual(3, s.TriggerCount);
+            Assert.AreEqual(250, s.Reads[0].TriggerDelayMs.Value, 0.5);
+            Assert.AreEqual(1, s.MissedTriggers(t0.AddSeconds(60)));
+            Assert.AreEqual(66.7, s.SuccessRate(t0.AddSeconds(60)).Value, 0.1);
         }
     }
 }

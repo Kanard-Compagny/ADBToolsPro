@@ -72,9 +72,11 @@ namespace ADBToolsNew
                 _scanTriggerProcess.Start(_adbExePath, $"-s {serial} shell getevent -l", line =>
                 {
                     var r = GetEventParser.Parse((line ?? "").Trim());
-                    if (r.Kind != GetEventKind.KeyPress || !ScanTriggerKeys.IsScanTrigger(r.RawKeyName)) return;
+                    if (r.Kind != GetEventKind.KeyPress) return;
+                    // Toutes les touches : la gâchette est reconnue par son nom, ou apprise à la première lecture.
                     DateTime at = DateTime.Now;
-                    Dispatcher.InvokeAsync(() => { if (_scanRunning) { _scanSession?.AddTrigger(at); RefreshScanTestUi(); } }, DispatcherPriority.Background);
+                    string key = r.RawKeyName;
+                    Dispatcher.InvokeAsync(() => { if (_scanRunning) { _scanSession?.AddKeyPress(key, at); RefreshScanTestUi(); } }, DispatcherPriority.Background);
                 });
 
                 await SendDiagCommandAsync(serial, "scan");
@@ -138,6 +140,8 @@ namespace ADBToolsNew
                 await ReleaseDiagAppAsync("scan");
             }
             RefreshScanTestUi();
+            // Fin du test : le résultat va directement dans le diagnostic et la fenêtre Tests du terminal.
+            if (wasRunning && _scanSession != null && (_scanSession.Reads.Count > 0 || _scanSession.TriggerCount > 0)) ApplyScanResult();
             if (wasRunning)
             {
                 SetScanStatus(Loc.F("Test terminé : {0} lecture(s). L'appli de test a été retirée du terminal.", _scanSession?.Reads.Count ?? 0));
@@ -167,7 +171,10 @@ namespace ADBToolsNew
             TxtScanStatRate.Text = s?.ReadsPerMinute is double rpm ? rpm.ToString("0.0") : "—";
             var rate = s?.SuccessRate(now);
             TxtScanStatSuccess.Text = rate.HasValue ? Loc.F("{0:0} %", rate.Value) : "—";
-            TxtScanStatTriggers.Text = s != null && s.TriggerCount > 0 ? Loc.F("{0} appui(s), {1} sans lecture", s.TriggerCount, s.MissedTriggers(now)) : "";
+            TxtScanStatTriggers.Text = s == null ? ""
+                : s.TriggerCount > 0 ? Loc.F("{0} appui(s), {1} sans lecture", s.TriggerCount, s.MissedTriggers(now)) + " — " + s.TriggerKey
+                : s.Reads.Count > 0 && s.KeyPressCount == 0 ? Loc.T("Gâchette non détectée par le terminal (getevent)")
+                : s.KeyPressCount > 0 ? Loc.F("Dernière touche : {0}", s.LastKeyName) : "";
             TxtScanStatDelay.Text = s?.AverageDelayMs is double d ? Loc.F("{0:0} ms", d) : "—";
             TxtScanStatExpected.Text = s != null && s.ExpectedCodes.Count > 0 ? $"{s.ExpectedFound} / {s.ExpectedCodes.Count}" : "—";
             BtnScanReport.IsEnabled = BtnScanCopy.IsEnabled = BtnScanExport.IsEnabled = has || (s != null && s.TriggerCount > 0);
@@ -202,16 +209,36 @@ namespace ADBToolsNew
         private void BtnScanReport_Click(object sender, RoutedEventArgs e)
         {
             if (_scanSession == null) return;
+            var (icon, comment) = ApplyScanResult();
+            if (icon == null) return;
+            SetScanStatus(Loc.F("Résultat reporté dans le diagnostic SAV : {0} {1}", icon, comment));
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔫 Test du lecteur reporté dans le diagnostic SAV : {1}", DateTime.Now, comment));
+        }
+
+        /// <summary>
+        /// Résultat du test du lecteur appliqué à « Optique Scanner » (checklist SAV, rapport Word) et à la ligne
+        /// « Lecteur code-barres » de la fenêtre Tests du terminal. Renvoie l'icône et le commentaire.
+        /// </summary>
+        private (string Icon, string Comment) ApplyScanResult()
+        {
+            if (_scanSession == null) return (null, null);
             if (_diagList == null) InitializeDiagChecklist();
             var item = _diagList?.FirstOrDefault(d => d.SystemId == "scanner");
-            if (item == null) return;
+            if (item == null) return (null, null);
             var (icon, details, comment) = _scanSession.Verdict(DateTime.Now);
             item.StatusIcon = icon;
             item.Details = details;
             if (string.IsNullOrWhiteSpace(item.Comment)) item.Comment = comment;
             DiagChecklistGrid.Items.Refresh();
-            SetScanStatus(Loc.F("Résultat reporté dans le diagnostic SAV : {0} {1}", icon, comment));
-            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔫 Test du lecteur reporté dans le diagnostic SAV : {1}", DateTime.Now, comment));
+
+            var dev = _devItems.FirstOrDefault(i => i.Id == "scanner");
+            if (dev != null)
+            {
+                dev.Status = icon;
+                dev.Details = details;
+                if (DeviceTestsOverlay.Visibility == Visibility.Visible) RefreshDevTestPanel();
+            }
+            return (icon, comment);
         }
 
         /// <summary>Résultat du test du lecteur déjà reporté : l'écoute du Laboratoire ne doit pas l'écraser.</summary>

@@ -24,6 +24,7 @@ final class AudioTests {
         private AudioTrack track;
         private int savedVolume = -1, savedMode;
         private int stream;
+        private volatile boolean stopped;
 
         Output(MainActivity a, boolean earpiece) { this.a = a; this.earpiece = earpiece; }
 
@@ -59,6 +60,7 @@ final class AudioTests {
                 final int durationMs = pcm.length * 1000 / rate;
                 a.runLater(new Runnable() {
                     @Override public void run() {
+                        if (stopped) return;
                         Out.result(id(), "confirm", Out.obj("volume_percent", 80));
                         a.testFinished(Output.this);
                     }
@@ -86,6 +88,7 @@ final class AudioTests {
         @Override
         @SuppressWarnings("deprecation")
         public void stop() {
+            stopped = true;
             try { if (track != null) { track.stop(); track.release(); } } catch (Exception ignored) { }
             track = null;
             AudioManager am = (AudioManager) a.getSystemService(Context.AUDIO_SERVICE);

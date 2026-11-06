@@ -270,6 +270,7 @@ namespace ADBToolsNew
             foreach (var item in _diagList)
             {
                 if (item.SystemId == "keys" || item.SystemId == "touch" || item.SystemId == "scanner" || item.SystemId == "screen") continue; // Tests manuels ignorés
+                if (item.SystemId != null && item.SystemId.StartsWith(DeviceTestCatalog.SystemIdPrefix, StringComparison.Ordinal)) continue; // Tests du terminal : résultats gardés
 
                 // 🔌 Le terminal a été perdu en cours d'analyse : on ignore les tests restants au lieu
                 // d'enchaîner des commandes vouées à l'échec.

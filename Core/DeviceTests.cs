@@ -199,6 +199,8 @@ namespace ADBToolsNew.Core
 
         public string Comment { get; set; } = "";
         public string LocalFile { get; set; }
+        /// <summary>Résultat choisi par le technicien pendant le test : un résultat arrivé ensuite ne l'écrase pas.</summary>
+        public bool ManualVerdict { get; set; }
         public string Live { get; set; } = "";
 
         public double Opacity => Available ? 1.0 : 0.45;
