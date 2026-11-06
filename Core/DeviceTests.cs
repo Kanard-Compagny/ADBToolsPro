@@ -49,6 +49,7 @@ namespace ADBToolsNew.Core
                 case "STATE": m.Test = Get(p, 1); m.Status = Get(p, 2); break;
                 case "LIVE": m.Test = Get(p, 1); m.SetJson(Get(p, 2)); break;
                 case "RESULT": m.Test = Get(p, 1); m.Status = Get(p, 2); m.SetJson(Get(p, 3)); break;
+                case "VERDICT": m.Test = Get(p, 1); m.Status = Get(p, 2); break;
                 case "READY": case "SCAN": case "INFO": break;
                 default: return null;
             }
@@ -166,6 +167,13 @@ namespace ADBToolsNew.Core
         };
 
         public static DeviceTestDef Get(string id) => All.FirstOrDefault(d => d.Id == id);
+
+        /// <summary>Ordre de l'enchaînement : tests courts d'abord, GPS (jusqu'à 2 min) en dernier.</summary>
+        public static readonly string[] ChainOrder =
+        {
+            "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone", "vibrator",
+            "sensors", "nfc", "bluetooth", "keys", "storage_speed", "gps",
+        };
         public const string SystemIdPrefix = "dev_";
     }
 
@@ -226,6 +234,7 @@ namespace ADBToolsNew.Core
         {
             switch (status)
             {
+                case "skip": return "⚪";
                 case "ok": return "✅";
                 case "warn": return "⚠️";
                 case "bad": return "❌";

@@ -53,7 +53,10 @@ public class SurveyService extends Service {
 
     volatile int lastRssi = 0, samples, lost, roams, disconnects, marks;
     volatile String lastBssid = "", lastSsid = "", target = "", lastPing = "";
-    volatile long startedAt;
+    volatile long startedAt, lastSampleAt;
+    int intervalForUi = 1000;
+    /** Derniers événements (affichés sur le terminal pendant la mesure). */
+    final java.util.ArrayDeque<String> recent = new java.util.ArrayDeque<String>();
     String filePath = "";
 
     private Writer out;
@@ -69,11 +72,12 @@ public class SurveyService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (running != null && running != this) running.stopSurvey("restart");
-        startForeground(1, notification());
+        startForeground(1, notification("Démarrage… / Starting…"));
         if (worker != null) return START_NOT_STICKY;
         running = this;
         target = intent == null ? "" : nz(intent.getStringExtra(EXTRA_TARGET));
         intervalMs = intent == null ? 1000 : Math.max(500, intent.getIntExtra(EXTRA_INTERVAL, 1000));
+        intervalForUi = intervalMs;
         int durationMin = intent == null ? 0 : intent.getIntExtra(EXTRA_DURATION, 0);
         startedAt = System.currentTimeMillis();
         endAt = durationMin > 0 ? startedAt + durationMin * 60000L : 0;
@@ -134,12 +138,15 @@ public class SurveyService extends Service {
                     if (lastBssid.length() > 0 && !lastBssid.equalsIgnoreCase(bssid)) {
                         roams++;
                         write(Out.obj("type", "roam", "t", t0, "from", lastBssid, "to", bssid, "rssi", rssi));
+                        event("🔁 " + shortMac(lastBssid) + " → " + shortMac(bssid) + " (" + rssi + " dBm)");
                     }
-                    if (!wasConnected) write(Out.obj("type", "conn", "t", t0, "bssid", bssid));
+                    if (!wasConnected) { write(Out.obj("type", "conn", "t", t0, "bssid", bssid)); event("✅ Reconnecté / Reconnected"); }
                     lastBssid = bssid; lastSsid = ssid; lastRssi = rssi;
                 } else if (wasConnected) {
                     disconnects++;
                     write(Out.obj("type", "disc", "t", t0, "bssid", lastBssid));
+                    event("❌ Coupure Wi-Fi / Wi-Fi drop");
+                    buzz(); // le technicien le sent même terminal en poche
                 }
                 wasConnected = connected;
 
@@ -147,7 +154,9 @@ public class SurveyService extends Service {
                 if (ms != null) { Out.put(s, "ping", ms); lastPing = Math.round(ms) + " ms"; }
                 else { Out.put(s, "ping", JSONObject.NULL); lost++; lastPing = "—"; }
                 samples++;
+                lastSampleAt = System.currentTimeMillis();
                 write(s);
+                if (samples % 5 == 0) updateNotification();
             } catch (Exception e) {
                 write(Out.obj("type", "error", "t", t0, "message", String.valueOf(e.getMessage())));
             }
@@ -182,6 +191,7 @@ public class SurveyService extends Service {
     void mark(String label) {
         marks++;
         write(Out.obj("type", "mark", "t", System.currentTimeMillis(), "label", label, "rssi", lastRssi, "bssid", lastBssid));
+        event("📍 " + label + " (" + lastRssi + " dBm)");
     }
 
     void stopSurvey(String reason) {
@@ -204,13 +214,53 @@ public class SurveyService extends Service {
         super.onDestroy();
     }
 
+    private void event(String text) {
+        String line = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date()) + "  " + text;
+        synchronized (recent) {
+            recent.addFirst(line);
+            while (recent.size() > 6) recent.removeLast();
+        }
+    }
+
+    String recentText() {
+        synchronized (recent) {
+            StringBuilder sb = new StringBuilder();
+            for (String l : recent) { if (sb.length() > 0) sb.append('\n'); sb.append(l); }
+            return sb.toString();
+        }
+    }
+
+    private static String shortMac(String mac) {
+        return mac != null && mac.length() > 8 ? "…" + mac.substring(mac.length() - 8) : String.valueOf(mac);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void buzz() {
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (v == null || !v.hasVibrator()) return;
+            long[] p = {0, 150, 120, 150};
+            if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createWaveform(p, -1)); else v.vibrate(p, -1);
+        } catch (Exception ignored) { }
+    }
+
+    /** Notification à jour (signal, ping, durée) : visible même écran verrouillé. */
+    private void updateNotification() {
+        try {
+            long sec = (System.currentTimeMillis() - startedAt) / 1000;
+            String text = String.format(Locale.US, "%s dBm · ping %s · %02d:%02d:%02d · %d mesures",
+                    lastRssi != 0 ? String.valueOf(lastRssi) : "—", lastPing, sec / 3600, (sec / 60) % 60, sec % 60, samples);
+            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).notify(1, notification(text));
+        } catch (Exception ignored) { }
+    }
+
     private synchronized void write(JSONObject o) {
         if (out == null) return;
         try { out.write(o.toString()); out.write('\n'); out.flush(); } catch (Exception ignored) { }
     }
 
     @SuppressWarnings("deprecation")
-    private Notification notification() {
+    private Notification notification(String text) {
         Intent open = new Intent(this, MainActivity.class);
         int piFlags = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent pi = PendingIntent.getActivity(this, 0, open, piFlags);
@@ -226,7 +276,8 @@ public class SurveyService extends Service {
         if (wifiIcon != 0) b.setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), wifiIcon));
         if (Build.VERSION.SDK_INT >= 21) b.setColor(MainActivity.C_BRAND);
         return b.setContentTitle("ADB Tools — Mesure Wi-Fi en cours")
-                .setContentText("Rebranchez le terminal au PC pour récupérer les mesures.")
+                .setContentText(text)
+                .setSubText("Rebranchez au PC pour récupérer / Plug back to retrieve")
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
                 .setContentIntent(pi)
                 .setOngoing(true)

@@ -46,6 +46,11 @@ final class Out {
                 + (symbology == null ? "" : symbology.replace('\t', ' ')) + "\t" + b64(data));
     }
 
+    /** Résultat choisi par le technicien sur le terminal : ok / warn / bad / skip (test passé). */
+    static void verdict(String test, String status) {
+        Log.i(TAG, "VERDICT\t" + test + "\t" + status);
+    }
+
     static void info(String text) {
         Log.i(TAG, "INFO\t" + b64(text));
     }

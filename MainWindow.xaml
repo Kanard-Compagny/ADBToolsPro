@@ -3782,6 +3782,8 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                                 <Button x:Name="BtnDevTestsStart" Content="▶ Préparer le terminal" Click="BtnDevTestsStart_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,0" ToolTip="Installe l'appli de diagnostic et détecte le matériel présent"/>
+                                <Button x:Name="BtnDevTestsChain" Content="⏩ Enchaîner les tests" Click="BtnDevTestsChain_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False"
+                                        ToolTip="Lance à la suite tous les tests possibles pas encore faits ; chacun peut être validé ou passé sur le PC ou sur le terminal"/>
                                 <Button x:Name="BtnDevTestsStop" Content="⏹ Terminer" Click="BtnDevTestsStop_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Désinstalle l'appli de diagnostic (les résultats restent affichés)"/>
                                 <Button Content="✖" Click="BtnDevTestsClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="34" Height="34" ToolTip="Fermer (l'appli de diagnostic est retirée du terminal)"/>
                             </StackPanel>

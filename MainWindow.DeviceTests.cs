@@ -106,6 +106,7 @@ namespace ADBToolsNew
         private async Task StopDeviceTestsAsync()
         {
             if (!_devSession) return;
+            if (_chainActive) FinishChain(Loc.T("Enchaînement arrêté."));
             _devSession = false;
             _devCurrent = null;
             _devProbeTimer?.Stop();
@@ -174,6 +175,23 @@ namespace ADBToolsNew
                     if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
                     if (SelectedDevTest == item) RefreshDevTestPanel();
                     RefreshDevSummary();
+                    // Résultat mesuré : test suivant ; « à confirmer » : on attend le choix du technicien.
+                    if (m.Status != "confirm") ChainAdvance(item.Id, m.Status == "na" ? 0.5 : 3.0);
+                    break;
+                }
+
+                case "VERDICT":
+                {
+                    // Choix fait sur le terminal (boutons ✅ ⚠️ ❌ ⏭ de l'appli).
+                    var item = _devItems.FirstOrDefault(i => i.Id == m.Test);
+                    if (item == null) break;
+                    string icon = DeviceTestText.StatusIcon(m.Status);
+                    item.Status = icon;
+                    if (icon == "⚪") { item.Details = ""; item.LocalFile = null; }
+                    else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
+                    if (SelectedDevTest == item) RefreshDevTestPanel();
+                    RefreshDevSummary();
+                    ChainAdvance(item.Id, 1.0);
                     break;
                 }
 
@@ -182,7 +200,11 @@ namespace ADBToolsNew
                     {
                         _devCurrent = null;
                         var it = _devItems.FirstOrDefault(i => i.Id == m.Test);
-                        if (it != null && it.Status == "⏳") it.Status = "⚪"; // arrêté avant d'avoir un résultat
+                        if (it != null && it.Status == "⏳")
+                        {
+                            it.Status = "⚪"; // arrêté avant d'avoir un résultat
+                            ChainAdvance(it.Id, 1.5);
+                        }
                         RefreshDevTestPanel();
                     }
                     break;
@@ -224,7 +246,8 @@ namespace ADBToolsNew
             TxtDevTestTitle.Text = it.Icon + "  " + it.Name;
             TxtDevTestInstruction.Text = it.Available ? Loc.T(it.Def.Instruction) : Loc.T("Ce terminal n'a pas ce matériel : le test n'apparaîtra pas dans le rapport.");
             bool running = _devCurrent != null;
-            BtnDevTestRun.IsEnabled = _devSession && _devFeatures != null && it.Available && !running;
+            BtnDevTestRun.IsEnabled = _devSession && _devFeatures != null && it.Available && !running && !_chainActive;
+            BtnDevTestsChain.IsEnabled = _devSession && _devFeatures != null && (_chainActive || !running);
             BtnDevTestRun.Content = it.Def.External ? Loc.T("▶ Ouvrir le test du lecteur") : Loc.T("▶ Lancer le test");
             BtnDevTestAbort.IsEnabled = running && _devCurrent == it.Id;
             DevTestVerdictPanel.IsEnabled = it.Available && !it.Def.External && _devCurrent != it.Id;
@@ -289,6 +312,12 @@ namespace ADBToolsNew
                 BtnOpenScanTest_Click(sender, e);
                 return;
             }
+            await RunDevTestAsync(it, "");
+        }
+
+        /// <summary>Lance un test sur le terminal ; <paramref name="step"/> (« 3/12 ») s'affiche sur le terminal pendant un enchaînement.</summary>
+        private async Task RunDevTestAsync(DeviceTestItem it, string step)
+        {
             // Fonctions coupées sur le terminal : on tente de les activer (sans effet si le terminal le refuse).
             if (it.Id == "nfc") await _adbManager.ExecuteAsync($"-s {_devSerial} shell svc nfc enable");
             if (it.Id == "gps")
@@ -302,7 +331,85 @@ namespace ADBToolsNew
             TxtDevTestLive.Text = "";
             _devCurrent = it.Id;
             RefreshDevTestPanel();
-            await SendDiagCommandAsync(_devSerial, it.Id);
+            string args = DiagApp.CommandArgs(_devSerial, it.Id) + (string.IsNullOrEmpty(step) ? "" : " -e step " + step);
+            await _adbManager.ExecuteAsync(args);
+        }
+
+        // ------------------------------------------------------------------ Enchaînement des tests
+
+        private readonly System.Collections.Generic.Queue<string> _chainQueue = new System.Collections.Generic.Queue<string>();
+        private bool _chainActive;
+        private string _chainCurrent;
+        private int _chainTotal, _chainIndex;
+        private DispatcherTimer _chainTimer;
+
+        private async void BtnDevTestsChain_Click(object sender, RoutedEventArgs e)
+        {
+            if (_chainActive) { await StopChainAsync(); return; }
+            if (!_devSession || _devFeatures == null || _devCurrent != null) return;
+            _chainQueue.Clear();
+            foreach (var id in DeviceTestCatalog.ChainOrder)
+            {
+                var it = _devItems.FirstOrDefault(i => i.Id == id);
+                if (it != null && it.Available && !it.Def.External && (it.Status == "⚪" || it.Status == "❓")) _chainQueue.Enqueue(id);
+            }
+            if (_chainQueue.Count == 0)
+            {
+                SetDevStatus(Loc.T("Tous les tests possibles ont déjà un résultat. Choisissez « Ne pas tester » sur un test pour le refaire."));
+                return;
+            }
+            _chainActive = true;
+            _chainTotal = _chainQueue.Count;
+            _chainIndex = 0;
+            BtnDevTestsChain.Content = Loc.T("⏹ Arrêter l'enchaînement");
+            RunNextInChain();
+        }
+
+        private async void RunNextInChain()
+        {
+            if (!_chainActive || !_devSession) return;
+            while (_chainQueue.Count > 0)
+            {
+                var it = _devItems.FirstOrDefault(i => i.Id == _chainQueue.Dequeue());
+                _chainIndex++;
+                if (it == null || !it.Available) continue;
+                _chainCurrent = it.Id;
+                DevTestsList.SelectedItem = it;
+                DevTestsList.ScrollIntoView(it);
+                SetDevStatus(Loc.F("Enchaînement : test {0} sur {1} — {2}. Validez sur le PC ou sur le terminal (✅ ⚠️ ❌ ⏭).", _chainIndex, _chainTotal, it.Name));
+                await RunDevTestAsync(it, $"{_chainIndex}/{_chainTotal}");
+                return;
+            }
+            FinishChain(Loc.F("Enchaînement terminé : {0} test(s) passés. Vérifiez les résultats puis « Reporter dans le diagnostic SAV ».", _chainTotal));
+        }
+
+        /// <summary>Le test de l'enchaînement a son résultat : on passe au suivant après un court délai (le temps de lire).</summary>
+        private void ChainAdvance(string testId, double delaySeconds)
+        {
+            if (!_chainActive || testId != _chainCurrent) return;
+            _chainCurrent = null;
+            _chainTimer?.Stop();
+            _chainTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(delaySeconds) };
+            _chainTimer.Tick += (s, e) => { _chainTimer.Stop(); RunNextInChain(); };
+            _chainTimer.Start();
+        }
+
+        private async Task StopChainAsync()
+        {
+            bool running = _devCurrent != null;
+            FinishChain(Loc.T("Enchaînement arrêté."));
+            if (running && _devSerial != null) await SendDiagCommandAsync(_devSerial, "stop");
+        }
+
+        private void FinishChain(string message)
+        {
+            _chainActive = false;
+            _chainCurrent = null;
+            _chainQueue.Clear();
+            _chainTimer?.Stop();
+            BtnDevTestsChain.Content = Loc.T("⏩ Enchaîner les tests");
+            SetDevStatus(message);
+            RefreshDevTestPanel();
         }
 
         private async void BtnDevTestAbort_Click(object sender, RoutedEventArgs e)
@@ -319,6 +426,7 @@ namespace ADBToolsNew
             if (status == "⚪") { it.Details = ""; it.LocalFile = null; }
             else it.Details = DeviceTestText.Confirmed(it.Id, status, it.Details); // la question devient un constat
             RefreshDevTestPanel();
+            ChainAdvance(it.Id, 0.8);
         }
 
         private void TxtDevTestComment_TextChanged(object sender, TextChangedEventArgs e)

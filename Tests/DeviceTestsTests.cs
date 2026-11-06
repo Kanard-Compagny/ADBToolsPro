@@ -59,6 +59,12 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual("3 appareil(s) trouvé(s), meilleur signal -58 dBm", DeviceTestText.Live(live));
             Assert.IsNull(DiagMessage.Parse("I/Autre( 1): RESULT\tx\tok\te30="));
             Assert.IsNull(DiagMessage.Parse("I/ADBToolsDiag( 1): SOMETHING\tx"));
+            var v = DiagMessage.Parse("I/ADBToolsDiag( 1): VERDICT\tflash\tok");
+            Assert.AreEqual("VERDICT", v.Type);
+            Assert.AreEqual("flash", v.Test);
+            Assert.AreEqual("✅", DeviceTestText.StatusIcon(v.Status));
+            Assert.AreEqual("⚪", DeviceTestText.StatusIcon("skip"));
+            Assert.AreEqual("gps", DeviceTestCatalog.ChainOrder.Last(), "le GPS (le plus long) en dernier");
         }
 
         [TestMethod]

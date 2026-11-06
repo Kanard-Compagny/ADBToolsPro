@@ -50,6 +50,10 @@ namespace ADBToolsNew
             {
                 TxtSurveyStatus.Text = Loc.T("Préparation du terminal…");
                 if (!await EnsureDiagAppAsync(dev.Serial, "survey")) { TxtSurveyStatus.Text = Loc.T("Installation de l'appli de diagnostic impossible."); return; }
+                // Mesure écran éteint : l'appli est exemptée de la mise en veille profonde (Doze) et des
+                // restrictions d'arrière-plan, sinon Android espace ou coupe les mesures au bout de quelques minutes.
+                await _adbManager.ExecuteAsync($"-s {dev.Serial} shell dumpsys deviceidle whitelist +{DiagApp.Package}");
+                await _adbManager.ExecuteAsync($"-s {dev.Serial} shell cmd appops set {DiagApp.Package} RUN_ANY_IN_BACKGROUND allow");
                 // Nom du réseau et de la borne : Android ne les donne que si la localisation est active.
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell cmd location set-location-enabled true");
                 await _adbManager.ExecuteAsync($"-s {dev.Serial} shell settings put secure location_mode 3");

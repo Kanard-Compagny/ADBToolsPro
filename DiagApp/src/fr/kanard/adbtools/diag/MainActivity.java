@@ -66,9 +66,15 @@ public class MainActivity extends Activity {
     static final int C_TITLE = Color.rgb(0x07, 0x1E, 0x17);
     static final int C_TITLE_INK = Color.rgb(0xDC, 0xEB, 0xE3);
     static final int C_TITLE_MUTED = Color.rgb(0x86, 0xA8, 0x97);
+    static final int C_OK_BG = Color.rgb(0x12, 0x33, 0x26), C_OK_FG = Color.rgb(0x73, 0xD9, 0xA9);
+    static final int C_WARN_BG = Color.rgb(0x3A, 0x2E, 0x0C), C_WARN_FG = Color.rgb(0xF5, 0xD5, 0x7E);
+    static final int C_BAD_BG = Color.rgb(0x3A, 0x17, 0x14), C_BAD_FG = Color.rgb(0xFF, 0x8A, 0x80);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ImageView logoView;
+    private LinearLayout verdictRow;
+    private String activeTestId;
+    private String stepText = "";
     private LinearLayout card;
     private boolean wifiEntry;
     private TextView titleView, messageView, bigView, detailView;
@@ -205,6 +211,25 @@ public class MainActivity extends Activity {
         surveyButtons.addView(markBtn, b1);
         surveyButtons.addView(stopBtn, b2);
         root.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Résultat du test choisi directement sur le terminal (le PC le reçoit et passe au test suivant).
+        verdictRow = new LinearLayout(this);
+        verdictRow.setOrientation(LinearLayout.VERTICAL);
+        verdictRow.setVisibility(View.GONE);
+        TextView vLabel = text("Résultat du test / Test result", 13, C_MUTED, false);
+        vLabel.setPadding(0, dp(18), 0, dp(6));
+        verdictRow.addView(vLabel);
+        LinearLayout vr1 = new LinearLayout(this);
+        vr1.setOrientation(LinearLayout.HORIZONTAL);
+        vr1.addView(verdictButton("✅ OK", "ok", C_OK_BG, C_OK_FG), weight());
+        vr1.addView(verdictButton("⚠️ À surveiller", "warn", C_WARN_BG, C_WARN_FG), weight());
+        vr1.addView(verdictButton("❌ HS", "bad", C_BAD_BG, C_BAD_FG), weight());
+        verdictRow.addView(vr1);
+        Button skip = verdictButton("⏭ Passer ce test / Skip", "skip", C_SURFACE2, C_MUTED);
+        LinearLayout.LayoutParams sk = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+        sk.topMargin = dp(8);
+        verdictRow.addView(skip, sk);
+        root.addView(verdictRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         outer.addView(root, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         frame.addView(outer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
         setContentView(frame);
@@ -259,6 +284,9 @@ public class MainActivity extends Activity {
         setScanMode(false);
         keysMode = false;
         hideSurvey();
+        verdictRow.setVisibility(View.GONE);
+        activeTestId = null;
+        stepText = pendingExtras == null ? "" : pendingExtras.getString("step", "");
         bigView.setText("");
         detailView.setText("");
         card.setVisibility(View.GONE);
@@ -284,13 +312,17 @@ public class MainActivity extends Activity {
                 return;
             case "keys":
                 startKeys();
+                activeTestId = "keys";
+                showVerdictRow();
                 return;
         }
         DiagTest t = create(cmd);
         if (t == null) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
         current = t;
+        activeTestId = t.id();
         Out.state(t.id(), "started");
-        titleView.setText(label(cmd));
+        titleView.setText(label(cmd) + (stepText.length() > 0 ? "  ·  " + stepText : ""));
+        showVerdictRow();
         try {
             t.start();
         } catch (Exception e) {
@@ -355,7 +387,7 @@ public class MainActivity extends Activity {
         Out.state(t.id(), "stopped");
         showPreview(false);
         titleView.setText("Diagnostic"); setLogo(false);
-        setMessage("Test terminé : voir ADB Tools / Test finished: see ADB Tools");
+        setMessage("Test terminé : validez ici ou sur le PC / Test finished: confirm here or on the PC");
     }
 
     // ------------------------------------------------------------------ Aide aux tests
@@ -394,7 +426,17 @@ public class MainActivity extends Activity {
         try { return Integer.parseInt(String.valueOf(o).trim()); } catch (Exception e) { return def; }
     }
 
+    @SuppressWarnings("deprecation")
+    private void keepVisibleWhenLocked(boolean on) {
+        try {
+            if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(on); setTurnScreenOn(on); }
+            else if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+            else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        } catch (Exception ignored) { }
+    }
+
     private void showSurvey() {
+        keepVisibleWhenLocked(true); // l'écran de mesure reste consultable sans déverrouiller
         titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
         setLogo(true);
         card.setVisibility(View.VISIBLE);
@@ -407,6 +449,7 @@ public class MainActivity extends Activity {
 
     private void hideSurvey() {
         handler.removeCallbacks(surveyRefresh);
+        keepVisibleWhenLocked(false);
         surveyButtons.setVisibility(View.GONE);
     }
 
@@ -422,10 +465,24 @@ public class MainActivity extends Activity {
             }
             return;
         }
-        long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
-        bigView.setText(s.lastRssi != 0 ? s.lastRssi + " dBm" : "—");
-        detailView.setText(String.format(java.util.Locale.US, "%02d:%02d:%02d   %s\nBSSID %s   ping %s\n%d mesures · %d pertes · %d changements de borne · %d coupures · %d repères",
-                sec / 3600, (sec / 60) % 60, sec % 60, s.lastSsid, s.lastBssid, s.lastPing, s.samples, s.lost, s.roams, s.disconnects, s.marks));
+        long now = System.currentTimeMillis();
+        long sec = (now - s.startedAt) / 1000;
+        int rssi = s.lastRssi;
+        bigView.setText(rssi != 0 ? rssi + " dBm" : "—");
+        bigView.setTextColor(rssi == 0 ? C_MUTED : rssi >= -65 ? C_OK_FG : rssi >= -75 ? C_WARN_FG : C_BAD_FG);
+        String quality = rssi == 0 ? "Pas de Wi-Fi / No Wi-Fi" : rssi >= -60 ? "Excellent" : rssi >= -67 ? "Bon / Good"
+                : rssi >= -75 ? "Moyen / Fair" : "Faible / Weak";
+        // Preuve que la mesure tourne : âge de la dernière mesure (alerte si elle n'avance plus).
+        long age = s.lastSampleAt == 0 ? -1 : (now - s.lastSampleAt) / 1000;
+        boolean stalled = age > Math.max(5, 3 * s.intervalForUi / 1000);
+        String pulse = (sec % 2 == 0 ? "●" : "○") + (stalled ? "  ⚠ mesure bloquée / survey stalled" : "  Mesure en cours / Recording")
+                + (age >= 0 ? " — " + age + " s" : "");
+        int lossPct = s.samples == 0 ? 0 : Math.round(100f * s.lost / s.samples);
+        String events = s.recentText();
+        detailView.setText(String.format(java.util.Locale.US,
+                "%s\n%s\n\n⏱ %02d:%02d:%02d   📶 %s\nBSSID %s\nPing %s   ·   pertes %d %%\n%d mesures · %d changements de borne · %d coupures · %d repères%s",
+                pulse, quality, sec / 3600, (sec / 60) % 60, sec % 60, s.lastSsid, s.lastBssid, s.lastPing, lossPct,
+                s.samples, s.roams, s.disconnects, s.marks, events.length() > 0 ? "\n\n" + events : ""));
         handler.postDelayed(surveyRefresh, 1000);
     }
 
@@ -667,6 +724,38 @@ public class MainActivity extends Activity {
     }
 
     private GradientDrawable rounded(int fill, int stroke, int radiusDp) { return rounded(fill, stroke, radiusDp, this); }
+
+    private LinearLayout.LayoutParams weight() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        lp.setMargins(dp(3), 0, dp(3), 0);
+        return lp;
+    }
+
+    private Button verdictButton(String label, final String status, int bg, int fg) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTextColor(fg);
+        b.setBackground(rounded(bg, fg, 8));
+        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
+        b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendVerdict(status); } });
+        return b;
+    }
+
+    private void showVerdictRow() { verdictRow.setVisibility(View.VISIBLE); }
+
+    /** Le technicien tranche sur le terminal : le test en cours s'arrête, le PC reçoit le résultat. */
+    private void sendVerdict(String status) {
+        String id = activeTestId;
+        if (id == null) return;
+        stopCurrent();
+        Out.verdict(id, status);
+        verdictRow.setVisibility(View.GONE);
+        activeTestId = null;
+        setMessage("skip".equals(status) ? "Test passé / Test skipped" : "Résultat envoyé à ADB Tools / Result sent to ADB Tools");
+    }
 
     /** Bouton dans le style d'ADB Tools : orange pour l'action principale, sinon bloc sombre bordé. */
     private Button button(String label, boolean primary) {
