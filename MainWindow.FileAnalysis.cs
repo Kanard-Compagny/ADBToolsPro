@@ -778,18 +778,11 @@ namespace ADBToolsNew
             return parts.Count == 0 ? Loc.T("aucun") : string.Join(" · ", parts);
         }
 
-        private async void MenuFaExportReport_Click(object sender, RoutedEventArgs e)
+        /// <summary>Contenu commun aux rapports : zone affichée, constats, avant l'incident, sessions, appli, signets.</summary>
+        private LogReport.Options BuildFaReportOptions()
         {
-            if (_faArchive == null) return;
-            var dlg = new SaveFileDialog
-            {
-                Title = Loc.T("Rapport d'analyse"),
-                Filter = Loc.T("Page web (*.html)|*.html"),
-                FileName = FaExportBaseName + "_rapport.html",
-            };
-            if (dlg.ShowDialog(this) != true) return;
             bool zoned = _faShownAnalysis != null && _faShownAnalysis != _faFullAnalysis && _faZoneFrom != int.MinValue;
-            var opt = new LogReport.Options
+            return new LogReport.Options
             {
                 Title = _faArchive.Title,
                 Archive = _faArchive,
@@ -804,6 +797,20 @@ namespace ADBToolsNew
                 AppVersion = AppUpdater.CurrentVersion.ToString(3),
                 Before = _faBefore, BeforeTitle = _faBeforeLabel, Sessions = _faSessions, App = _faAppLife, Bookmarks = _faBookmarks,
             };
+        }
+
+        /// <summary>Rapport technique détaillé en HTML (s'ouvre dans le navigateur).</summary>
+        private async void MenuFaExportReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            var dlg = new SaveFileDialog
+            {
+                Title = Loc.T("Rapport technique détaillé"),
+                Filter = Loc.T("Page web (*.html)|*.html"),
+                FileName = FaExportBaseName + "_rapport_technique.html",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            var opt = BuildFaReportOptions();
             string path = dlg.FileName;
             try
             {
@@ -816,6 +823,97 @@ namespace ADBToolsNew
             {
                 await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
             }
+        }
+
+        /// <summary>Rapport technique détaillé en PDF : la page HTML imprimée par Edge (ou Chrome), sans fenêtre.</summary>
+        private async void MenuFaExportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            var dlg = new SaveFileDialog
+            {
+                Title = Loc.T("Rapport technique détaillé"),
+                Filter = Loc.T("Document PDF (*.pdf)|*.pdf"),
+                FileName = FaExportBaseName + "_rapport_technique.pdf",
+                InitialDirectory = Directory.Exists(GetReportsFolderPath()) ? GetReportsFolderPath() : "",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            var opt = BuildFaReportOptions();
+            string pdf = dlg.FileName;
+            string html = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ADBTools_rapport_" + Guid.NewGuid().ToString("N") + ".html");
+            SetFaBusy(true);
+            try
+            {
+                string content = await Task.Run(() => LogReport.BuildHtml(opt));
+                File.WriteAllText(html, content, new UTF8Encoding(false));
+                string error = await Task.Run(() => LogWordReport.HtmlToPdf(html, pdf));
+                if (error != null)
+                {
+                    await ShowCustomDialogAsync(Loc.T("🔬 Rapport technique"), Loc.F("PDF impossible : {0}\n\nUtilisez « Rapport technique détaillé (HTML) » puis Imprimer ▸ Enregistrer en PDF dans le navigateur.", error), Loc.T("OK"), "", false);
+                    return;
+                }
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔬 Rapport technique enregistré : {1}", DateTime.Now, pdf));
+                ShowInExplorer(pdf);
+            }
+            catch (Exception ex)
+            {
+                await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
+            }
+            finally
+            {
+                try { if (File.Exists(html)) File.Delete(html); } catch { }
+                SetFaBusy(false);
+            }
+        }
+
+        /// <summary>Rapport client au format Word, sur le modèle des rapports SAV et Wi-Fi (en-tête, logo, modèle de l'équipe).</summary>
+        private async void MenuFaExportWord_Click(object sender, RoutedEventArgs e)
+        {
+            if (_faArchive == null) return;
+            string templatePath = ReportTemplates.GetTemplatePath(ReportKind.Logs);
+            if (!File.Exists(templatePath))
+            {
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Template Word introuvable : {1}", DateTime.Now, templatePath));
+                return;
+            }
+            bool ok1 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — Société"), Loc.T("Nom de la société / du client pour l'en-tête du rapport :"), Loc.T("Suivant"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
+            if (!ok1) return;
+            string societe = TxtDialogInput.Text.Trim();
+            bool ok2 = await ShowCustomDialogAsync(Loc.T("📝 Export Word — N° d'incident"), Loc.T("Numéro d'incident / de ticket pour l'en-tête du rapport :"), Loc.T("Générer le rapport"), Loc.T("Annuler"), false, requiresInput: true, defaultInput: "");
+            if (!ok2) return;
+            string incident = TxtDialogInput.Text.Trim();
+
+            var opt = BuildFaReportOptions();
+            SetFaBusy(true);
+            try
+            {
+                // Frise dessinée pour l'impression (fond blanc), ici car le dessin WPF doit se faire sur ce fil.
+                var src = opt.From != int.MinValue ? _faArchive.Range(opt.From, opt.To) : (IList<FileLogEntry>)_faArchive.Entries;
+                var buckets = _faArchive.Timeline(src, 120);
+                string png = buckets.Count == 0 ? "" : ReportChartRenderer.RenderTimeline(buckets, LogInsights.LaneNames,
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ADBTools_frise_" + Guid.NewGuid().ToString("N") + ".png"));
+                string folder = GetReportsFolderPath();
+                string output = await Task.Run(() => LogWordReport.Generate(templatePath, folder, societe, incident, opt, png));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Rapport Word d'analyse des logs généré : {1}", DateTime.Now, output));
+                var analysis = opt.Analysis;
+                RecordHistory(new HistoryEntry
+                {
+                    Type = "Analyse de logs",
+                    Serial = _faArchive.Device.FirstOrDefault(p => p.Key == Loc.T("N° de série")).Value ?? "",
+                    Model = _faArchive.Device.FirstOrDefault(p => p.Key == Loc.T("Modèle")).Value ?? _faArchive.Device.FirstOrDefault(p => p.Key == Loc.T("Terminal")).Value ?? "",
+                    Client = societe,
+                    Incident = incident,
+                    Technician = AppSettings.Current.ReportTechnician ?? "",
+                    Summary = Loc.F("{0} problème(s) important(s), {1} point(s) à surveiller — {2}",
+                        analysis?.Findings.Count(f => f.Severity == FindingSeverity.Bad) ?? 0, analysis?.Findings.Count(f => f.Severity == FindingSeverity.Warn) ?? 0, opt.ScopeText),
+                }, output);
+                ShowInExplorer(output);
+            }
+            catch (Exception ex)
+            {
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur génération du rapport Word : {1}", DateTime.Now, ex.Message));
+                await ShowCustomDialogAsync(Loc.T("🗂️ Analyse de fichiers"), Loc.F("Export impossible : {0}", ex.Message), Loc.T("OK"), "", false);
+            }
+            finally { SetFaBusy(false); }
         }
 
         private void MenuFaExportTxt_Click(object sender, RoutedEventArgs e) => ExportFaLines(false);

@@ -123,6 +123,7 @@
     <Compile Include="Core\LogArchive.cs" />
     <Compile Include="Core\LogReport.cs" />
     <Compile Include="Core\LogInsights.cs" />
+    <Compile Include="Core\LogWordReport.cs" />
     <Compile Include="MainWindow.FileAnalysis.cs" />
     <Compile Include="MainWindow.Recorder.cs" />
     <Compile Include="MainWindow.FileInsights.cs" />
@@ -313,6 +314,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Docs\Modeles\en\Rapport_Wifi.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Docs\Modeles\Rapport_Logs.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Docs\Modeles\en\Rapport_Logs.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Docs\Release_Note_V1.en.txt">

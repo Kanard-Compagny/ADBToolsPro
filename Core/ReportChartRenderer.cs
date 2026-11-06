@@ -135,6 +135,75 @@ namespace ADBToolsNew.Core
             return path;
         }
 
+        /// <summary>
+        /// Frise d'un relevé de logs pour le rapport Word : lignes (vert) et erreurs (rouge), puis un couloir par sujet
+        /// (redémarrages, plantages, Wi-Fi, mémoire, batterie, lecteur) et les incidents signalés.
+        /// </summary>
+        public static string RenderTimeline(IList<LogArchive.TimelineBucket> buckets, IList<string> laneNames, string path)
+        {
+            const int W = 1600, H = 560;
+            const double left = 240, right = 20, top = 16, bottom = 40;
+            double plotW = W - left - right;
+            double barsH = 210, laneH = (H - top - bottom - barsH - 14) / Math.Max(1, laneNames.Count);
+            var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, W, H));
+                int n = Math.Max(1, buckets.Count);
+                double bw = plotW / n;
+                int maxL = Math.Max(1, buckets.Count == 0 ? 1 : buckets.Max(x => x.Lines)), maxE = Math.Max(1, buckets.Count == 0 ? 1 : buckets.Max(x => x.Errors));
+                var green = Frozen(new SolidColorBrush(Color.FromArgb(0xAA, 0x73, 0xC9, 0x9C)));
+                var red = Frozen(new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)));
+                var orange = Frozen(new SolidColorBrush(RssiColor));
+                var gridPen = Frozen(new Pen(new SolidColorBrush(Grid), 1.5));
+                var lbl = Text(Loc.T("Lignes / erreurs"), typeface, 24, Label);
+                dc.DrawText(lbl, new Point(left - 14 - lbl.Width, top + barsH / 2 - lbl.Height / 2));
+                dc.DrawLine(gridPen, new Point(left, top + barsH), new Point(left + plotW, top + barsH));
+                for (int i = 0; i < buckets.Count; i++)
+                {
+                    var b = buckets[i];
+                    double x = left + i * bw;
+                    if (b.Lines > 0) { double h = Math.Max(1, barsH * Math.Sqrt(b.Lines / (double)maxL)); dc.DrawRectangle(green, null, new Rect(x, top + barsH - h, Math.Max(1, bw - 1), h)); }
+                    if (b.Errors > 0) { double h = Math.Max(2, barsH * 0.85 * Math.Sqrt(b.Errors / (double)maxE)); dc.DrawRectangle(red, null, new Rect(x, top + barsH - h, Math.Max(1, bw - 1), h)); }
+                    if (b.Incidents > 0) dc.DrawRectangle(orange, null, new Rect(x + bw / 2 - 2, top, 4, H - top - bottom));
+                }
+                Color[] laneColors = { Color.FromRgb(0x2F, 0x6F, 0xB3), Color.FromRgb(0xC6, 0x28, 0x28), RssiColor, PingColor, RssiColor, Color.FromRgb(0x8E, 0x24, 0xAA) };
+                for (int l = 0; l < laneNames.Count; l++)
+                {
+                    double y = top + barsH + 14 + l * laneH;
+                    dc.DrawLine(gridPen, new Point(left, y + laneH), new Point(left + plotW, y + laneH));
+                    var ft = Text(laneNames[l], typeface, 22, Label);
+                    dc.DrawText(ft, new Point(left - 14 - ft.Width, y + laneH / 2 - ft.Height / 2));
+                    int maxLane = Math.Max(1, buckets.Count == 0 ? 1 : buckets.Max(x => l < x.Lanes.Length ? x.Lanes[l] : 0));
+                    for (int i = 0; i < buckets.Count; i++)
+                    {
+                        int c = l < buckets[i].Lanes.Length ? buckets[i].Lanes[l] : 0;
+                        if (c == 0) continue;
+                        var col = laneColors[l % laneColors.Length];
+                        byte alpha = (byte)(90 + 165 * Math.Sqrt(c / (double)maxLane));
+                        var br = Frozen(new SolidColorBrush(Color.FromArgb(alpha, col.R, col.G, col.B)));
+                        dc.DrawRectangle(br, null, new Rect(left + i * bw, y + 3, Math.Max(3, bw - 1), Math.Max(4, laneH - 6)));
+                    }
+                }
+                if (buckets.Count > 0)
+                {
+                    var a = Text(LogArchive.MinuteText(buckets[0].From), typeface, 22, Label);
+                    var z = Text(LogArchive.MinuteText(buckets[buckets.Count - 1].To), typeface, 22, Label);
+                    dc.DrawText(a, new Point(left, H - bottom + 8));
+                    dc.DrawText(z, new Point(left + plotW - z.Width, H - bottom + 8));
+                }
+            }
+            var bmp = new RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(visual);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using (var fs = File.Create(path)) encoder.Save(fs);
+            return path;
+        }
+
+        private static SolidColorBrush Frozen(SolidColorBrush b) { b.Freeze(); return b; }
+
         private static Pen Frozen(Pen p) { p.Freeze(); return p; }
 
         private static FormattedText Text(string s, Typeface tf, double size, Color c)

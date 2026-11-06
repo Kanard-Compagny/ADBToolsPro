@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ADBToolsNew.Core
 {
-    public enum ReportKind { Sav, Wifi }
+    public enum ReportKind { Sav, Wifi, Logs }
 
     /// <summary>
     /// Où trouver les modèles de rapport Word.
@@ -19,8 +19,8 @@ namespace ADBToolsNew.Core
         public static string DefaultFolder => Path.Combine(BaseDir, "Docs", "Modeles");
         public static string UserFolder => Path.Combine(BaseDir, "Templates");
 
-        public static string FileName(ReportKind kind) => kind == ReportKind.Sav ? "Rapport_SAV.docx" : "Rapport_Wifi.docx";
-        public static string DisplayName(ReportKind kind) => kind == ReportKind.Sav ? "Rapport SAV" : "Rapport Wi-Fi";
+        public static string FileName(ReportKind kind) => kind == ReportKind.Sav ? "Rapport_SAV.docx" : kind == ReportKind.Logs ? "Rapport_Logs.docx" : "Rapport_Wifi.docx";
+        public static string DisplayName(ReportKind kind) => kind == ReportKind.Sav ? "Rapport SAV" : kind == ReportKind.Logs ? "Rapport d'analyse des logs" : "Rapport Wi-Fi";
 
         public static string UserTemplatePath(ReportKind kind) => Path.Combine(UserFolder, FileName(kind));
         /// <summary>Modèle fourni : version anglaise (Docs\Modeles\en) si l'interface est en anglais.</summary>

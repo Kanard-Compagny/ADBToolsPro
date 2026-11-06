@@ -3660,10 +3660,13 @@
                                         <Button x:Name="BtnFaOpenFolder" Content="📁 Ouvrir un dossier…" Click="BtnFaOpenFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
                                         <Button x:Name="BtnFaCompare" Content="⚖️ Comparer avec…" Click="BtnFaCompare_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" IsEnabled="False" ToolTip="Ouvrir un second relevé (ex. terminal sans correctif) et voir les messages qui diffèrent"/>
                                         <Button x:Name="BtnFaRecorder" Content="🎙 Enregistreur terrain…" Click="BtnOpenRecorder_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0" ToolTip="Faire enregistrer au terminal, débranché, le journal complet et les incidents signalés par l'utilisateur"/>
-                                        <Button x:Name="BtnFaExport" Content="💾 Exporter ▾" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Rapport d'analyse (HTML, imprimable en PDF) ou lignes affichées (.txt, .csv)">
+                                        <Button x:Name="BtnFaExport" Content="💾 Exporter ▾" Click="BtnFaExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" IsEnabled="False" ToolTip="Rapport client (Word), rapport technique (PDF / HTML) ou lignes affichées (.txt, .csv)">
                                             <Button.ContextMenu>
                                                 <ContextMenu>
-                                                    <MenuItem Header="📄 Rapport d'analyse (.html, imprimable en PDF)" Click="MenuFaExportReport_Click"/>
+                                                    <MenuItem Header="📄 Rapport client (Word)" Click="MenuFaExportWord_Click" ToolTip="Au format de vos rapports SAV et Wi-Fi : en-tête, logo, constats en tableau, courts extraits"/>
+                                                    <MenuItem Header="🔬 Rapport technique détaillé (PDF)" Click="MenuFaExportPdf_Click" ToolTip="Tous les constats avec leurs lignes de journal, avant l'incident, sessions, signets"/>
+                                                    <MenuItem Header="🌐 Rapport technique détaillé (HTML)" Click="MenuFaExportReport_Click"/>
+                                                    <Separator/>
                                                     <MenuItem Header="📜 Lignes affichées (.txt)" Click="MenuFaExportTxt_Click"/>
                                                     <MenuItem Header="📊 Lignes affichées (.csv, Excel)" Click="MenuFaExportCsv_Click"/>
                                                 </ContextMenu>
