@@ -101,6 +101,7 @@ namespace ADBToolsNew
                 _faFullAnalysis = null; _faShownAnalysis = null;
                 _faZoneFrom = _faZoneTo = int.MinValue;
                 _faVisibleFrom = _faVisibleTo = -1;
+                LoadFaInsights(archive);
                 FaCompareGrid.ItemsSource = null;
                 TxtFaCompareSummary.Text = Loc.T("« Comparer avec… » ouvre un second relevé (B) et liste les erreurs et avertissements propres à l'un des deux, ou bien plus fréquents (par heure). A = relevé ouvert.");
 
@@ -129,7 +130,13 @@ namespace ADBToolsNew
                 // Analyse automatique de tout le relevé (gardée pour « De tout le relevé ») ; la zone regardée suit.
                 TxtFaFindingsSummary.Text = Loc.T("⏳ Analyse en cours…");
                 FaFindingsList.ItemsSource = null;
-                var analysis = await Task.Run(() => LogAnalyzer.Analyze(archive.Entries.Cast<LogEntry>().ToList(), archive.Title));
+                var sigs = _faSignatures; var sessions = _faSessions;
+                var analysis = await Task.Run(() =>
+                {
+                    var trends = LogInsights.BuildTrends(archive);
+                    _faTrends = trends;
+                    return AnalyzeFa(archive, archive.Entries, int.MinValue, int.MaxValue, sigs, trends, sessions);
+                });
                 if (_faArchive != archive) return;
                 _faFullAnalysis = analysis;
                 RbFaFindings.IsChecked = true;
@@ -314,6 +321,7 @@ namespace ADBToolsNew
             _faFrom = t - w; _faTo = t + w;
             _faScrollToMinute = t;
             await ApplyFaFilterAsync();
+            await RunFaBeforeAsync(t, LogArchive.MinuteText(t));
         }
 
         private async void BtnFaAllPeriod_Click(object sender, RoutedEventArgs e)
@@ -327,60 +335,102 @@ namespace ADBToolsNew
 
         private void FaTimeline_SizeChanged(object sender, SizeChangedEventArgs e) => DrawFaTimeline();
 
+        /// <summary>Largeur réservée à gauche de la frise pour le nom des couloirs.</summary>
+        private const double FaLaneLabelWidth = 96;
+
         private void DrawFaTimeline()
         {
             if (FaTimeline == null) return;
             FaTimeline.Children.Clear();
-            double w = FaTimeline.ActualWidth, h = FaTimeline.ActualHeight;
-            if (_faBuckets.Count == 0 || w < 10 || h < 10) { TxtFaTimelineFrom.Text = ""; TxtFaTimelineTo.Text = ""; return; }
+            _faHereRect = null; _faHereMark = null;
+            double W = FaTimeline.ActualWidth, h = FaTimeline.ActualHeight;
+            if (_faBuckets.Count == 0 || W < FaLaneLabelWidth + 20 || h < 30) { TxtFaTimelineFrom.Text = ""; TxtFaTimelineTo.Text = ""; return; }
+            double L = FaLaneLabelWidth, w = W - L;
+            int lanes = LogInsights.LaneCount;
+            double barsH = Math.Max(18, h * 0.42), laneH = (h - barsH - 4) / lanes;
             int maxLines = Math.Max(1, _faBuckets.Max(b => b.Lines)), maxErr = Math.Max(1, _faBuckets.Max(b => b.Errors));
             double bw = w / _faBuckets.Count;
             var okBrush = (Brush)FindResource("OkFg"); var badBrush = (Brush)FindResource("BadFg"); var warnBrush = (Brush)FindResource("WarnFg");
-            var brand = (Brush)FindResource("Brand");
+            var brand = (Brush)FindResource("Brand"); var muted = (Brush)FindResource("Muted"); var line = (Brush)FindResource("Line");
+            var info = (Brush)FindResource("InfoFg");
 
             if (_faFrom != int.MinValue)
             {
-                double x1 = MinuteToX(_faFrom, w), x2 = MinuteToX(_faTo + 1, w);
-                var r = new Rectangle { Width = Math.Max(2, x2 - x1), Height = h, Fill = brand, Opacity = 0.18 };
+                double x1 = MinuteToX(_faFrom, W), x2 = MinuteToX(_faTo + 1, W);
+                var r = new Rectangle { Width = Math.Max(2, x2 - x1), Height = h, Fill = brand, Opacity = 0.15 };
                 Canvas.SetLeft(r, x1); FaTimeline.Children.Add(r);
             }
+            // Lignes et erreurs
+            AddFaLabel(Loc.T("Lignes / erreurs"), 0, barsH, muted);
             for (int i = 0; i < _faBuckets.Count; i++)
             {
                 var b = _faBuckets[i];
+                double x = L + i * bw;
                 if (b.Lines > 0)
                 {
-                    double lh = Math.Max(1, h * Math.Sqrt(b.Lines / (double)maxLines));
+                    double lh = Math.Max(1, barsH * Math.Sqrt(b.Lines / (double)maxLines));
                     var r = new Rectangle { Width = Math.Max(1, bw - 1), Height = lh, Fill = okBrush, Opacity = 0.45 };
-                    Canvas.SetLeft(r, i * bw); Canvas.SetTop(r, h - lh); FaTimeline.Children.Add(r);
+                    Canvas.SetLeft(r, x); Canvas.SetTop(r, barsH - lh); FaTimeline.Children.Add(r);
                 }
                 if (b.Errors > 0)
                 {
-                    double eh = Math.Max(2, h * 0.85 * Math.Sqrt(b.Errors / (double)maxErr));
+                    double eh = Math.Max(2, barsH * 0.85 * Math.Sqrt(b.Errors / (double)maxErr));
                     var r = new Rectangle { Width = Math.Max(1, bw - 1), Height = eh, Fill = badBrush, Opacity = 0.8 };
-                    Canvas.SetLeft(r, i * bw); Canvas.SetTop(r, h - eh); FaTimeline.Children.Add(r);
+                    Canvas.SetLeft(r, x); Canvas.SetTop(r, barsH - eh); FaTimeline.Children.Add(r);
                 }
                 if (b.Incidents > 0)
                 {
-                    var l = new Line { X1 = i * bw + bw / 2, X2 = i * bw + bw / 2, Y1 = 0, Y2 = h, Stroke = warnBrush, StrokeThickness = 2 };
-                    FaTimeline.Children.Add(l);
+                    FaTimeline.Children.Add(new Line { X1 = x + bw / 2, X2 = x + bw / 2, Y1 = 0, Y2 = h, Stroke = warnBrush, StrokeThickness = 2 });
                     var tb = new TextBlock { Text = "⚠", Foreground = warnBrush, FontSize = 12, FontWeight = FontWeights.Bold };
-                    Canvas.SetLeft(tb, i * bw + bw / 2 + 2); Canvas.SetTop(tb, 0); FaTimeline.Children.Add(tb);
+                    Canvas.SetLeft(tb, x + bw / 2 + 2); Canvas.SetTop(tb, 0); FaTimeline.Children.Add(tb);
                 }
+            }
+            // Couloirs : un repère par tranche où le sujet apparaît (plus foncé = plus fréquent)
+            var names = LogInsights.LaneNames;
+            Brush[] laneBrush = { info, badBrush, warnBrush, (Brush)FindResource("BrandText"), warnBrush, badBrush };
+            for (int l = 0; l < lanes; l++)
+            {
+                double y = barsH + 4 + l * laneH;
+                FaTimeline.Children.Add(new Line { X1 = L, X2 = W, Y1 = y + laneH, Y2 = y + laneH, Stroke = line, StrokeThickness = 0.5 });
+                AddFaLabel(names[l], y, laneH, muted);
+                int maxLane = Math.Max(1, _faBuckets.Max(b => b.Lanes[l]));
+                for (int i = 0; i < _faBuckets.Count; i++)
+                {
+                    int n = _faBuckets[i].Lanes[l];
+                    if (n == 0) continue;
+                    var r = new Rectangle { Width = Math.Max(2, bw - 1), Height = Math.Max(3, laneH - 3), Fill = laneBrush[l], Opacity = 0.35 + 0.65 * Math.Sqrt(n / (double)maxLane), ToolTip = names[l] + " : " + n + " · " + LogArchive.MinuteText(_faBuckets[i].From) };
+                    Canvas.SetLeft(r, L + i * bw); Canvas.SetTop(r, y + 1.5); FaTimeline.Children.Add(r);
+                }
+            }
+            // Signets
+            foreach (var bm in _faBookmarks.Where(x => x.Entry != null && x.Entry.Minute >= 0))
+            {
+                double x = MinuteToX(bm.Entry.Minute, W);
+                FaTimeline.Children.Add(new Line { X1 = x, X2 = x, Y1 = 0, Y2 = barsH, Stroke = info, StrokeThickness = 2 });
+                var tb = new TextBlock { Text = "🔖", FontFamily = new FontFamily("Segoe UI Emoji"), FontSize = 10, ToolTip = bm.Note };
+                Canvas.SetLeft(tb, x - 6); Canvas.SetTop(tb, barsH - 14); FaTimeline.Children.Add(tb);
             }
             if (FaGrid.SelectedItem is FileLogEntry sel && sel.Minute >= 0)
             {
-                double x = MinuteToX(sel.Minute, w);
+                double x = MinuteToX(sel.Minute, W);
                 FaTimeline.Children.Add(new Line { X1 = x, X2 = x, Y1 = 0, Y2 = h, Stroke = (Brush)FindResource("Ink"), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 2 } });
             }
-            TxtFaTimelineFrom.Text = LogArchive.MinuteText(_faBuckets[0].From);
+            TxtFaTimelineFrom.Text = "          " + LogArchive.MinuteText(_faBuckets[0].From);
             TxtFaTimelineTo.Text = LogArchive.MinuteText(_faBuckets[_faBuckets.Count - 1].To);
 
             // « Vous êtes ici » : cadre sur la partie du relevé visible dans le tableau.
-            _faHereRect = new Rectangle { Height = h, Stroke = (Brush)FindResource("Ink"), StrokeThickness = 1.5, Fill = (Brush)FindResource("Brand"), Opacity = 0.35, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+            _faHereRect = new Rectangle { Height = h, Stroke = (Brush)FindResource("Ink"), StrokeThickness = 1.5, Fill = brand, Opacity = 0.3, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
             _faHereMark = new Polygon { Points = new PointCollection { new Point(-6, 0), new Point(6, 0), new Point(0, 8) }, Fill = (Brush)FindResource("Ink"), IsHitTestVisible = false, Visibility = Visibility.Collapsed };
             FaTimeline.Children.Add(_faHereRect);
             FaTimeline.Children.Add(_faHereMark);
             UpdateFaHere();
+        }
+
+        private void AddFaLabel(string text, double top, double height, Brush brush)
+        {
+            var tb = new TextBlock { Text = text, Foreground = brush, FontSize = Math.Min(10.5, Math.Max(8, height * 0.7)), Width = FaLaneLabelWidth - 6, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = text };
+            Canvas.SetLeft(tb, 0); Canvas.SetTop(tb, top + Math.Max(0, (height - tb.FontSize * 1.35) / 2));
+            FaTimeline.Children.Add(tb);
         }
 
         /// <summary>Met à jour le repère « vous êtes ici » (frise) et le texte de la zone affichée.</summary>
@@ -423,17 +473,19 @@ namespace ADBToolsNew
             if (changed) ScheduleFaZoneRefresh();
         }
 
-        private double MinuteToX(int minute, double w)
+        private double MinuteToX(int minute, double W)
         {
+            double L = FaLaneLabelWidth, w = Math.Max(1, W - L);
             int lo = _faBuckets[0].From, hi = _faBuckets[_faBuckets.Count - 1].To + 1;
-            return Math.Max(0, Math.Min(w, (minute - lo) / (double)Math.Max(1, hi - lo) * w));
+            return L + Math.Max(0, Math.Min(w, (minute - lo) / (double)Math.Max(1, hi - lo) * w));
         }
 
         private async void FaTimeline_Click(object sender, MouseButtonEventArgs e)
         {
             if (_faBuckets.Count == 0 || _faArchive == null) return;
-            double w = FaTimeline.ActualWidth;
-            int i = Math.Max(0, Math.Min(_faBuckets.Count - 1, (int)(e.GetPosition(FaTimeline).X / (w / _faBuckets.Count))));
+            double W = FaTimeline.ActualWidth, x = e.GetPosition(FaTimeline).X - FaLaneLabelWidth;
+            if (x < 0) return;
+            int i = Math.Max(0, Math.Min(_faBuckets.Count - 1, (int)(x / ((W - FaLaneLabelWidth) / _faBuckets.Count))));
             int minute = _faBuckets[i].From;
             if (_faFrom != int.MinValue && (minute < _faFrom || minute > _faTo))
             {
@@ -442,7 +494,7 @@ namespace ADBToolsNew
                 await ApplyFaFilterAsync();
                 return;
             }
-            int idx = _faView.FindIndex(x => x.Minute >= minute);
+            int idx = _faView.FindIndex(v => v.Minute >= minute);
             if (idx >= 0) ScrollFaTo(idx);
         }
 
@@ -453,6 +505,9 @@ namespace ADBToolsNew
             var sel = FaGrid.SelectedItem as FileLogEntry;
             BtnFaContext.IsEnabled = sel != null;
             BtnFaCopyLine.IsEnabled = sel != null;
+            BtnFaBefore.IsEnabled = sel != null && sel.Minute >= 0;
+            BtnFaBookmark.IsEnabled = sel != null;
+            BtnFaSignature.IsEnabled = sel != null;
             TxtFaDetail.Text = sel == null ? Loc.T("Sélectionnez une ligne pour voir le message complet.")
                 : $"{sel.Time}  [{sel.Source}]  {sel.PID}  {sel.Level}  {sel.Tag}\n{sel.Message}";
             DrawFaTimeline();
@@ -551,6 +606,7 @@ namespace ADBToolsNew
             var archive = _faArchive;
             var sources = archive.LogFiles.Any(f => !f.Included) ? new HashSet<int>(archive.LogFiles.Where(f => f.Included).Select(f => f.SourceId)) : null;
             int from = zone.Item1, to = zone.Item2;
+            var sigs = _faSignatures; var trends = _faTrends; var sessions = _faSessions;
             string label = LogArchive.MinuteText(from) + " → " + LogArchive.MinuteText(to).Substring(6);
             try
             {
@@ -558,7 +614,7 @@ namespace ADBToolsNew
                 {
                     var lines = archive.Range(from, to, sources);
                     cts.Token.ThrowIfCancellationRequested();
-                    return LogAnalyzer.Analyze(lines.Cast<LogEntry>().ToList(), archive.Title);
+                    return AnalyzeFa(archive, lines, from, to, sigs, trends, sessions);
                 }, cts.Token);
                 if (cts.IsCancellationRequested || archive != _faArchive) return;
                 ShowFaFindings(analysis, label);
@@ -608,6 +664,11 @@ namespace ADBToolsNew
             FaFilePanel.Visibility = RbFaFile.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             FaDevicePanel.Visibility = RbFaDevice.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             FaComparePanel.Visibility = RbFaCompare.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaBeforePanel.Visibility = RbFaBefore.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaAppPanel.Visibility = RbFaApp.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaSessionsPanel.Visibility = RbFaSessions.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaBookmarksPanel.Visibility = RbFaBookmarks.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            FaSignaturesPanel.Visibility = RbFaSignatures.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void FaOtherFilesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -741,6 +802,7 @@ namespace ADBToolsNew
                 Compare = _faCompareRows,
                 CompareText = _faCompareText,
                 AppVersion = AppUpdater.CurrentVersion.ToString(3),
+                Before = _faBefore, BeforeTitle = _faBeforeLabel, Sessions = _faSessions, App = _faAppLife, Bookmarks = _faBookmarks,
             };
             string path = dlg.FileName;
             try

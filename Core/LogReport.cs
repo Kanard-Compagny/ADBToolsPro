@@ -27,6 +27,11 @@ namespace ADBToolsNew.Core
             public string CompareText = "";
             public int MaxLines = 3000;
             public string AppVersion = "";
+            public IList<LogInsights.BeforeRow> Before;
+            public string BeforeTitle = "";
+            public IList<LogInsights.Session> Sessions;
+            public LogInsights.AppLife App;
+            public IList<LogInsights.Bookmark> Bookmarks;
         }
 
         private static string H(string s) => WebUtility.HtmlEncode(s ?? "");
@@ -111,6 +116,58 @@ namespace ADBToolsNew.Core
                 sb.Append("</article>");
             }
             sb.Append("</section>");
+
+            // Signets du technicien
+            if (o.Bookmarks != null && o.Bookmarks.Count > 0)
+            {
+                sb.Append("<section><h2>").Append(H(Loc.T("Signets du technicien"))).Append("</h2>");
+                foreach (var b in o.Bookmarks)
+                {
+                    sb.Append("<article class=\"finding info\"><div class=\"fh\"><span class=\"ico\">🔖</span><strong>").Append(H(b.Note.Length > 0 ? b.Note : Loc.T("(sans note)")))
+                      .Append("</strong><span class=\"count\">").Append(H(b.ShortTime)).Append("</span></div>");
+                    if (a != null && b.Entry != null)
+                    {
+                        sb.Append("<pre>");
+                        foreach (var x in a.Around(b.Entry.Index, 4, 4)) Line(sb, x, x == b.Entry);
+                        sb.Append("</pre>");
+                    }
+                    sb.Append("</article>");
+                }
+                sb.Append("</section>");
+            }
+
+            // Avant l'incident
+            if (o.Before != null && o.Before.Count > 0)
+            {
+                sb.Append("<section><h2>").Append(H(Loc.T("Avant l'incident"))).Append("</h2><p class=\"muted\">").Append(H(o.BeforeTitle)).Append("</p>")
+                  .Append("<table class=\"grid\"><tr><th></th><th>").Append(H(Loc.T("Heure"))).Append("</th><th>").Append(H(Loc.T("Tag"))).Append("</th><th>")
+                  .Append(H(Loc.T("Message"))).Append("</th><th>").Append(H(Loc.T("Détail"))).Append("</th></tr>");
+                foreach (var r in o.Before)
+                    sb.Append("<tr><td>").Append(r.Icon).Append(' ').Append(H(r.KindText)).Append("</td><td>").Append(H(r.ShortTime)).Append("</td><td>").Append(H(r.Tag))
+                      .Append("</td><td class=\"mono\">").Append(H(r.Text.Length > 220 ? r.Text.Substring(0, 220) + "…" : r.Text)).Append("</td><td>").Append(H(r.Detail)).Append("</td></tr>");
+                sb.Append("</table></section>");
+            }
+
+            // Vie de l'appli métier
+            if (o.App != null && o.App.Events.Count > 0)
+            {
+                sb.Append("<section><h2>").Append(H(Loc.F("Vie de l'application {0}", o.App.Package))).Append("</h2><p>").Append(H(o.App.Summary)).Append("</p>")
+                  .Append("<table class=\"grid\"><tr><th></th><th>").Append(H(Loc.T("Heure"))).Append("</th><th>").Append(H(Loc.T("Événement"))).Append("</th><th>").Append(H(Loc.T("Détail"))).Append("</th></tr>");
+                foreach (var ev in o.App.Events.Take(400))
+                    sb.Append("<tr><td>").Append(ev.Icon).Append("</td><td>").Append(H(ev.ShortTime)).Append("</td><td>").Append(H(ev.Text)).Append("</td><td class=\"mono\">").Append(H(ev.Detail)).Append("</td></tr>");
+                sb.Append("</table></section>");
+            }
+
+            // Sessions
+            if (o.Sessions != null && o.Sessions.Count > 1)
+            {
+                sb.Append("<section><h2>").Append(H(Loc.T("Redémarrages et sessions"))).Append("</h2><table class=\"grid\"><tr><th>#</th><th>").Append(H(Loc.T("Début"))).Append("</th><th>")
+                  .Append(H(Loc.T("Fin"))).Append("</th><th>").Append(H(Loc.T("Durée"))).Append("</th><th>").Append(H(Loc.T("Fin de session"))).Append("</th></tr>");
+                foreach (var s in o.Sessions)
+                    sb.Append("<tr><td>").Append(s.Icon).Append(' ').Append(s.Number).Append("</td><td>").Append(H(s.Start)).Append("</td><td>").Append(H(s.End)).Append("</td><td>")
+                      .Append(H(s.Duration)).Append("</td><td>").Append(H(s.EndCause)).Append("</td></tr>");
+                sb.Append("</table></section>");
+            }
 
             // Comparaison
             if (o.Compare != null && o.Compare.Count > 0)

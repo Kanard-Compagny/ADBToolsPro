@@ -63,6 +63,10 @@ namespace ADBToolsNew.Core
         }
         public bool HasSample => Sample.Count > 0;
         public string LinesLabel => Loc.T("Voir les lignes");
+        /// <summary>Mini-courbe des occurrences dans le relevé (géométrie « M x,y L… »), vide si inconnue.</summary>
+        public string TrendPath { get; set; } = "";
+        /// <summary>Ponctuel, régulier, en hausse, en baisse — et depuis quand.</summary>
+        public string TrendText { get; set; } = "";
         public string AppLabel => string.IsNullOrEmpty(App) ? "" : App;
 
         public static string ShortTime(string t)

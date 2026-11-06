@@ -863,6 +863,20 @@
                         </TextBlock.Style>
                     </TextBlock>
                     <TextBlock Text="{Binding TimeText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0"/>
+                    <!-- Tendance dans le relevé (page Analyse de fichiers) : mini-courbe + ponctuel / en hausse… -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding TrendText}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Border Background="{DynamicResource Surface2}" CornerRadius="3" Padding="3,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Path Data="{Binding TrendPath}" Stroke="{DynamicResource BrandText}" StrokeThickness="1.4" Width="140" Height="18" Stretch="None" SnapsToDevicePixels="False"/>
+                        </Border>
+                        <TextBlock Text="{Binding TrendText}" Foreground="{DynamicResource TextSecondary}" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="170"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -2227,7 +2241,7 @@
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button x:Name="BtnAnalyzeLogs" Content="🔎 Analyser maintenant" Click="BtnAnalyzeLogs_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Analyse toutes les lignes capturées (même celles masquées par les filtres)"/>
                                             <Button x:Name="BtnQuickLogAnalysis" Content="⚡ Analyse rapide du terminal" Click="BtnQuickLogAnalysis_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit le journal actuel du terminal (logcat -d) et l'analyse, sans lancer la capture en direct"/>
-                                            <Button x:Name="BtnOpenLogFile" Content="📂 Ouvrir un fichier" Click="BtnOpenLogFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvre et analyse un logcat enregistré (.txt, .log) ou un bugreport (.zip)"/>
+                                            <Button x:Name="BtnOpenLogFile" Content="📂 Ouvrir un fichier" Click="BtnOpenLogFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvre le fichier (logcat, bugreport, RxLogger) dans Analyse de fichiers"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -3626,7 +3640,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition x:Name="FaTimelineRow" Height="110" MinHeight="70"/>
+                                    <RowDefinition x:Name="FaTimelineRow" Height="200" MinHeight="90"/>
                                     <RowDefinition Height="8"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*" MinHeight="150"/>
@@ -3703,7 +3717,7 @@
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
                                         <Grid>
-                                            <TextBlock Text="Frise : nombre de lignes (vert) et d'erreurs (rouge) — cliquez pour vous placer à ce moment, ⚠️ = incident signalé depuis le terminal" FontSize="11" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,0,260,0"/>
+                                            <TextBlock Text="Frise : lignes (vert), erreurs (rouge), puis un couloir par sujet — cliquez pour vous placer à ce moment · ⚠️ incident · 🔖 signet" FontSize="11" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,0,260,0"/>
                                             <TextBlock x:Name="TxtFaHere" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrandText}" HorizontalAlignment="Right" ToolTip="Zone affichée dans le tableau (cadre sur la frise)"/>
                                         </Grid>
                                         <Canvas x:Name="FaTimeline" Grid.Row="1" Background="Transparent" ClipToBounds="True" MouseLeftButtonUp="FaTimeline_Click" SizeChanged="FaTimeline_SizeChanged" Cursor="Hand"/>
@@ -3823,17 +3837,16 @@
                                             </DataGrid>
                                             <!-- Ligne sélectionnée : message complet et contexte -->
                                             <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="10,8">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
+                                                <StackPanel>
                                                     <TextBox x:Name="TxtFaDetail" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="90" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Ink}" Text="Sélectionnez une ligne pour voir le message complet."/>
-                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                                        <Button x:Name="BtnFaContext" Content="🔍 Voir autour" Click="BtnFaContext_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,0,4" IsEnabled="False" ToolTip="Retirer la recherche et les filtres de niveau / tag / PID et afficher cette ligne au milieu des autres"/>
+                                                    <WrapPanel Margin="0,6,0,0">
+                                                        <Button x:Name="BtnFaContext" Content="🔍 Voir autour" Click="BtnFaContext_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" IsEnabled="False" ToolTip="Retirer la recherche et les filtres de niveau / tag / PID et afficher cette ligne au milieu des autres"/>
+                                                        <Button x:Name="BtnFaBefore" Content="🕵 Avant cette ligne" Click="BtnFaBefore_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" IsEnabled="False" ToolTip="Ce qui change dans les minutes qui précèdent cette ligne : messages jamais vus, pics, événements"/>
+                                                        <Button x:Name="BtnFaBookmark" Content="🔖 Signet" Click="BtnFaBookmark_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" IsEnabled="False" ToolTip="Marquer cette ligne avec une note (reprise dans le rapport)"/>
+                                                        <Button x:Name="BtnFaSignature" Content="⭐ Panne connue…" Click="BtnFaSignature_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" IsEnabled="False" ToolTip="Enregistrer ce message comme panne connue de l'équipe : il sera reconnu automatiquement dans les prochains relevés"/>
                                                         <Button x:Name="BtnFaCopyLine" Content="📋 Copier" Click="BtnFaCopyLine_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" IsEnabled="False"/>
-                                                    </StackPanel>
-                                                </Grid>
+                                                    </WrapPanel>
+                                                </StackPanel>
                                             </Border>
                                         </Grid>
                                     </Border>
@@ -3845,6 +3858,11 @@
                                                 <RadioButton x:Name="RbFaFindings" GroupName="FaPanel" Content="🔎 Constats" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
                                                 <RadioButton x:Name="RbFaFile" GroupName="FaPanel" Content="📄 Fichier" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
                                                 <RadioButton x:Name="RbFaDevice" GroupName="FaPanel" Content="📱 Terminal" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaBefore" GroupName="FaPanel" Content="🕵 Avant l'incident" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaApp" GroupName="FaPanel" Content="📲 Appli" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaSessions" GroupName="FaPanel" Content="🔄 Sessions" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaBookmarks" GroupName="FaPanel" Content="🔖 Signets" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
+                                                <RadioButton x:Name="RbFaSignatures" GroupName="FaPanel" Content="⭐ Pannes connues" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
                                                 <RadioButton x:Name="RbFaCompare" GroupName="FaPanel" Content="⚖️ Comparaison" Style="{StaticResource SettingsPillStyle}" Checked="FaPanel_Checked"/>
                                             </WrapPanel>
                                             <Grid>
@@ -3893,6 +3911,106 @@
                                                         <TextBlock x:Name="TxtFaDeviceEmpty" Text="Aucune information sur le terminal dans ce relevé." Foreground="{DynamicResource Muted}" Visibility="Collapsed"/>
                                                     </StackPanel>
                                                 </ScrollViewer>
+                                                <!-- Avant l'incident -->
+                                                <DockPanel x:Name="FaBeforePanel" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtFaBeforeSummary" DockPanel.Dock="Top" Text="« Aller à l'incident » ou « 🕵 Avant cette ligne » : ce qui change dans les minutes qui précèdent (messages jamais vus avant, pics de fréquence, événements marquants)." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
+                                                    <ListBox x:Name="FaBeforeList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,2,0,6">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
+                                                                        <TextBlock Text="{Binding KindText}" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                                        <TextBlock Text="{Binding ShortTime}" Foreground="{DynamicResource Muted}" Margin="8,0,0,0"/>
+                                                                        <TextBlock Text="{Binding Tag}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="11" Margin="8,1,0,0"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Text="{Binding Text}" Foreground="{DynamicResource Ink}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" MaxHeight="48" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                </DockPanel>
+                                                <!-- Vie de l'appli métier -->
+                                                <DockPanel x:Name="FaAppPanel" Visibility="Collapsed">
+                                                    <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
+                                                        <TextBlock Text="Application (les plus démarrées d'abord) :" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                        <ComboBox x:Name="CmbFaApp" Height="30" IsEditable="True" SelectionChanged="CmbFaApp_SelectionChanged" KeyDown="CmbFaApp_KeyDown"/>
+                                                        <TextBlock x:Name="TxtFaAppSummary" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                                    </StackPanel>
+                                                    <ListBox x:Name="FaAppList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,2,0,4">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" Width="20"/>
+                                                                        <TextBlock Text="{Binding ShortTime}" Foreground="{DynamicResource Muted}" Width="105"/>
+                                                                        <TextBlock Text="{Binding Text}" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="20,0,0,0" MaxHeight="34" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                </DockPanel>
+                                                <!-- Redémarrages et sessions -->
+                                                <DockPanel x:Name="FaSessionsPanel" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtFaSessionsSummary" DockPanel.Dock="Top" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
+                                                    <ListBox x:Name="FaSessionsList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,2,0,8">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
+                                                                        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource Ink}"><Run Text="Session "/><Run Text="{Binding Number, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Duration, Mode=OneWay}"/></TextBlock>
+                                                                    </StackPanel>
+                                                                    <TextBlock Foreground="{DynamicResource Muted}" FontSize="11"><Run Text="{Binding Start, Mode=OneWay}"/><Run Text=" → "/><Run Text="{Binding End, Mode=OneWay}"/></TextBlock>
+                                                                    <TextBlock Text="{Binding EndCause}" Foreground="{DynamicResource Ink}" FontSize="11" TextWrapping="Wrap"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                </DockPanel>
+                                                <!-- Signets du technicien -->
+                                                <DockPanel x:Name="FaBookmarksPanel" Visibility="Collapsed">
+                                                    <Grid DockPanel.Dock="Top" Margin="12,0,12,8">
+                                                        <TextBlock Text="Lignes marquées (🔖 Signet sous le tableau). Elles sont gardées pour ce relevé et reprises dans le rapport." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,110,0"/>
+                                                        <Button Content="🗑 Supprimer" Click="BtnFaDeleteBookmark_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                                    </Grid>
+                                                    <ListBox x:Name="FaBookmarksList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,2,0,8">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="🔖" FontFamily="Segoe UI Emoji" Margin="0,0,6,0"/>
+                                                                        <TextBlock Text="{Binding ShortTime}" Foreground="{DynamicResource Muted}" Margin="0,0,8,0"/>
+                                                                        <TextBlock Text="{Binding Note}" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" MaxWidth="250"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Foreground="{DynamicResource Muted}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"><Run Text="{Binding Tag, Mode=OneWay}"/><Run Text=": "/><Run Text="{Binding Message, Mode=OneWay}"/></TextBlock>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                </DockPanel>
+                                                <!-- Pannes connues de l'équipe -->
+                                                <DockPanel x:Name="FaSignaturesPanel" Visibility="Collapsed">
+                                                    <Grid DockPanel.Dock="Top" Margin="12,0,12,8">
+                                                        <TextBlock x:Name="TxtFaSignaturesInfo" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,110,0"/>
+                                                        <Button Content="🗑 Supprimer" Click="BtnFaDeleteSignature_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                                    </Grid>
+                                                    <ListBox x:Name="FaSignaturesList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="6,0,6,10">
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,2,0,8">
+                                                                    <TextBlock Text="{Binding Display}" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Diagnosis}" Foreground="{DynamicResource Ink}" FontSize="11" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Solution}" Foreground="{DynamicResource Muted}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Pattern}" Foreground="{DynamicResource BrandText}" FontFamily="Consolas" FontSize="10" TextWrapping="Wrap"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                </DockPanel>
                                                 <DockPanel x:Name="FaComparePanel" Visibility="Collapsed">
                                                     <TextBlock x:Name="TxtFaCompareSummary" DockPanel.Dock="Top" Text="« Comparer avec… » ouvre un second relevé (B) et liste les erreurs et avertissements propres à l'un des deux, ou bien plus fréquents (par heure). A = relevé ouvert." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
                                                     <DataGrid x:Name="FaCompareGrid" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="None" Background="Transparent" FontSize="11" Margin="6,0,6,10" SelectionChanged="FaCompareGrid_SelectionChanged">
@@ -3907,6 +4025,67 @@
                                                 </DockPanel>
                                             </Grid>
                                         </DockPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Saisie d'un signet -->
+                                <Grid x:Name="FaBookmarkOverlay" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Panel.ZIndex="50">
+                                    <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Width="520" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="22,18">
+                                        <StackPanel>
+                                            <TextBlock Text="🔖 Signet" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,6"/>
+                                            <TextBlock x:Name="TxtFaBookmarkLine" Foreground="{DynamicResource Muted}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" MaxHeight="60" Margin="0,0,0,10"/>
+                                            <TextBlock Text="Note" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtFaBookmarkNote" Height="60" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Padding="6"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                                                <Button Content="Annuler" Click="BtnFaBookmarkCancel_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button Content="🔖 Ajouter le signet" Click="BtnFaBookmarkOk_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Enregistrement d'une panne connue -->
+                                <Grid x:Name="FaSignatureOverlay" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Panel.ZIndex="50">
+                                    <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" Width="640" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="22,18">
+                                        <StackPanel>
+                                            <TextBlock Text="⭐ Enregistrer une panne connue" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,4"/>
+                                            <TextBlock x:Name="TxtFaSignatureWhere" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="170"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="Nom de la panne" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtFaSigTitle" Height="30" VerticalContentAlignment="Center" Padding="6,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Tag (vide = tous)" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtFaSigTag" Height="30" VerticalContentAlignment="Center" Padding="6,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="4">
+                                                    <TextBlock Text="Gravité" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmbFaSigSeverity" Height="30" SelectedIndex="0">
+                                                        <ComboBoxItem Content="❌ Problème" Tag="bad"/>
+                                                        <ComboBoxItem Content="⚠️ À surveiller" Tag="warn"/>
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Text="Message à reconnaître (expression régulière ; chiffres et adresses déjà remplacés par un joker)" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,10,0,4"/>
+                                            <TextBox x:Name="TxtFaSigPattern" Height="30" VerticalContentAlignment="Center" FontFamily="Consolas" Padding="6,0" TextChanged="TxtFaSigPattern_TextChanged"/>
+                                            <TextBlock x:Name="TxtFaSigTest" FontSize="11" Foreground="{DynamicResource BrandText}" Margin="0,4,0,0"/>
+                                            <TextBlock Text="Diagnostic (cause)" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,10,0,4"/>
+                                            <TextBox x:Name="TxtFaSigDiagnosis" Height="46" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Padding="6"/>
+                                            <TextBlock Text="Solution / que faire" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,10,0,4"/>
+                                            <TextBox x:Name="TxtFaSigSolution" Height="46" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Padding="6"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                                                <Button Content="Annuler" Click="BtnFaSignatureCancel_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                                                <Button Content="⭐ Enregistrer la panne" Click="BtnFaSignatureOk_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
                                     </Border>
                                 </Grid>
                             </Grid>

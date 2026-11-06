@@ -66,6 +66,9 @@ namespace ADBToolsNew.Core
                 }
             }
         }
+        /// <summary>Résumé d'un rapport ANR ou d'un tombstone (null pour les autres fichiers).</summary>
+        public LogInsights.AnnexSummary Annex { get; set; }
+
         public string SizeText => Size >= 1024 * 1024 ? (Size / 1048576.0).ToString("0.#", CultureInfo.CurrentCulture) + " Mo"
                                 : Size >= 1024 ? (Size / 1024.0).ToString("0", CultureInfo.CurrentCulture) + " Ko" : Size + " o";
         public string InfoText => IsLog
@@ -84,6 +87,8 @@ namespace ADBToolsNew.Core
         public int Minute { get; set; } = -1;
         /// <summary>Position dans le relevé complet (ordre chronologique).</summary>
         public int Index { get; set; }
+        /// <summary>Couloir de la frise (redémarrage, plantage, Wi-Fi…), -1 sinon — calculé une fois à l'ouverture.</summary>
+        public sbyte Lane { get; set; } = -1;
     }
 
     /// <summary>Critères de filtrage de la page d'analyse.</summary>
@@ -280,6 +285,7 @@ namespace ADBToolsNew.Core
                     Time = e.Time ?? "", PID = e.PID ?? "", Level = string.IsInterned(e.Level ?? "") ?? e.Level, Tag = it, Message = e.Message ?? "",
                     Source = f.Name, SourceId = f.SourceId, Minute = ToMinute(m.Key), Index = entries.Count,
                 });
+                entries[entries.Count - 1].Lane = (sbyte)LogInsights.LaneOf(entries[entries.Count - 1]);
             }
             Entries = entries;
             foreach (var p in parsed)
@@ -291,10 +297,28 @@ namespace ADBToolsNew.Core
             }
             foreach (var c in all.Where(c => c.Kind != ArchiveFileKind.Log && c.Kind != ArchiveFileKind.Recording && c.Kind != (ArchiveFileKind)(-1))
                                  .OrderBy(c => c.Kind).ThenBy(c => c.FullName, StringComparer.OrdinalIgnoreCase))
-                Files.Add(new ArchiveFile { Name = c.Name, FullName = c.FullName, Kind = c.Kind, Size = c.Size, Included = false });
+            {
+                var af = new ArchiveFile { Name = c.Name, FullName = c.FullName, Kind = c.Kind, Size = c.Size, Included = false };
+                if ((c.Kind == ArchiveFileKind.Anr || c.Kind == ArchiveFileKind.Tombstone) && c.Size < 8 * 1024 * 1024)
+                {
+                    try { af.Annex = LogInsights.Summarize(c.Kind, ReadPrefix(c.Open, 400 * 1024)); } catch { /* résumé facultatif */ }
+                }
+                Files.Add(af);
+            }
 
             ReadSnapshotProps(all);
             Note = skipped > 0 ? Loc.F("{0} journal(aux) plus ancien(s) non chargé(s) (limite de {1} lignes).", skipped, MaxLines.ToString("N0", CultureInfo.CurrentCulture)) : "";
+        }
+
+        private static string ReadPrefix(Func<Stream> open, int maxChars)
+        {
+            using (var s = open())
+            using (var r = new StreamReader(s, Encoding.UTF8, true))
+            {
+                var buf = new char[maxChars];
+                int n = r.ReadBlock(buf, 0, buf.Length);
+                return new string(buf, 0, n);
+            }
         }
 
         private static readonly HashSet<string> BinaryExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -519,6 +543,7 @@ namespace ADBToolsNew.Core
         public sealed class TimelineBucket
         {
             public int From, To, Lines, Errors, Incidents;
+            public int[] Lanes = new int[LogInsights.LaneCount];
         }
 
         /// <summary>
@@ -544,6 +569,7 @@ namespace ADBToolsNew.Core
                 t.Lines++;
                 if (e.Level == "E" || e.Level == "F") t.Errors++;
                 if (e.Tag == IncidentTag) t.Incidents++;
+                if (e.Lane >= 0) t.Lanes[e.Lane]++;
             }
             return result;
         }

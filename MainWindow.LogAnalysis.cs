@@ -124,41 +124,14 @@ namespace ADBToolsNew
             }
         }
 
-        private async void BtnOpenLogFile_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// « Ouvrir un fichier » de la page Logs : le fichier s'ouvre désormais dans « Analyse de fichiers », plus complète
+        /// (tous les journaux d'une archive, recherche, frise, constats, rapport).
+        /// </summary>
+        private void BtnOpenLogFile_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = Loc.T("Ouvrir un fichier de logs"),
-                Filter = Loc.T("Logs Android (*.txt;*.log;*.zip)|*.txt;*.log;*.zip|Tous les fichiers (*.*)|*.*"),
-                InitialDirectory = Directory.Exists(GetCaptureFolderPath()) ? GetCaptureFolderPath() : "",
-            };
-            if (dlg.ShowDialog(this) != true) return;
-            if (!await ConfirmReplaceLogsAsync()) return;
-
-            string path = dlg.FileName;
-            SetLogAnalysisBusy(true, BtnOpenLogFile, Loc.T("⏳ Lecture du fichier…"));
-            try
-            {
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📂 Lecture de {1}…", DateTime.Now, Path.GetFileName(path)));
-                var entries = await Task.Run(() => LogImport.LoadFile(path));
-                if (!string.IsNullOrEmpty(LogImport.LastImportNote))
-                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 {1}", DateTime.Now, LogImport.LastImportNote));
-                if (entries.Count == 0)
-                {
-                    await ShowCustomDialogAsync(Loc.T("📂 Ouvrir un fichier"), Loc.T("Ce fichier ne contient pas de lignes de log Android reconnues."), Loc.T("OK"), "", false);
-                    return;
-                }
-                LoadLogsIntoView(entries);
-                await RunLogAnalysisAsync(entries, Loc.F("Fichier {0}", Path.GetFileName(path)), Path.GetFileNameWithoutExtension(path));
-            }
-            catch (Exception ex)
-            {
-                await ShowCustomDialogAsync(Loc.T("📂 Ouvrir un fichier"), Loc.F("Lecture impossible : {0}", ex.Message), Loc.T("OK"), "", false);
-            }
-            finally
-            {
-                SetLogAnalysisBusy(false, BtnOpenLogFile, Loc.T("📂 Ouvrir un fichier"));
-            }
+            NavFileAnalysis_Click(null, null);
+            BtnFaOpenFile_Click(sender, e);
         }
 
         /// <summary>Le journal du terminal ou un fichier remplace l'affichage : la capture en direct est arrêtée.</summary>
