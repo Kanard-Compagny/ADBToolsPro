@@ -205,6 +205,20 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Scanner_TracesZebraNiveauENeSontPasDesErreurs()
+        {
+            var a = Run(
+@"11-06 10:13:55.000  2500  2500 E ScannerFramework: IMGKIT [ImgKitCWrapper::AttemptDecode] - 0 Time to decode: 20.04ms
+11-06 10:12:21.000  2500  2500 E ScannerFramework: [ScannerContext::UpdateTimer] Updating No decode timer to 180000
+11-06 10:13:56.000  2500  2500 E ScannerFramework: IMGKIT [ImgKitCWrapper::QueryData] Size of data - iIndex = 0, Size - 17
+11-06 10:12:21.000  2500  2500 E ScannerFramework: [ImagerControl::setInitParameters] ORIENTATION command SUCCESS
+11-06 10:12:31.000  2600  2600 E ScannerSDK: [InfoProxy::ConnectThreadProc::runInternal] Failed to connect to com.symbol.scanning.config");
+            var scan = a.Findings.Where(x => x.Category == LogAnalyzer.CatScanner).ToList();
+            Assert.AreEqual(1, scan.Count);
+            Assert.AreEqual("ScannerSDK", scan[0].App);
+        }
+
+        [TestMethod]
         public void Cible_ConcerneLApplicationEtSesProcessus()
         {
             var a = Run(Crash + "\n" +

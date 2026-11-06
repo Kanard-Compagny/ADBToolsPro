@@ -436,9 +436,13 @@ public class MainActivity extends Activity {
             i.putExtra(SurveyService.EXTRA_INTERVAL, parseInt(extras.get(SurveyService.EXTRA_INTERVAL), 1000));
             i.putExtra(SurveyService.EXTRA_DURATION, parseInt(extras.get(SurveyService.EXTRA_DURATION), 0));
         }
+        surveyStartRequestedAt = System.currentTimeMillis();
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
         showSurvey();
     }
+
+    /** Heure de la demande de démarrage : le service met un instant à démarrer, l'écran l'attend. */
+    private long surveyStartRequestedAt;
 
     private static int parseInt(Object o, int def) {
         if (o == null) return def;
@@ -475,6 +479,15 @@ public class MainActivity extends Activity {
 
     private void refreshSurvey() {
         SurveyService s = SurveyService.running;
+        if (s == null && System.currentTimeMillis() - surveyStartRequestedAt < 15000) {
+            // Service en cours de démarrage : on patiente (sans ça, l'écran restait sur « Mesure terminée »
+            // jusqu'à ce que l'appli soit remise au premier plan).
+            bigView.setText("…");
+            bigView.setTextColor(C_MUTED);
+            detailView.setText("⏳ Démarrage de la mesure… / Starting the survey…");
+            handler.postDelayed(surveyRefresh, 500);
+            return;
+        }
         if (s == null) {
             surveyButtons.setVisibility(View.GONE);
             if (titleView.getText().toString().startsWith("Mesure Wi-Fi")) {

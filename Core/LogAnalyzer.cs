@@ -185,6 +185,8 @@ namespace ADBToolsNew.Core
         // Journaux du système qui citent le lecteur sans qu'il soit en cause (suivi des processus, installation…).
         private static readonly Regex SystemTag = new Regex(@"^(?:ProcessStats|ActivityManager|ActivityTaskManager|PackageManager|PackageInstaller|ApkAssets|AppOps|BroadcastQueue|JobScheduler.*|WindowManager|InputMethodManagerService|Zygote|SELinux|audit|ndroid\..*|.*\.settings|ContentProvider.*|ActivityThread|ApplicationPackageManager)$", OI);
         private static readonly Regex ErrorWords = new Regex(@"error|fail|exception|not found|invalid|unable|timeout|timed out|denied|refused|cannot|can't", OI);
+        // Messages de réussite qui contiennent un mot d'erreur (« no error », « ERROR_NONE », « 0 failed »…).
+        private static readonly Regex SuccessWords = new Regex(@"\bsuccess(?:ful(?:ly)?)?\b|\bno error|error_none|errors?\s*[:=]\s*0\b|\b0 fail", OI);
         private static readonly Regex Digits = new Regex(@"0x[0-9a-fA-F]+|\d+", O);
 
         public static LogAnalysis Analyze(IList<LogEntry> entries, string source = "")
@@ -481,10 +483,15 @@ namespace ADBToolsNew.Core
                 bool scannerMsg = !scannerTag && isError && ScannerMsg.IsMatch(msg) && ErrorWords.IsMatch(msg) && !NotBarcode.IsMatch(tag);
                 if (isWarnOrError && (scannerTag || scannerMsg) && !SystemTag.IsMatch(tag))
                 {
+                    bool errorWord = ErrorWords.IsMatch(msg) && !SuccessWords.IsMatch(msg);
+                    // Le lecteur Zebra (ScannerFramework, IMGKIT…) journalise ses traces de routine au niveau E
+                    // (« Time to decode: 20 ms », « ORIENTATION command SUCCESS »…) : sans mot d'erreur, ce n'est
+                    // pas un problème.
+                    if (isError && !errorWord) continue;
                     string norm = Digits.Replace(msg.Trim(), "#");
                     if (norm.Length > 120) norm = norm.Substring(0, 120);
                     // Simple avertissement sans mot d'erreur (changement d'état…) : information, pas une alerte.
-                    var sev = isError ? FindingSeverity.Bad : ErrorWords.IsMatch(msg) ? FindingSeverity.Warn : FindingSeverity.Info;
+                    var sev = isError ? FindingSeverity.Bad : errorWord ? FindingSeverity.Warn : FindingSeverity.Info;
                     Add(map, "scan|" + lvl + "|" + tag + "|" + norm, i, e, CatScanner, 3, sev, () => new LogFinding
                     {
                         Title = sev == FindingSeverity.Bad ? Loc.T("Erreur du lecteur code-barres")
