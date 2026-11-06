@@ -370,14 +370,16 @@ namespace ADBToolsNew
             if (!_chainActive || !_devSession) return;
             while (_chainQueue.Count > 0)
             {
-                var it = _devItems.FirstOrDefault(i => i.Id == _chainQueue.Dequeue());
+                string nextId = _chainQueue.Dequeue(); // une seule fois (dans le prédicat, elle vidait la file)
+                var it = _devItems.FirstOrDefault(i => i.Id == nextId);
                 _chainIndex++;
                 if (it == null || !it.Available) continue;
                 _chainCurrent = it.Id;
                 DevTestsList.SelectedItem = it;
                 DevTestsList.ScrollIntoView(it);
                 SetDevStatus(Loc.F("Enchaînement : test {0} sur {1} — {2}. Validez sur le PC ou sur le terminal (✅ ⚠️ ❌ ⏭).", _chainIndex, _chainTotal, it.Name));
-                await RunDevTestAsync(it, $"{_chainIndex}/{_chainTotal}");
+                try { await RunDevTestAsync(it, $"{_chainIndex}/{_chainTotal}"); }
+                catch (Exception ex) { FinishChain(Loc.F("Enchaînement arrêté : {0}", ex.Message)); }
                 return;
             }
             FinishChain(Loc.F("Enchaînement terminé : {0} test(s) passés. Vérifiez les résultats puis « Reporter dans le diagnostic SAV ».", _chainTotal));

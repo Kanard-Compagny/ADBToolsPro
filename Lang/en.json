@@ -740,6 +740,7 @@
  "En-tête des rapports : société, coordonnées et logo": "Report header: company, contact details and logo",
  "En-tête, dossier et modèles des rapports remis aux clients (Diagnostic SAV et Analyse Wi-Fi).": "Header, folder and templates of the reports given to customers (service diagnostics and Wi-Fi analysis).",
  "Enchaînement : test {0} sur {1} — {2}. Validez sur le PC ou sur le terminal (✅ ⚠️ ❌ ⏭).": "Chain: test {0} of {1} — {2}. Confirm on the PC or on the device (✅ ⚠️ ❌ ⏭).",
+ "Enchaînement arrêté : {0}": "Chain stopped: {0}",
  "Enchaînement arrêté.": "Chain stopped.",
  "Enchaînement terminé : {0} test(s) passés. Vérifiez les résultats puis « Reporter dans le diagnostic SAV ».": "Chain finished: {0} test(s) run. Check the results then “Add to the SAV diagnostic”.",
  "English": "English",
