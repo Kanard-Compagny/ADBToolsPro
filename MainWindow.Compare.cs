@@ -27,7 +27,7 @@ namespace ADBToolsNew
             if (MainTabControl == null) return;
             MainTabControl.SelectedIndex = CompareTabIndex;
             UpdateNavButtonsUI(BtnNavCompare);
-            if (CmpLeftDevice.ItemsSource == null) await RefreshCompareDevicesAsync();
+            await RefreshCompareDevicesAsync(); // toujours à jour à l'ouverture de la page
         }
 
         private async void BtnCmpRefresh_Click(object sender, RoutedEventArgs e) => await RefreshCompareDevicesAsync();
@@ -37,27 +37,39 @@ namespace ADBToolsNew
             try
             {
                 var result = await _adbManager.ExecuteAsync("devices");
-                var devices = (result.IsSuccess ? ParseAdbDevices(result.StandardOutput) : new List<AndroidDevice>())
-                    .Where(d => d.State == "device").ToList();
-                string leftSerial = (CmpLeftDevice.SelectedItem as AndroidDevice)?.Serial
-                                    ?? (DeviceComboBox.SelectedItem as AndroidDevice)?.Serial;
-                string rightSerial = (CmpRightDevice.SelectedItem as AndroidDevice)?.Serial;
-
-                CmpLeftDevice.ItemsSource = devices;
-                CmpRightDevice.ItemsSource = devices;
-                CmpLeftDevice.SelectedItem = devices.FirstOrDefault(d => d.Serial == leftSerial) ?? devices.FirstOrDefault();
-                var left = CmpLeftDevice.SelectedItem as AndroidDevice;
-                CmpRightDevice.SelectedItem = devices.FirstOrDefault(d => d.Serial == rightSerial && d.Serial != left?.Serial)
-                                              ?? devices.FirstOrDefault(d => d.Serial != left?.Serial);
-
-                TxtCmpStatus.Text = devices.Count == 0
-                    ? Loc.T("Aucun terminal connecté (ADB autorisé).")
-                    : Loc.F("{0} terminal(aux) connecté(s).", devices.Count);
+                SyncCompareDevices(result.IsSuccess ? ParseAdbDevices(result.StandardOutput) : new List<AndroidDevice>());
             }
             catch (Exception ex)
             {
                 TxtCmpStatus.Text = Loc.F("Lecture des terminaux impossible : {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Listes du comparateur mises à jour (appelé aussi par la surveillance des branchements) : seuls les
+        /// terminaux autorisés sont comparables ; les autres sont signalés avec leur état.
+        /// </summary>
+        private void SyncCompareDevices(List<AndroidDevice> all)
+        {
+            if (CmpLeftDevice == null) return;
+            var devices = (all ?? new List<AndroidDevice>()).Where(d => d.State == "device").ToList();
+            string leftSerial = (CmpLeftDevice.SelectedItem as AndroidDevice)?.Serial
+                                ?? (DeviceComboBox.SelectedItem as AndroidDevice)?.Serial;
+            string rightSerial = (CmpRightDevice.SelectedItem as AndroidDevice)?.Serial;
+
+            CmpLeftDevice.ItemsSource = devices;
+            CmpRightDevice.ItemsSource = devices;
+            CmpLeftDevice.SelectedItem = devices.FirstOrDefault(d => d.Serial == leftSerial) ?? devices.FirstOrDefault();
+            var left = CmpLeftDevice.SelectedItem as AndroidDevice;
+            CmpRightDevice.SelectedItem = devices.FirstOrDefault(d => d.Serial == rightSerial && d.Serial != left?.Serial)
+                                          ?? devices.FirstOrDefault(d => d.Serial != left?.Serial);
+
+            var blocked = (all ?? new List<AndroidDevice>()).Where(d => d.State != "device" && !string.IsNullOrEmpty(d.State)).ToList();
+            string status = devices.Count == 0 ? Loc.T("Aucun terminal connecté (ADB autorisé).") : Loc.F("{0} terminal(aux) connecté(s).", devices.Count);
+            if (blocked.Count > 0)
+                status += " " + Loc.F("Non utilisable(s) : {0} — acceptez l'autorisation de débogage USB sur le terminal.",
+                    string.Join(", ", blocked.Select(d => $"{d.Serial} ({d.State})")));
+            TxtCmpStatus.Text = status;
         }
 
         private void CmpMode_Checked(object sender, RoutedEventArgs e)

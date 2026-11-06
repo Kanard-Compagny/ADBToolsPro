@@ -688,6 +688,7 @@ namespace ADBToolsNew
                                     AppendConsole(Loc.F("\n[{0:HH:mm:ss}] [WATCHER] Appareils débranchés.", DateTime.Now));
                                 }
                                 _isRefreshingDeviceList = false;
+                                SyncCompareDevices(currentDevices); // comparateur : terminal branché ou débranché pris en compte aussitôt
                                 if (ConsoleOutput.Parent is System.Windows.Controls.ScrollViewer scrollViewer) scrollViewer.ScrollToEnd();
                             });
                         }
@@ -943,6 +944,7 @@ namespace ADBToolsNew
                             var emptyList = new List<AndroidDevice> { new AndroidDevice { Serial = "Aucun appareil détecté...", State = "" } };
                             DeviceComboBox.ItemsSource = emptyList; DeviceComboBox.SelectedIndex = 0;
                         }
+                        SyncCompareDevices(currentDevices);
                         _isRefreshingDeviceList = false;
                     }
                 });

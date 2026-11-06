@@ -1104,6 +1104,7 @@
  "Non disponible (restreint par Android/OEM sur ce terminal)": "Not available (restricted by Android/OEM on this device)",
  "Non disponible sur ce terminal.": "Not available on this device.",
  "Non testé": "Not tested",
+ "Non utilisable(s) : {0} — acceptez l'autorisation de débogage USB sur le terminal.": "Not usable: {0} — accept the USB debugging authorisation on the device.",
  "Notification": "Notification",
  "Nouveau Dossier": "New folder",
  "Nouveau test : réinitialise entièrement le diagnostic (statuts et commentaires Auto + Manuel, grille tactile, journal des touches). Le terminal sélectionné n'est pas affecté.": "New test: fully resets the diagnostics (auto + manual statuses and comments, touch grid, key log). The selected device is not affected.",
