@@ -55,15 +55,15 @@ namespace ADBToolsNew.Tests
                 // Aller à l'incident : 9h07 ± 1 min.
                 int t = a.ParseIncidentTime("9h07");
                 Assert.AreEqual(LogArchive.ToMinute("11-05 09:07:00.000"), t);
-                var win = a.Filter(new LogFilter { FromMinute = t - 1, ToMinute = t + 1 });
+                var win = a.Filter(new ArchiveFilter { FromMinute = t - 1, ToMinute = t + 1 });
                 CollectionAssert.AreEqual(new[] { "ScannerFramework", "Recent", "AndroidRuntime" }, win.Select(e => e.Tag).ToArray());
 
                 // Filtres combinés.
-                Assert.AreEqual(1, a.Filter(new LogFilter { Text = "null FRAME" }).Count);
-                Assert.AreEqual(2, a.Filter(new LogFilter { Levels = new System.Collections.Generic.HashSet<string> { "E" } }).Count);
-                Assert.AreEqual(2, a.Filter(new LogFilter { Text = "^(incident|après)", Regex = true }).Count);
-                Assert.AreEqual(2, a.Filter(new LogFilter { Pid = "200" }).Count);
-                Assert.AreEqual(1, a.Filter(new LogFilter { Sources = new System.Collections.Generic.HashSet<int> { a.Files.First(f => f.Name == "Crash0.txt").SourceId } }).Count);
+                Assert.AreEqual(1, a.Filter(new ArchiveFilter { Text = "null FRAME" }).Count);
+                Assert.AreEqual(2, a.Filter(new ArchiveFilter { Levels = new System.Collections.Generic.HashSet<string> { "E" } }).Count);
+                Assert.AreEqual(2, a.Filter(new ArchiveFilter { Text = "^(incident|après)", Regex = true }).Count);
+                Assert.AreEqual(2, a.Filter(new ArchiveFilter { Pid = "200" }).Count);
+                Assert.AreEqual(1, a.Filter(new ArchiveFilter { Sources = new System.Collections.Generic.HashSet<int> { a.Files.First(f => f.Name == "Crash0.txt").SourceId } }).Count);
                 Assert.AreEqual("05/11 09:07", LogArchive.MinuteText(t));
                 Assert.IsTrue(a.Timeline(a.Entries).Sum(b => b.Lines) >= 4);
             }

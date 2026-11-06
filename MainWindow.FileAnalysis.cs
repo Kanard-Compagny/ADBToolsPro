@@ -171,9 +171,9 @@ namespace ADBToolsNew
 
         private void FaSource_Changed(object sender, RoutedEventArgs e) => FaFilter_Changed(sender, e);
 
-        private LogFilter BuildFaFilter()
+        private ArchiveFilter BuildFaFilter()
         {
-            var f = new LogFilter
+            var f = new ArchiveFilter
             {
                 Text = TxtFaSearch.Text ?? "",
                 Regex = TglFaRegex.IsChecked == true,

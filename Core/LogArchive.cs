@@ -87,7 +87,7 @@ namespace ADBToolsNew.Core
     }
 
     /// <summary>Critères de filtrage de la page d'analyse.</summary>
-    public sealed class LogFilter
+    public sealed class ArchiveFilter
     {
         public string Text = "";
         public bool Regex;
@@ -461,7 +461,7 @@ namespace ADBToolsNew.Core
         // ------------------------------------------------------------------ Filtrage
 
         /// <summary>Lignes qui passent le filtre (dans l'ordre chronologique). Lève ArgumentException si la regex est invalide.</summary>
-        public List<FileLogEntry> Filter(LogFilter f, CancellationToken ct = default(CancellationToken))
+        public List<FileLogEntry> Filter(ArchiveFilter f, CancellationToken ct = default(CancellationToken))
         {
             if (f == null || f.IsEmpty) return Entries;
             Regex rx = null;
