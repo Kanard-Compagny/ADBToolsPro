@@ -219,6 +219,22 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Scanner_VraiePanneToujoursSignalee()
+        {
+            var a = Run(
+@"11-06 10:20:00.000  2500  2500 E ScannerFramework: IMGKIT [ImgKitCWrapper::AttemptDecode] - 0 Time to decode: 20.04ms
+11-06 10:20:01.000  2500  2500 E ScannerFramework: [ScannerContext::Enable] Imager not responding, aborting
+11-06 10:20:02.000  2500  2500 E ScannerFramework: [ImagerControl::Open] camera device is already in use
+11-06 10:20:03.000  2500  2500 W ScannerFramework: Scan engine reset requested
+11-06 10:20:04.000  2700  2700 E DataWedge: Scanner initialization failed");
+            var scan = a.Findings.Where(x => x.Category == LogAnalyzer.CatScanner).ToList();
+            Assert.AreEqual(4, scan.Count);
+            Assert.IsFalse(scan.Any(x => x.Detail.Contains("Time to decode")));
+            Assert.AreEqual(FindingSeverity.Warn, scan.Single(x => x.Detail.Contains("reset")).Severity);
+            Assert.AreEqual(3, scan.Count(x => x.Severity == FindingSeverity.Bad));
+        }
+
+        [TestMethod]
         public void Cible_ConcerneLApplicationEtSesProcessus()
         {
             var a = Run(Crash + "\n" +

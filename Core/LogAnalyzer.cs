@@ -185,6 +185,9 @@ namespace ADBToolsNew.Core
         // Journaux du système qui citent le lecteur sans qu'il soit en cause (suivi des processus, installation…).
         private static readonly Regex SystemTag = new Regex(@"^(?:ProcessStats|ActivityManager|ActivityTaskManager|PackageManager|PackageInstaller|ApkAssets|AppOps|BroadcastQueue|JobScheduler.*|WindowManager|InputMethodManagerService|Zygote|SELinux|audit|ndroid\..*|.*\.settings|ContentProvider.*|ActivityThread|ApplicationPackageManager)$", OI);
         private static readonly Regex ErrorWords = new Regex(@"error|fail|exception|not found|invalid|unable|timeout|timed out|denied|refused|cannot|can't", OI);
+        // Signes de panne propres au lecteur, même sans le mot « error » : moteur qui ne répond plus, qui s'arrête
+        // ou se réinitialise (cas typique : un éclair à l'ouverture puis plus aucune lecture).
+        private static readonly Regex ScannerTrouble = new Regex(@"abort|fault|not (?:ready|respond\w*|available|connected|initiali[sz]ed|supported)|no response|unavailable|disconnect|\blost\b|stuck|hang|\breset\b|re-?init|deinit|died|dead|closed unexpectedly|not opened|already in use|busy", OI);
         // Messages de réussite qui contiennent un mot d'erreur (« no error », « ERROR_NONE », « 0 failed »…).
         private static readonly Regex SuccessWords = new Regex(@"\bsuccess(?:ful(?:ly)?)?\b|\bno error|error_none|errors?\s*[:=]\s*0\b|\b0 fail", OI);
         private static readonly Regex Digits = new Regex(@"0x[0-9a-fA-F]+|\d+", O);
@@ -483,7 +486,7 @@ namespace ADBToolsNew.Core
                 bool scannerMsg = !scannerTag && isError && ScannerMsg.IsMatch(msg) && ErrorWords.IsMatch(msg) && !NotBarcode.IsMatch(tag);
                 if (isWarnOrError && (scannerTag || scannerMsg) && !SystemTag.IsMatch(tag))
                 {
-                    bool errorWord = ErrorWords.IsMatch(msg) && !SuccessWords.IsMatch(msg);
+                    bool errorWord = (ErrorWords.IsMatch(msg) || ScannerTrouble.IsMatch(msg)) && !SuccessWords.IsMatch(msg);
                     // Le lecteur Zebra (ScannerFramework, IMGKIT…) journalise ses traces de routine au niveau E
                     // (« Time to decode: 20 ms », « ORIENTATION command SUCCESS »…) : sans mot d'erreur, ce n'est
                     // pas un problème.
