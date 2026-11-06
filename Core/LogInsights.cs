@@ -376,7 +376,17 @@ namespace ADBToolsNew.Core
             for (int i = 0; i < a.Entries.Count; i++)
             {
                 var e = a.Entries[i];
-                if (IsBoot(e)) { if (boots.Count == 0 || i - boots[boots.Count - 1] > 50) boots.Add(i); }
+                if (IsBoot(e))
+                {
+                    // Un même démarrage est noté par plusieurs marqueurs proches (boot_progress_start, SystemServer).
+                    bool same = false;
+                    if (boots.Count > 0)
+                    {
+                        var p = a.Entries[boots[boots.Count - 1]];
+                        same = i - boots[boots.Count - 1] < 2000 && (p.Minute < 0 || e.Minute < 0 || Math.Abs(e.Minute - p.Minute) <= 2);
+                    }
+                    if (!same) boots.Add(i);
+                }
                 else if (e.Tag == "ShutdownThread" && ShutdownMsg.IsMatch(e.Message ?? ""))
                 {
                     var m = ReasonRx.Match(e.Message ?? "");
