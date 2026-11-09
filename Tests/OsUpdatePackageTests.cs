@@ -70,6 +70,32 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void OlderVersion_IsBlockedUnlessDowngradePackage()
+        {
+            long deviceUtc = 1786976676; // terminal plus récent que le paquet
+            var normal = OsUpdatePackage.FromMetadata("pre-device=TC58\npost-build=" + Fp13 + "\npost-timestamp=1760000000");
+            var r = normal.Check(new System.Collections.Generic.List<string> { "TC58" }, Fp14, deviceUtc);
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, r.Result);
+            StringAssert.Contains(r.Message, "downgrade");
+
+            var down = OsUpdatePackage.FromMetadata("pre-device=TC58\npost-build=" + Fp13 + "\npost-timestamp=1760000000\nota-downgrade=yes");
+            Assert.IsTrue(down.Wipes);
+            Assert.AreEqual(OsUpdatePackage.Fit.Downgrade, down.Check(new System.Collections.Generic.List<string> { "TC58" }, Fp14, deviceUtc).Result);
+
+            // Paquet plus récent que le terminal : rien à signaler.
+            Assert.AreEqual(OsUpdatePackage.Fit.Ok, normal.Check(new System.Collections.Generic.List<string> { "TC58" }, Fp14, 1700000000).Result);
+        }
+
+        [TestMethod]
+        public void ManifestBuildDate_IsUsedWhenNoTimestamp()
+        {
+            var p = OsUpdatePackage.FromMetadata("");
+            p.ApplyDeviceManifest("<Properties><product><ro.product.name value=\"TC53,TC58\"/></product><build><ro.build.date.utc value=\"1760000000\"/></build></Properties>");
+            Assert.AreEqual(1760000000, p.PostTimestamp);
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, p.Check(new System.Collections.Generic.List<string> { "TC53" }, Fp14, 1786976676).Result);
+        }
+
+        [TestMethod]
         public void AlreadyAtTargetVersion_IsReported()
         {
             var p = OsUpdatePackage.FromMetadata("pre-device=TC58\npost-build=" + Fp14);

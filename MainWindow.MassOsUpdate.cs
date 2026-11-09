@@ -36,6 +36,8 @@ namespace ADBToolsNew
             public string Method = "";
             public DateTime? Started, Ended;
             public int Battery = -1;
+            public long BuildUtc;
+            public bool Wipe;
             public bool Selectable;
             public string Outcome = "";   // ok, warn, bad ou vide (pas lancé)
             public string Message = "";
@@ -68,9 +70,6 @@ namespace ADBToolsNew
             TxtMassOsIntro.Text = Loc.T(MassOsCopyMode ? MassOsIntroCopy : MassOsIntroSideload);
             RefreshMassOsFit();
         }
-
-        // Renvoi depuis la page Outils avancés.
-        private void BtnMassOsOpen_Click(object sender, RoutedEventArgs e) => NavOsUpdate_Click(sender, e);
 
         private async void NavOsUpdate_Click(object sender, RoutedEventArgs e)
         {
@@ -164,6 +163,7 @@ namespace ADBToolsNew
                 string P(string k) => props.TryGetValue(k, out var v) ? v : "";
                 row.Model = P("ro.product.model"); row.Fingerprint = P("ro.build.fingerprint"); row.DisplayId = P("ro.build.display.id");
                 row.DeviceIds = OsUpdatePackage.DeviceIdsFrom(props);
+                long.TryParse(P("ro.build.date.utc"), out row.BuildUtc);
                 row.Battery = OsUpdatePackage.ParseBatteryLevel(s[1]);
             }
             catch { /* terminal qui ne répond pas : il reste listé, sans détails */ }
@@ -214,6 +214,7 @@ namespace ADBToolsNew
             {
                 if (r.Outcome.Length > 0) { r.Outcome = ""; r.Bar.Visibility = Visibility.Collapsed; }
                 string msg; string brush = "Muted"; bool selectable = true; bool checkByDefault = true;
+                r.Wipe = false;
                 switch (r.State)
                 {
                     case "device":
@@ -222,9 +223,12 @@ namespace ADBToolsNew
                         { msg = Loc.F("Batterie trop faible ({0} %) : à charger avant la mise à jour", r.Battery); brush = "WarnFg"; selectable = false; }
                         else if (_massOsPackage != null)
                         {
-                            var (fit, why) = _massOsPackage.Check(r.DeviceIds, r.Fingerprint);
+                            var (fit, why) = _massOsPackage.Check(r.DeviceIds, r.Fingerprint, r.BuildUtc);
                             if (fit == OsUpdatePackage.Fit.Blocked) { msg = why; brush = "BadFg"; selectable = false; }
                             else if (fit == OsUpdatePackage.Fit.AlreadyThere) { msg = why; checkByDefault = false; }
+                            // Retour arrière : jamais coché d'office, le technicien le choisit en connaissance de cause.
+                            else if (fit == OsUpdatePackage.Fit.Downgrade) { msg = "⚠️ " + why; brush = "WarnFg"; checkByDefault = false; }
+                            r.Wipe = fit == OsUpdatePackage.Fit.Downgrade || _massOsPackage.Wipes;
                         }
                         break;
                     case "sideload":
@@ -271,9 +275,13 @@ namespace ADBToolsNew
             string file = _massOsPackage.FilePath;
             if (!System.IO.File.Exists(file)) { TxtMassOsPackage.Text = Loc.T("Le paquet n'est plus à cet emplacement : choisissez-le à nouveau."); return; }
 
+            int wiped = rows.Count(r => r.Wipe);
+            string wipeWarning = wiped > 0
+                ? Loc.F("\n\n⚠️ {0} terminal(aux) seront EFFACÉS par ce paquet (retour à une version antérieure ou effacement demandé par le fabricant) : applications, réglages et données perdus.", wiped)
+                : "";
             bool ok = await ShowCustomDialogAsync(Loc.T("⚠️ Mise à jour OS"),
-                Loc.F("{0} terminal(aux) vont recevoir {1}.\n\nPendant la mise à jour, ne débranchez aucun terminal et ne fermez pas ADB Tools. Les terminaux redémarrent plusieurs fois ; l'installation peut durer de 5 à 20 minutes.\n\nLancer la mise à jour ?",
-                      rows.Count, System.IO.Path.GetFileName(file)),
+                Loc.F("{0} terminal(aux) vont recevoir {1}.{2}\n\nPendant la mise à jour, ne débranchez aucun terminal et ne fermez pas ADB Tools. Les terminaux redémarrent plusieurs fois ; l'installation peut durer de 5 à 20 minutes.\n\nLancer la mise à jour ?",
+                      rows.Count, System.IO.Path.GetFileName(file), wipeWarning),
                 Loc.T("Lancer la mise à jour"), Loc.T("Annuler"), true);
             if (!ok) return;
 

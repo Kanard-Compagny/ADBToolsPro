@@ -24,6 +24,12 @@ namespace ADBToolsNew.Core
         public List<string> PreBuilds { get; private set; } = new List<string>();
         public string PostBuild { get; private set; } = "";
         public string OtaType { get; private set; } = "";
+        /// <summary>Date de construction de la version obtenue (secondes Unix, « post-timestamp » ou ro.build.date.utc du manifeste), 0 si inconnue.</summary>
+        public long PostTimestamp { get; private set; }
+        /// <summary>Paquet de retour à une version antérieure (« ota-downgrade=yes ») : Android l'accepte mais efface le terminal.</summary>
+        public bool AllowsDowngrade { get; private set; }
+        /// <summary>Le paquet efface les données du terminal (« ota-wipe=yes » ou retour arrière).</summary>
+        public bool Wipes { get; private set; }
         /// <summary>Modèles listés par le DeviceManifest.xml des paquets Zebra (ro.product.name), vide sinon.</summary>
         public List<string> ManifestModels { get; private set; } = new List<string>();
 
@@ -66,6 +72,11 @@ namespace ADBToolsNew.Core
                     .SelectMany(e => ((string)e.Attribute("value") ?? "").Split(','))
                     .Select(v => v.Trim()).Where(v => v.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (PostTimestamp == 0)
+                {
+                    var date = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "ro.build.date.utc");
+                    if (date != null && long.TryParse((string)date.Attribute("value"), out var t)) PostTimestamp = t;
+                }
             }
             catch { ManifestModels = new List<string>(); }
         }
@@ -84,6 +95,9 @@ namespace ADBToolsNew.Core
             PreBuilds = SplitList(map, "pre-build");
             PostBuild = map.TryGetValue("post-build", out var pb) ? pb : "";
             OtaType = map.TryGetValue("ota-type", out var ot) ? ot : "";
+            if (map.TryGetValue("post-timestamp", out var ts) && long.TryParse(ts, out var t)) PostTimestamp = t;
+            AllowsDowngrade = map.TryGetValue("ota-downgrade", out var dg) && dg.Equals("yes", StringComparison.OrdinalIgnoreCase);
+            Wipes = AllowsDowngrade || (map.TryGetValue("ota-wipe", out var wp) && wp.Equals("yes", StringComparison.OrdinalIgnoreCase));
         }
 
         private static List<string> SplitList(Dictionary<string, string> map, string key) =>
@@ -99,6 +113,8 @@ namespace ADBToolsNew.Core
             if (PreDevices.Count > 0) parts.Add(Loc.F("pour {0}", string.Join(", ", PreDevices)));
             if (ManifestModels.Count > 0) parts.Add(Loc.F("{0} modèles listés par le fabricant", ManifestModels.Count));
             parts.Add(IsIncremental ? Loc.T("mise à jour différentielle (depuis une version précise)") : Loc.T("mise à jour complète"));
+            if (AllowsDowngrade) parts.Add(Loc.T("retour arrière autorisé (efface le terminal)"));
+            else if (Wipes) parts.Add(Loc.T("efface les données du terminal"));
             if (PostBuild.Length > 0) parts.Add(Loc.F("version obtenue : {0}", ShortBuild(PostBuild)));
             return string.Join(" — ", parts);
         }
@@ -111,7 +127,7 @@ namespace ADBToolsNew.Core
             return parts.Length >= 5 ? parts[3] : fingerprint;
         }
 
-        public enum Fit { Ok, AlreadyThere, Blocked }
+        public enum Fit { Ok, AlreadyThere, Downgrade, Blocked }
 
         /// <summary>
         /// Propriétés où un terminal peut porter le nom visé par « pre-device ». Les constructeurs ne visent pas tous
@@ -138,7 +154,10 @@ namespace ADBToolsNew.Core
         /// Le paquet convient-il à ce terminal ? <paramref name="deviceIds"/> : ses noms possibles (voir
         /// <see cref="DeviceIdsFrom"/>), le premier servant dans le message ; <paramref name="fingerprint"/> = ro.build.fingerprint.
         /// </summary>
-        public (Fit Result, string Message) Check(IList<string> deviceIds, string fingerprint)
+        public (Fit Result, string Message) Check(IList<string> deviceIds, string fingerprint) => Check(deviceIds, fingerprint, 0);
+
+        /// <param name="deviceBuildUtc">ro.build.date.utc du terminal : sert à repérer un retour à une version plus ancienne.</param>
+        public (Fit Result, string Message) Check(IList<string> deviceIds, string fingerprint, long deviceBuildUtc)
         {
             if (!HasMetadata && ManifestModels.Count == 0) return (Fit.Ok, "");
             deviceIds = deviceIds ?? new List<string>();
@@ -154,6 +173,12 @@ namespace ADBToolsNew.Core
                 (string.Equals(PostBuild, fingerprint, StringComparison.Ordinal) ||
                  string.Equals(ShortBuild(PostBuild), ShortBuild(fingerprint), StringComparison.Ordinal)))
                 return (Fit.AlreadyThere, Loc.T("Déjà à cette version"));
+            // Version plus ancienne que celle du terminal : Android refuse le retour arrière (protection contre
+            // la réinstallation d'une version vulnérable), sauf paquet de « downgrade » du fabricant, qui efface tout.
+            if (PostTimestamp > 0 && deviceBuildUtc > 0 && PostTimestamp < deviceBuildUtc)
+                return AllowsDowngrade
+                    ? (Fit.Downgrade, Loc.T("Retour à une version antérieure : ce paquet efface le terminal (applications et données)"))
+                    : (Fit.Blocked, Loc.T("Version plus ancienne que celle du terminal : Android refuse le retour arrière. Il faut le paquet de « downgrade » du fabricant (il efface le terminal)."));
             if (IsIncremental && !string.IsNullOrEmpty(fingerprint) &&
                 !PreBuilds.Any(b => b == fingerprint || ShortBuild(b) == ShortBuild(fingerprint)))
                 return (Fit.Blocked, Loc.F("Mise à jour différentielle prévue depuis {0}", string.Join(", ", PreBuilds.Select(ShortBuild).Distinct())));

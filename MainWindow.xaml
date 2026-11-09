@@ -1995,6 +1995,8 @@
 
                                     <StackPanel Grid.Column="0" Margin="0,0,10,0">
 
+                                        <!-- Colonne gauche : piloter le terminal (boutons, états, extraction de l'écran).
+                                             Colonne droite : réglages d'affichage et de son. La mise à jour OS a sa page. -->
                                         <TextBlock Text="Simulation &amp; Contrôle" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
@@ -2050,8 +2052,21 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <TextBlock Text="Affichage &amp; Interface" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
+                                        <TextBlock Text="Extracteur XML" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Style="{StaticResource CardGlowStyle}">
+                                            <StackPanel>
+                                                <TextBlock Text="🔎 Extracteur XML (UI Automator)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                                <TextBlock Text="Récupère l'arborescence complète de l'écran affiché au format .xml (utile pour le paramétrage Velocity / ProGlove)." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                                <Button x:Name="BtnDumpUi" Content="📄 Capturer l'écran en XML" Click="BtnDumpUi_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+
+                                        <TextBlock Text="Affichage &amp; Interface" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
 
                                                 <Grid Margin="0,0,0,15">
@@ -2125,29 +2140,6 @@
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
-
-                                        <TextBlock Text="Mise à jour OS" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
-                                        <!-- La mise à jour OS a sa page (menu « Mise à jour OS ») : simple renvoi ici. -->
-                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
-                                            <StackPanel>
-                                                <TextBlock Text="📦 Installer une mise à jour OS (.zip)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                <TextBlock Text="Sur un ou plusieurs terminaux en même temps, par câble ou par copie dans la mémoire du terminal : la mise à jour OS a maintenant sa page." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                                <Button x:Name="BtnMassOsOpen" Content="📦 Ouvrir la page Mise à jour OS" Click="BtnMassOsOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="35"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <TextBlock Text="Extracteur XML" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
-                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
-                                            <StackPanel>
-                                                <TextBlock Text="🔎 Extracteur XML (UI Automator)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                <TextBlock Text="Récupère l'arborescence complète de l'écran affiché au format .xml (utile pour le paramétrage Velocity / ProGlove)." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                                <Button x:Name="BtnDumpUi" Content="📄 Capturer l'écran en XML" Click="BtnDumpUi_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35"/>
-                                            </StackPanel>
-                                        </Border>
-
                                         <TextBlock Text="🔊 Volume" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
