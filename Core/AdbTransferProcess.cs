@@ -25,8 +25,15 @@ namespace ADBToolsNew.Core
     /// </summary>
     public sealed class AdbTransferProcess
     {
-        private static readonly Regex ProgressRegex = new Regex(@"\[\s*(\d{1,3})%\]");
+        private static readonly Regex DefaultProgressRegex = new Regex(@"\[\s*(\d{1,3})%\]");
+        private readonly Regex _progressRegex;
         private Process _process;
+
+        /// <summary>Progression au format de « adb push / pull » (« [ 47%] »).</summary>
+        public AdbTransferProcess() : this(null) { }
+
+        /// <summary>Progression lue avec un autre motif (ex. « (~47%) » pour « adb sideload »), groupe 1 = pourcentage.</summary>
+        public AdbTransferProcess(Regex progressRegex) { _progressRegex = progressRegex ?? DefaultProgressRegex; }
 
         /// <summary>Lance la commande et attend sa fin, en signalant chaque mise à jour de pourcentage via <paramref name="onProgress"/>.</summary>
         public async Task<(bool Success, string Output)> RunAsync(string adbExePath, string arguments, Action<int> onProgress, CancellationToken cancellationToken)
@@ -57,8 +64,8 @@ namespace ADBToolsNew.Core
 
                 using (cancellationToken.Register(() => { try { if (!process.HasExited) process.Kill(); } catch { } }))
                 {
-                    var stdoutTask = Task.Run(() => ReadStreamForProgress(process.StandardOutput, outputBuilder, outputLock, onProgress));
-                    var stderrTask = Task.Run(() => ReadStreamForProgress(process.StandardError, outputBuilder, outputLock, onProgress));
+                    var stdoutTask = Task.Run(() => ReadStreamForProgress(process.StandardOutput, outputBuilder, outputLock, onProgress, _progressRegex));
+                    var stderrTask = Task.Run(() => ReadStreamForProgress(process.StandardError, outputBuilder, outputLock, onProgress, _progressRegex));
 
                     await Task.WhenAll(stdoutTask, stderrTask);
                     try { process.WaitForExit(); } catch { }
@@ -74,7 +81,7 @@ namespace ADBToolsNew.Core
             }
         }
 
-        private static void ReadStreamForProgress(StreamReader reader, StringBuilder outputBuilder, object outputLock, Action<int> onProgress)
+        private static void ReadStreamForProgress(StreamReader reader, StringBuilder outputBuilder, object outputLock, Action<int> onProgress, Regex progressRegex)
         {
             var lineBuilder = new StringBuilder();
             var buffer = new char[256];
@@ -92,7 +99,7 @@ namespace ADBToolsNew.Core
                             {
                                 string chunk = lineBuilder.ToString();
                                 lock (outputLock) outputBuilder.AppendLine(chunk);
-                                var m = ProgressRegex.Match(chunk);
+                                var m = progressRegex.Match(chunk);
                                 if (m.Success && int.TryParse(m.Groups[1].Value, out int pct)) onProgress?.Invoke(pct);
                                 lineBuilder.Clear();
                             }

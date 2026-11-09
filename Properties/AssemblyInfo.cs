@@ -48,8 +48,8 @@ using System.Windows;
 //      Numéro de build
 //      Révision
 //
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 // Version affichée dans le programme. La compilation GitHub la remplace automatiquement
 // (ex. « 1.1.1 » pour une version publiée, « 1.1.1-dev.12 » pour une archive de test).
-[assembly: AssemblyInformationalVersion("1.4.0")]
+[assembly: AssemblyInformationalVersion("1.5.0")]

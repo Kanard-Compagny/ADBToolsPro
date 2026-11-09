@@ -1,0 +1,118 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace ADBToolsNew.Core
+{
+    /// <summary>
+    /// Ce qu'annonce un paquet de mise à jour Android (.zip) dans META-INF/com/android/metadata : modèles visés
+    /// (pre-device), version de départ exigée pour une mise à jour différentielle (pre-build) et version
+    /// obtenue (post-build). Sert à écarter, avant de flasher, un terminal pour lequel le paquet n'est pas prévu.
+    /// Les paquets sans ce fichier (certains constructeurs) ne sont pas vérifiés : le recovery du terminal
+    /// refusera de toute façon un paquet qui ne lui est pas destiné.
+    /// </summary>
+    public sealed class OsUpdatePackage
+    {
+        public string FilePath { get; private set; }
+        public long Size { get; private set; }
+        public bool HasMetadata { get; private set; }
+        public List<string> PreDevices { get; private set; } = new List<string>();
+        public List<string> PreBuilds { get; private set; } = new List<string>();
+        public string PostBuild { get; private set; } = "";
+        public string OtaType { get; private set; } = "";
+
+        /// <summary>Mise à jour différentielle : ne s'installe que sur une version précise.</summary>
+        public bool IsIncremental => PreBuilds.Count > 0;
+
+        public static OsUpdatePackage Read(string zipPath)
+        {
+            var pkg = new OsUpdatePackage { FilePath = zipPath, Size = new FileInfo(zipPath).Length };
+            using (var zip = ZipFile.OpenRead(zipPath))
+            {
+                var entry = zip.GetEntry("META-INF/com/android/metadata");
+                if (entry == null) return pkg;
+                using (var r = new StreamReader(entry.Open(), Encoding.UTF8))
+                    pkg.ApplyMetadata(r.ReadToEnd());
+            }
+            return pkg;
+        }
+
+        /// <summary>Fonction pure, testable : lit le contenu du fichier metadata (« clé=valeur » par ligne).</summary>
+        public static OsUpdatePackage FromMetadata(string metadata)
+        {
+            var pkg = new OsUpdatePackage { FilePath = "" };
+            pkg.ApplyMetadata(metadata);
+            return pkg;
+        }
+
+        private void ApplyMetadata(string metadata)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in (metadata ?? "").Replace("\r", "").Split('\n'))
+            {
+                int eq = raw.IndexOf('=');
+                if (eq <= 0) continue;
+                map[raw.Substring(0, eq).Trim()] = raw.Substring(eq + 1).Trim();
+            }
+            HasMetadata = map.Count > 0;
+            PreDevices = SplitList(map, "pre-device");
+            PreBuilds = SplitList(map, "pre-build");
+            PostBuild = map.TryGetValue("post-build", out var pb) ? pb : "";
+            OtaType = map.TryGetValue("ota-type", out var ot) ? ot : "";
+        }
+
+        private static List<string> SplitList(Dictionary<string, string> map, string key) =>
+            map.TryGetValue(key, out var v)
+                ? v.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Length > 0).ToList()
+                : new List<string>();
+
+        /// <summary>Résumé lisible pour le technicien.</summary>
+        public string Describe()
+        {
+            var parts = new List<string> { Loc.F("{0:0.0} Mo", Size / 1048576.0) };
+            if (!HasMetadata) { parts.Add(Loc.T("pas de description dans le paquet : le terminal vérifiera lui-même")); return string.Join(" — ", parts); }
+            if (PreDevices.Count > 0) parts.Add(Loc.F("pour {0}", string.Join(", ", PreDevices)));
+            parts.Add(IsIncremental ? Loc.T("mise à jour différentielle (depuis une version précise)") : Loc.T("mise à jour complète"));
+            if (PostBuild.Length > 0) parts.Add(Loc.F("version obtenue : {0}", ShortBuild(PostBuild)));
+            return string.Join(" — ", parts);
+        }
+
+        /// <summary>« Zebra/TC58/TC58:14/14-35-10.00-UG-U166-STD-ATH-04/1176:user/release-keys » → « 14-35-10.00-UG-U166-STD-ATH-04 ».</summary>
+        public static string ShortBuild(string fingerprint)
+        {
+            if (string.IsNullOrEmpty(fingerprint)) return "";
+            var parts = fingerprint.Split('/');
+            return parts.Length >= 5 ? parts[3] : fingerprint;
+        }
+
+        public enum Fit { Ok, AlreadyThere, Blocked }
+
+        /// <summary>Le paquet convient-il à ce terminal ? (device = ro.product.device, fingerprint = ro.build.fingerprint)</summary>
+        public (Fit Result, string Message) Check(string device, string fingerprint)
+        {
+            if (!HasMetadata) return (Fit.Ok, "");
+            if (PreDevices.Count > 0 && !string.IsNullOrEmpty(device) &&
+                !PreDevices.Any(d => string.Equals(d, device, StringComparison.OrdinalIgnoreCase)))
+                return (Fit.Blocked, Loc.F("Paquet prévu pour {0}, pas pour ce modèle ({1})", string.Join(", ", PreDevices), device));
+            if (PostBuild.Length > 0 && string.Equals(PostBuild, fingerprint, StringComparison.Ordinal))
+                return (Fit.AlreadyThere, Loc.T("Déjà à cette version"));
+            if (IsIncremental && !string.IsNullOrEmpty(fingerprint) && !PreBuilds.Contains(fingerprint))
+                return (Fit.Blocked, Loc.F("Mise à jour différentielle prévue depuis {0}", string.Join(", ", PreBuilds.Select(ShortBuild))));
+            return (Fit.Ok, "");
+        }
+
+        // « serving: 'update.zip'  (~47%) » : progression affichée par adb pendant un sideload.
+        public static readonly Regex SideloadProgress = new Regex(@"\(~\s*(\d{1,3})%\)", RegexOptions.Compiled);
+
+        /// <summary>Fonction pure, testable : niveau de batterie lu dans « dumpsys battery » (-1 si absent).</summary>
+        public static int ParseBatteryLevel(string dumpsysBattery)
+        {
+            var m = Regex.Match(dumpsysBattery ?? "", @"^\s*level:\s*(\d+)", RegexOptions.Multiline);
+            return m.Success ? int.Parse(m.Groups[1].Value) : -1;
+        }
+    }
+}

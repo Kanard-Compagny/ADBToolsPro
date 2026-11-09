@@ -568,7 +568,10 @@ namespace ADBToolsNew
         private async void BtnRingerSilent_Click(object sender, RoutedEventArgs e) => await SetRingerModeAsync(0);
 
         // 🔒 Drapeau consulté à la fermeture de la fenêtre pour empêcher une interruption en plein flashage OS.
-        private bool _isSideloading = false;
+        private bool _singleSideloading;
+        // Nombre de terminaux en cours de mise à jour OS en masse (MainWindow.MassOsUpdate.cs).
+        private int _massOsRunning;
+        private bool _isSideloading => _singleSideloading || _massOsRunning > 0;
 
         private async void BtnSideloadOs_Click(object sender, RoutedEventArgs e)
         {
@@ -586,7 +589,7 @@ namespace ADBToolsNew
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Démarrage du Sideload avec : {1}", DateTime.Now, System.IO.Path.GetFileName(dlg.FileName)));
                 AppendConsole(Loc.F("\n⚠️ NE DÉBRANCHEZ SURTOUT PAS LE TERMINAL ! PATIENTEZ..."));
 
-                _isSideloading = true;
+                _singleSideloading = true;
                 try
                 {
                     // AdbTransferProcess lit stdout ET stderr (auparavant ni l'un ni l'autre n'était lu) et
@@ -624,7 +627,7 @@ namespace ADBToolsNew
                 }
                 finally
                 {
-                    _isSideloading = false;
+                    _singleSideloading = false;
                 }
             }
         }

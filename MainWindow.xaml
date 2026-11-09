@@ -2136,6 +2136,8 @@
                                                     <Button Content="1. Reboot Recovery" Click="BtnRecovery_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" ToolTip="Redémarre le terminal dans le menu Recovery"/>
                                                     <Button x:Name="BtnSideloadOs" Content="2. Flasher l'OS (.zip)" Click="BtnSideloadOs_Click" Style="{StaticResource DangerButtonStyle}" Grid.Column="2" Height="35" ToolTip="Lance ADB Sideload"/>
                                                 </Grid>
+                                                <Button x:Name="BtnMassOsOpen" Content="📦📦 Mise à jour en masse (plusieurs terminaux)…" Click="BtnMassOsOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Margin="0,10,0,0"
+                                                        ToolTip="Tous les terminaux branchés en USB mis à jour en même temps, chacun avec sa progression"/>
                                             </StackPanel>
                                         </Border>
 
@@ -4591,6 +4593,79 @@
                             <Button Content="Annuler" Click="BtnUpdateDialogCancel_Click" Style="{StaticResource OutlineButtonStyle}" MinWidth="100" Height="34" Padding="16,0" Margin="0,0,10,0"/>
                             <Button x:Name="BtnUpdateDialogInstall" Content="Installer et redémarrer" Click="BtnUpdateDialogInstall_Click" Style="{StaticResource PrimaryButtonStyle}" MinWidth="160" Height="34" Padding="18,0"/>
                         </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Mise à jour OS en masse (Outils avancés ▸ Mise à jour OS) : MainWindow.MassOsUpdate.cs. Les lignes
+                 des terminaux sont construites en code, comme le sélecteur multi-terminaux ci-dessous. -->
+            <Grid x:Name="MassOsOverlay" Visibility="Collapsed" Background="#D8000000" Grid.RowSpan="3" Panel.ZIndex="1000">
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="12" MaxWidth="1040" Margin="40,30" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24,20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="📦 Mise à jour OS en masse" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                            <Button x:Name="BtnMassOsClose" Content="✖" Click="BtnMassOsClose_Click" Style="{StaticResource OutlineButtonStyle}" Width="32" Height="32" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <TextBlock Grid.Row="1" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,14"
+                                   Text="Tous les terminaux cochés reçoivent le même paquet, en même temps. ADB Tools redémarre chacun en mode « mise à jour par ADB » ; si un modèle ne le permet pas, choisissez « Apply update from ADB » dans son menu Recovery et ADB Tools continue tout seul. Un terminal pour lequel le paquet n'est pas prévu est écarté. Ne débranchez aucun terminal pendant l'envoi."/>
+
+                        <Grid Grid.Row="2" Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtMassOsFile" IsReadOnly="True" Tag="Paquet de mise à jour (.zip)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="32" VerticalContentAlignment="Center"/>
+                            <Button x:Name="BtnMassOsPick" Grid.Column="2" Content="📂 Choisir le paquet…" Click="BtnMassOsPick_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                        </Grid>
+                        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+                            <TextBlock x:Name="TxtMassOsPackage" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="Aucun paquet choisi."/>
+                            <WrapPanel>
+                                <CheckBox x:Name="ChkMassOsBattery" Content="Écarter les terminaux sous 30 % de batterie" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,24,0"/>
+                                <CheckBox x:Name="ChkMassOsVerify" Content="Redémarrer à la fin et vérifier la nouvelle version" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}"/>
+                            </WrapPanel>
+                        </StackPanel>
+
+                        <Border Grid.Row="4" Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" MinHeight="140">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" Margin="12,8,12,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="*" MinWidth="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="1" Text="Terminal" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                                    <TextBlock Grid.Column="2" Text="Version actuelle" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                                    <TextBlock Grid.Column="3" Text="Batterie" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                                    <TextBlock Grid.Column="4" Text="État" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                                </Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="380">
+                                    <StackPanel x:Name="MassOsList" Margin="12,0,12,8"/>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <Grid Grid.Row="5" Margin="0,14,0,0">
+                            <TextBlock x:Name="TxtMassOsSummary" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,420,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnMassOsRefresh" Content="↻ Actualiser" Click="BtnMassOsRefresh_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="12,0" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnMassOsAll" Content="Tout cocher" Click="BtnMassOsAll_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="12,0" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnMassOsCopy" Content="📋 Copier le bilan" Click="BtnMassOsCopy_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="12,0" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnMassOsStop" Content="⏹ Arrêter les attentes" Click="BtnMassOsStop_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="12,0" Margin="0,0,8,0" Visibility="Collapsed"
+                                        ToolTip="Arrête l'attente des terminaux qui ne sont pas encore en mode mise à jour. Un envoi déjà commencé n'est jamais interrompu."/>
+                                <Button x:Name="BtnMassOsRun" Content="Mettre à jour" Click="BtnMassOsRun_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="16,0" IsEnabled="False"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>
