@@ -160,10 +160,13 @@ section { padding: clamp(56px, 8vw, 104px) 0; }
 .new { font: 600 0.8rem var(--text); background: var(--tag-bg); color: var(--tag-ink); padding: 2px 8px; border-radius: 999px; letter-spacing: 0; }
 
 /* Captures */
-.shots { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
-.shots figure { margin: 0; }
-.shots img { border-radius: 10px; border: 1px solid var(--rule); width: 100%; }
-.shots figcaption { margin-top: 10px; font-size: 0.95rem; color: var(--ink-soft); }
+.shots { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 32px 28px; }
+.shots figure { margin: 0; min-width: 0; }
+.shots .lead { grid-column: 1 / -1; }
+.shots a { display: block; border-radius: 10px; }
+.shots img { border-radius: 10px; border: 1px solid var(--rule); width: 100%; background: var(--charcoal); }
+.shots figcaption { margin-top: 10px; font-size: 0.95rem; color: var(--ink-soft); max-width: var(--measure); }
+.shots .lead figcaption { font-size: 1.025rem; }
 
 /* Démarrer : vraie suite d'étapes */
 .alt { background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
