@@ -47,6 +47,10 @@ namespace ADBToolsNew.Core
         public string TeamProfileName { get; set; } = "";
         public DateTime? TeamProfileImported { get; set; }
 
+        // --- Mise à jour OS : dossier des paquets (bibliothèque) et nombre d'envois simultanés (0 = tous)
+        public string OsPackageLibraryFolder { get; set; } = "";
+        public int OsMaxParallel { get; set; }
+
         // ------------------------------------------------------------------ Lecture / écriture
 
         public static string DataFolder

@@ -4169,19 +4169,37 @@
                                             <ColumnDefinition Width="24"/>
                                             <ColumnDefinition Width="6*"/>
                                         </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <StackPanel>
                                             <TextBlock Text="MÉTHODE" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
                                             <WrapPanel>
                                                 <RadioButton x:Name="RbMassOsSideload" GroupName="MassOsMethod" Content="Par câble (ADB sideload)" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="MassOsMethod_Checked"/>
                                                 <RadioButton x:Name="RbMassOsCopy" GroupName="MassOsMethod" Content="Copie dans la mémoire du terminal" Style="{StaticResource SettingsPillStyle}" Checked="MassOsMethod_Checked"/>
+                                                <RadioButton x:Name="RbMassOsFastboot" GroupName="MassOsMethod" Content="Fastboot (image d'usine)" Style="{StaticResource SettingsPillStyle}" Checked="MassOsMethod_Checked"/>
                                             </WrapPanel>
                                             <TextBlock x:Name="TxtMassOsIntro" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0"
                                                        Text="Tous les terminaux cochés reçoivent le même paquet, en même temps. ADB Tools redémarre chacun en mode « mise à jour par ADB » ; si un modèle ne le permet pas, choisissez « Apply update from ADB » dans son menu Recovery et ADB Tools continue tout seul. Un terminal pour lequel le paquet n'est pas prévu est écarté. Ne débranchez aucun terminal pendant l'envoi."/>
+                                            <!-- Mise en garde fastboot : visible seulement avec cette méthode. -->
+                                            <Border x:Name="BdMassOsFastbootWarn" Visibility="Collapsed" Background="{DynamicResource WarnBg}" CornerRadius="6" Padding="12,10" Margin="0,10,0,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="⚠️ Fastboot : pour qui, et à quelles conditions" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WarnFg}" Margin="0,0,0,4"/>
+                                                    <TextBlock FontSize="12" Foreground="{DynamicResource WarnFg}" TextWrapping="Wrap"
+                                                               Text="• Pour les terminaux au bootloader déverrouillé (Pixel, Android ouverts, terminaux de développement). Zebra, Honeywell, Samsung et la plupart des terminaux professionnels ont un bootloader verrouillé : utilisez « Par câble ».&#x0a;• Le paquet est l'« image-….zip » d'une image d'usine (il contient android-info.txt). Une archive d'usine complète (avec flash-all) se décompresse d'abord.&#x0a;• ADB Tools refuse un terminal verrouillé, d'un autre modèle, ou dont le bootloader n'a pas la version exigée : rien n'est flashé dans ces cas.&#x0a;• Windows doit avoir le pilote USB fastboot (Google USB Driver ou celui du fabricant).&#x0a;• « Effacer les données » remet le terminal à zéro ; le débogage USB est alors désactivé."/>
+                                                </StackPanel>
+                                            </Border>
                                             <TextBlock Text="Samsung : les mises à jour passent par Smart Switch ou Knox, pas par ADB." FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="PAQUET" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
-                                            <Grid Margin="0,0,0,6">
+                                            <WrapPanel>
+                                                <RadioButton x:Name="RbMassOsSingle" GroupName="MassOsSource" Content="Un paquet pour tous" IsChecked="True" Style="{StaticResource SettingsPillStyle}" Checked="MassOsSource_Checked"/>
+                                                <RadioButton x:Name="RbMassOsLibrary" GroupName="MassOsSource" Content="Bibliothèque : le bon paquet pour chaque terminal" Style="{StaticResource SettingsPillStyle}" Checked="MassOsSource_Checked"
+                                                             ToolTip="Un dossier de paquets (le vôtre ou celui de l'équipe) : ADB Tools choisit pour chaque terminal le paquet le plus récent prévu pour son modèle. Un parc mélangé se met à jour en une fois."/>
+                                            </WrapPanel>
+                                            <Grid Margin="0,2,0,6">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="10"/>
@@ -4192,10 +4210,59 @@
                                             </Grid>
                                             <TextBlock x:Name="TxtMassOsPackage" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12" Text="Aucun paquet choisi."/>
                                             <WrapPanel>
-                                                <CheckBox x:Name="ChkMassOsBattery" Content="Écarter les terminaux sous 30 % de batterie" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,6"/>
-                                                <CheckBox x:Name="ChkMassOsVerify" Content="Redémarrer à la fin et vérifier la nouvelle version" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,6"/>
+                                                <CheckBox x:Name="ChkMassOsBattery" Content="Écarter les terminaux sous 30 % de batterie" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,8"/>
+                                                <CheckBox x:Name="ChkMassOsVerify" Content="Redémarrer à la fin et vérifier la nouvelle version" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,8"/>
+                                                <CheckBox x:Name="ChkMassOsWipe" Content="Effacer les données (fastboot -w)" IsChecked="False" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,8" Visibility="Collapsed"
+                                                          ToolTip="Remet le terminal à zéro (applications, comptes, réglages, fichiers). Le débogage USB est désactivé ensuite : la version se vérifie sur l'écran du terminal."/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                    <TextBlock Text="Envois simultanés :" FontSize="13" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <ComboBox x:Name="CmbMassOsParallel" Width="80" Height="28" SelectionChanged="CmbMassOsParallel_SelectionChanged"
+                                                              ToolTip="Limite le nombre de terminaux qui reçoivent le paquet en même temps (hub USB ou PC qui saturent) ; les autres attendent leur tour.">
+                                                        <ComboBoxItem Content="Tous" Tag="0" IsSelected="True"/>
+                                                        <ComboBoxItem Content="1" Tag="1"/>
+                                                        <ComboBoxItem Content="2" Tag="2"/>
+                                                        <ComboBoxItem Content="4" Tag="4"/>
+                                                        <ComboBoxItem Content="8" Tag="8"/>
+                                                    </ComboBox>
+                                                </StackPanel>
                                             </WrapPanel>
                                         </StackPanel>
+
+                                        <!-- Après la mise à jour : sur les terminaux revenus sous Android (pas après un effacement). -->
+                                        <Border Grid.Row="1" Grid.ColumnSpan="3" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="5*"/>
+                                                    <ColumnDefinition Width="24"/>
+                                                    <ColumnDefinition Width="6*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.ColumnSpan="3" Margin="0,0,0,10">
+                                                    <TextBlock Text="APRÈS LA MISE À JOUR" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,4"/>
+                                                    <TextBlock FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"
+                                                               Text="Sur chaque terminal revenu sous Android avec sa nouvelle version (option « vérifier la nouvelle version »). Rien n'est fait après un effacement : le débogage USB y est désactivé."/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1">
+                                                    <CheckBox x:Name="ChkMassOsAfterApk" Content="Installer des applications (APK)" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,6"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock x:Name="TxtMassOsApks" Text="Aucune application choisie." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="32,0,10,0"/>
+                                                        <Button x:Name="BtnMassOsApks" Grid.Column="1" Content="📦 Choisir les APK…" Click="BtnMassOsApks_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" VerticalAlignment="Top"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="2">
+                                                    <CheckBox x:Name="ChkMassOsAfterCmd" Content="Lancer des commandes ADB" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,0,6"/>
+                                                    <TextBox x:Name="TxtMassOsCmds" AcceptsReturn="True" TextWrapping="NoWrap" Height="58" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" Padding="6,4"
+                                                             ToolTip="Une commande par ligne, comme dans la Bibliothèque ADB, sans « adb » ni « -s » (ADB Tools vise chaque terminal lui-même). Ex. : shell settings put global stay_on_while_plugged_in 3"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
                                 </Border>
 

@@ -96,6 +96,36 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void FastbootImage_ChecksLockModelAndBootloader()
+        {
+            var p = OsUpdatePackage.FromMetadata("");
+            p.ApplyAndroidInfo("require board=sargo|bonito\nrequire version-bootloader=b4s4-0.4-8048689\nrequire version-baseband=g670\n");
+            Assert.IsTrue(p.IsFastbootImage);
+            CollectionAssert.AreEqual(new[] { "sargo", "bonito" }, p.FastbootBoards);
+            var ids = new System.Collections.Generic.List<string> { "sargo" };
+            Assert.AreEqual(OsUpdatePackage.Fit.Ok, p.CheckFastboot(ids, false, "b4s4-0.4-8048689").Result);
+            Assert.AreEqual(OsUpdatePackage.Fit.Ok, p.CheckFastboot(ids, null, "").Result);           // inconnu : relu en mode bootloader
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, p.CheckFastboot(ids, true, "").Result);      // verrouillé
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, p.CheckFastboot(new System.Collections.Generic.List<string> { "TC58" }, false, "").Result);
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, p.CheckFastboot(ids, false, "b4s4-0.3-0000").Result);
+            // Un paquet de mise à jour n'est pas une image fastboot.
+            var ota = OsUpdatePackage.FromMetadata("pre-device=TC58");
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, ota.CheckFastboot(ids, false, "").Result);
+        }
+
+        [TestMethod]
+        public void FastbootOutputs_AreParsed()
+        {
+            CollectionAssert.AreEqual(new[] { "8ABX0B1Y", "ZY22" },
+                OsUpdatePackage.ParseFastbootDevices("8ABX0B1Y\tfastboot\r\nZY22\tfastbootd\n???\tno permissions\n"));
+            var vars = OsUpdatePackage.ParseFastbootVars("(bootloader) product: sargo\n(bootloader) unlocked: yes\n(bootloader) version-bootloader: b4s4-0.4\nall: \nFinished. Total time: 0.050s\n");
+            Assert.AreEqual("sargo", vars["product"]);
+            Assert.AreEqual("yes", vars["unlocked"]);
+            Assert.AreEqual("b4s4-0.4", vars["version-bootloader"]);
+            Assert.IsFalse(vars.ContainsKey("Finished. Total time"));
+        }
+
+        [TestMethod]
         public void AlreadyAtTargetVersion_IsReported()
         {
             var p = OsUpdatePackage.FromMetadata("pre-device=TC58\npost-build=" + Fp14);

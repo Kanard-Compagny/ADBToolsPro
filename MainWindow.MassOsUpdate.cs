@@ -1,5 +1,6 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,14 +12,17 @@ using ADBToolsNew.Core;
 namespace ADBToolsNew
 {
     /// <summary>
-    /// Mise à jour OS (Outils avancés ▸ Mise à jour OS), pour un ou plusieurs terminaux de toutes marques : le même
-    /// paquet .zip installé sur tous les terminaux cochés, en parallèle, chacun avec sa progression. Deux méthodes :
-    /// - par câble (« adb sideload ») : la plus courante (Zebra, Honeywell, Datalogic, Newland, Urovo…) ;
-    /// - copie dans la mémoire du terminal puis redémarrage en Recovery, où le technicien choisit « Apply update
-    ///   from SD card / internal storage » : pour les modèles qui refusent le sideload.
-    /// Pour chaque terminal : vérifications (modèle visé par le paquet, batterie), redémarrage direct en mode
-    /// sideload (« reboot sideload-auto-reboot »), ou attente que le technicien choisisse « Apply update from
-    /// ADB » quand le modèle ne le permet pas, envoi, puis retour du terminal et contrôle de la nouvelle version.
+    /// Page « Mise à jour OS » : un ou plusieurs terminaux de toutes marques mis à jour en même temps, chacun avec sa
+    /// progression. Trois méthodes :
+    /// - par câble (« adb sideload ») : la plus courante (Zebra, Honeywell, Datalogic, Newland, Urovo…). Passage
+    ///   direct en mode sideload (« reboot sideload-auto-reboot ») ; pour un retour arrière, le technicien choisit
+    ///   « Downgrade from ADB » dans le Recovery (le mode automatique refuse une version plus ancienne) ;
+    /// - copie dans la mémoire du terminal puis Recovery (« Apply update from SD card / internal storage ») : pour
+    ///   les modèles qui refusent le sideload ;
+    /// - fastboot (« fastboot update » d'une image d'usine) : terminaux au bootloader déverrouillé seulement.
+    /// Paquet unique, ou bibliothèque (dossier) où ADB Tools choisit le paquet le plus récent prévu pour chaque modèle.
+    /// Vérifications avant l'envoi (modèle, version, batterie, bootloader), envois simultanés limitables, contrôle de la
+    /// version au retour, puis actions facultatives (APK, commandes ADB) et bilan Excel.
     /// Un envoi commencé n'est jamais interrompu (risque de terminal inutilisable) ; seules les attentes s'arrêtent.
     /// </summary>
     public partial class MainWindow
@@ -31,17 +35,19 @@ namespace ADBToolsNew
             public List<string> DeviceIds = new List<string>();
             public string Fingerprint = "";
             public string DisplayId = "";
-            public string DisplayIdAfter = "";
+            public int Battery = -1;
+            public long BuildUtc;
+            public bool? FlashLocked;       // bootloader verrouillé (true), déverrouillé (false), inconnu (null)
+            public string Bootloader = "";  // version du bootloader
+            public OsUpdatePackage Package; // paquet retenu pour ce terminal
+            public bool Wipe;
+            public bool Downgrade;          // paquet plus ancien que le terminal (paquet de « downgrade » du fabricant)
+            public bool Selectable;
+            public string Outcome = "";     // ok, warn, bad ou vide (pas lancé)
+            public string Message = "";
             public string VersionBefore = "";
             public string Method = "";
             public DateTime? Started, Ended;
-            public int Battery = -1;
-            public long BuildUtc;
-            public bool Wipe;
-            public bool Downgrade;   // paquet plus ancien que le terminal (paquet de « downgrade » du fabricant)
-            public bool Selectable;
-            public string Outcome = "";   // ok, warn, bad ou vide (pas lancé)
-            public string Message = "";
             public CheckBox Check;
             public TextBlock TxtVersion;
             public TextBlock TxtBattery;
@@ -50,45 +56,99 @@ namespace ADBToolsNew
         }
 
         private const int MassOsMinBattery = 30;
+        private const int OsUpdateTabIndex = 12;
         private readonly List<MassOsRow> _massOsRows = new List<MassOsRow>();
         private OsUpdatePackage _massOsPackage;
+        private List<OsUpdatePackage> _massOsLibrary = new List<OsUpdatePackage>();
+        private readonly List<string> _massOsApks = new List<string>();
         private CancellationTokenSource _massOsWaitCts;
+        private SemaphoreSlim _massOsSlots;
         private bool _massOsBusy;
-        private bool _massOsHooked;
+        private bool _massOsInit;
 
-        // ------------------------------------------------------------------ Page
+        private string FastbootExePath => Path.Combine(Path.GetDirectoryName(_adbExePath) ?? "", "fastboot.exe");
 
-        private const int OsUpdateTabIndex = 12;
+        // ------------------------------------------------------------------ Méthode et source du paquet
+
         private const string MassOsIntroSideload = "Tous les terminaux cochés reçoivent le même paquet, en même temps. ADB Tools redémarre chacun en mode « mise à jour par ADB » ; si un modèle ne le permet pas, choisissez « Apply update from ADB » dans son menu Recovery et ADB Tools continue tout seul. Un terminal pour lequel le paquet n'est pas prévu est écarté. Ne débranchez aucun terminal pendant l'envoi.";
         private const string MassOsIntroCopy = "Le paquet est copié dans la mémoire de chaque terminal coché, puis le terminal redémarre en Recovery : choisissez « Apply update from SD card » (ou « internal storage ») puis le fichier « update_… ». ADB Tools attend son retour pour vérifier la version, puis efface la copie. Pour les modèles qui refusent le sideload.";
+        private const string MassOsIntroFastboot = "Chaque terminal redémarre en mode bootloader et reçoit l'image d'usine par « fastboot update », qui vérifie elle-même le modèle et le bootloader. ADB Tools contrôle avant tout que le bootloader est déverrouillé : sinon rien n'est flashé.";
 
-        private bool MassOsCopyMode => RbMassOsCopy.IsChecked == true;
+        private string MassOsMethod => RbMassOsFastboot.IsChecked == true ? "fastboot" : RbMassOsCopy.IsChecked == true ? "copy" : "sideload";
+        private bool MassOsCopyMode => MassOsMethod == "copy";
+        private bool MassOsLibraryMode => RbMassOsLibrary.IsChecked == true;
 
-        // Choix de la méthode : textes et terminaux éligibles mis à jour.
         private void MassOsMethod_Checked(object sender, RoutedEventArgs e)
         {
-            if (TxtMassOsIntro == null) return;
-            TxtMassOsIntro.Text = Loc.T(MassOsCopyMode ? MassOsIntroCopy : MassOsIntroSideload);
+            if (TxtMassOsIntro == null || BdMassOsFastbootWarn == null || ChkMassOsWipe == null) return;
+            string m = MassOsMethod;
+            TxtMassOsIntro.Text = Loc.T(m == "fastboot" ? MassOsIntroFastboot : m == "copy" ? MassOsIntroCopy : MassOsIntroSideload);
+            BdMassOsFastbootWarn.Visibility = m == "fastboot" ? Visibility.Visible : Visibility.Collapsed;
+            ChkMassOsWipe.Visibility = m == "fastboot" ? Visibility.Visible : Visibility.Collapsed;
+            if (m != "fastboot") ChkMassOsWipe.IsChecked = false;
+            if (_massOsInit && !_massOsBusy) _ = LoadMassOsDevicesAsync(); // les terminaux en mode fastboot n'apparaissent qu'avec cette méthode
+        }
+
+        private void MassOsSource_Checked(object sender, RoutedEventArgs e)
+        {
+            if (TxtMassOsFile == null || BtnMassOsPick == null) return;
+            if (MassOsLibraryMode)
+            {
+                BtnMassOsPick.Content = Loc.T("📂 Choisir le dossier…");
+                TxtMassOsFile.Tag = Loc.T("Dossier de paquets (.zip), sous-dossiers compris");
+                TxtMassOsFile.Text = AppSettings.Current.OsPackageLibraryFolder ?? "";
+                if (TxtMassOsFile.Text.Length > 0) _ = ScanMassOsLibraryAsync(TxtMassOsFile.Text);
+                else TxtMassOsPackage.Text = Loc.T("Choisissez le dossier où sont rangés les paquets (le vôtre ou le dossier partagé de l'équipe).");
+            }
+            else
+            {
+                BtnMassOsPick.Content = Loc.T("📂 Choisir le paquet…");
+                TxtMassOsFile.Tag = Loc.T("Paquet de mise à jour (.zip)");
+                TxtMassOsFile.Text = _massOsPackage?.FilePath ?? "";
+                TxtMassOsPackage.Text = _massOsPackage != null ? Path.GetFileName(_massOsPackage.FilePath) + " — " + _massOsPackage.Describe() : Loc.T("Aucun paquet choisi.");
+            }
             RefreshMassOsFit();
         }
+
+        private void CmbMassOsParallel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_massOsInit) return;
+            AppSettings.Current.OsMaxParallel = MassOsParallel();
+            AppSettings.Save();
+        }
+
+        private int MassOsParallel() =>
+            (CmbMassOsParallel?.SelectedItem as ComboBoxItem)?.Tag is string t && int.TryParse(t, out int n) ? n : 0;
+
+        // ------------------------------------------------------------------ Page
 
         private async void NavOsUpdate_Click(object sender, RoutedEventArgs e)
         {
             if (MainTabControl == null) return;
             MainTabControl.SelectedIndex = OsUpdateTabIndex;
             UpdateNavButtonsUI(BtnNavOsUpdate);
-            if (!_massOsHooked)
+            if (!_massOsInit)
             {
-                _massOsHooked = true;
+                _massOsInit = true;
                 ChkMassOsBattery.Checked += (s, a) => RefreshMassOsFit();
                 ChkMassOsBattery.Unchecked += (s, a) => RefreshMassOsFit();
+                ChkMassOsWipe.Checked += (s, a) => RefreshMassOsFit();
+                ChkMassOsWipe.Unchecked += (s, a) => RefreshMassOsFit();
+                int par = AppSettings.Current.OsMaxParallel;
+                foreach (ComboBoxItem it in CmbMassOsParallel.Items)
+                    if ((it.Tag as string) == par.ToString()) { CmbMassOsParallel.SelectedItem = it; break; }
+                if (MassOsLibraryMode) MassOsSource_Checked(null, null);
             }
             // Pendant une mise à jour, la page reste telle quelle (les lignes suivent les envois en cours) ;
             // après une mise à jour, le bilan reste affiché jusqu'à « Actualiser ».
             if (!_massOsBusy && !_massOsRows.Any(r => r.Outcome.Length > 0)) await LoadMassOsDevicesAsync();
         }
 
-        private async void BtnMassOsRefresh_Click(object sender, RoutedEventArgs e) => await LoadMassOsDevicesAsync();
+        private async void BtnMassOsRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            if (MassOsLibraryMode && TxtMassOsFile.Text.Length > 0) await ScanMassOsLibraryAsync(TxtMassOsFile.Text);
+            await LoadMassOsDevicesAsync();
+        }
 
         private void BtnMassOsAll_Click(object sender, RoutedEventArgs e)
         {
@@ -102,10 +162,21 @@ namespace ADBToolsNew
             BtnMassOsStop.IsEnabled = false;
         }
 
-        // ------------------------------------------------------------------ Paquet
+        // ------------------------------------------------------------------ Paquet ou bibliothèque
 
-        private void BtnMassOsPick_Click(object sender, RoutedEventArgs e)
+        private async void BtnMassOsPick_Click(object sender, RoutedEventArgs e)
         {
+            if (MassOsLibraryMode)
+            {
+                string folder = FolderPicker.Pick(this, Loc.T("Dossier des paquets de mise à jour OS"), TxtMassOsFile.Text.Length > 0 ? TxtMassOsFile.Text : null);
+                if (string.IsNullOrEmpty(folder)) return;
+                TxtMassOsFile.Text = folder;
+                AppSettings.Current.OsPackageLibraryFolder = folder;
+                AppSettings.Save();
+                await ScanMassOsLibraryAsync(folder);
+                RefreshMassOsFit();
+                return;
+            }
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = Loc.T("Paquets de mise à jour OS (*.zip)|*.zip"),
@@ -116,7 +187,10 @@ namespace ADBToolsNew
             {
                 _massOsPackage = OsUpdatePackage.Read(dlg.FileName);
                 TxtMassOsFile.Text = dlg.FileName;
-                TxtMassOsPackage.Text = System.IO.Path.GetFileName(dlg.FileName) + " — " + _massOsPackage.Describe();
+                TxtMassOsPackage.Text = Path.GetFileName(dlg.FileName) + " — " + _massOsPackage.Describe();
+                // Image fastboot choisie avec une autre méthode (ou l'inverse) : on bascule sur la bonne méthode.
+                if (_massOsPackage.IsFastbootImage && MassOsMethod != "fastboot") RbMassOsFastboot.IsChecked = true;
+                else if (_massOsPackage.IsOtaPackage && MassOsMethod == "fastboot") RbMassOsSideload.IsChecked = true;
             }
             catch (Exception ex)
             {
@@ -125,6 +199,50 @@ namespace ADBToolsNew
                 TxtMassOsPackage.Text = Loc.F("Ce fichier n'est pas une archive .zip lisible : {0}", ex.Message);
             }
             RefreshMassOsFit();
+        }
+
+        /// <summary>Lit tous les paquets .zip du dossier (sous-dossiers compris), sans bloquer l'interface.</summary>
+        private async Task ScanMassOsLibraryAsync(string folder)
+        {
+            TxtMassOsPackage.Text = Loc.T("Lecture des paquets du dossier…");
+            int unreadable = 0;
+            var found = await Task.Run(() =>
+            {
+                var list = new List<OsUpdatePackage>();
+                try
+                {
+                    foreach (var f in Directory.EnumerateFiles(folder, "*.zip", SearchOption.AllDirectories).Take(1000))
+                    {
+                        try { list.Add(OsUpdatePackage.Read(f)); }
+                        catch { Interlocked.Increment(ref unreadable); }
+                    }
+                }
+                catch { /* dossier inaccessible : liste vide */ }
+                return list;
+            });
+            _massOsLibrary = found;
+            int ota = found.Count(p => p.IsOtaPackage), fb = found.Count(p => p.IsFastbootImage);
+            int other = found.Count - ota - fb + unreadable;
+            TxtMassOsPackage.Text = found.Count == 0
+                ? Loc.T("Aucun paquet .zip reconnu dans ce dossier.")
+                : Loc.F("{0} paquet(s) de mise à jour et {1} image(s) fastboot trouvés", ota, fb)
+                  + (other > 0 ? Loc.F(" ; {0} fichier(s) .zip sans description ignorés (choisissez-les avec « Un paquet pour tous »)", other) : ".");
+            RefreshMassOsFit();
+        }
+
+        private void BtnMassOsApks_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = Loc.T("Applications Android (*.apk)|*.apk"),
+                Title = Loc.T("Applications à installer après la mise à jour"),
+                Multiselect = true
+            };
+            if (dlg.ShowDialog() != true) return;
+            _massOsApks.Clear();
+            _massOsApks.AddRange(dlg.FileNames);
+            TxtMassOsApks.Text = string.Join(", ", _massOsApks.Select(Path.GetFileName));
+            ChkMassOsAfterApk.IsChecked = _massOsApks.Count > 0;
         }
 
         // ------------------------------------------------------------------ Liste des terminaux
@@ -139,9 +257,16 @@ namespace ADBToolsNew
             {
                 var res = await _adbManager.ExecuteAsync("devices");
                 var devices = res.IsSuccess ? ParseAdbDevices(res.StandardOutput) : new List<AndroidDevice>();
-                // Lecture des infos de chaque terminal en parallèle : avec 10 terminaux, 10 fois plus vite.
                 var rows = devices.Select(d => new MassOsRow { Serial = d.Serial, State = d.State }).ToList();
-                await Task.WhenAll(rows.Where(r => r.State == "device").Select(ReadMassOsInfoAsync));
+                // Terminaux déjà en mode bootloader : visibles seulement par fastboot.
+                if (File.Exists(FastbootExePath))
+                {
+                    string fbOut = await RunFastbootAsync("devices", 10);
+                    foreach (var serial in OsUpdatePackage.ParseFastbootDevices(fbOut).Where(s => rows.All(r => r.Serial != s)))
+                        rows.Add(new MassOsRow { Serial = serial, State = "fastboot" });
+                }
+                // Lecture des infos de chaque terminal en parallèle : avec 10 terminaux, 10 fois plus vite.
+                await Task.WhenAll(rows.Select(r => r.State == "device" ? ReadMassOsInfoAsync(r) : r.State == "fastboot" ? ReadMassOsFastbootInfoAsync(r) : Task.CompletedTask));
                 foreach (var r in rows) { BuildMassOsRow(r); _massOsRows.Add(r); }
                 if (rows.Count == 0)
                     MassOsList.Children.Add(new TextBlock { Text = Loc.T("Aucun terminal détecté. Branchez les terminaux en USB, débogage USB autorisé, puis « Actualiser »."), FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 10), Foreground = (System.Windows.Media.Brush)FindResource("Muted") });
@@ -165,9 +290,23 @@ namespace ADBToolsNew
                 row.Model = P("ro.product.model"); row.Fingerprint = P("ro.build.fingerprint"); row.DisplayId = P("ro.build.display.id");
                 row.DeviceIds = OsUpdatePackage.DeviceIdsFrom(props);
                 long.TryParse(P("ro.build.date.utc"), out row.BuildUtc);
+                row.Bootloader = P("ro.bootloader");
+                string locked = P("ro.boot.flash.locked"), vb = P("ro.boot.verifiedbootstate");
+                row.FlashLocked = locked == "1" ? true : locked == "0" ? false : vb == "orange" ? false : vb == "green" ? true : (bool?)null;
                 row.Battery = OsUpdatePackage.ParseBatteryLevel(s[1]);
             }
             catch { /* terminal qui ne répond pas : il reste listé, sans détails */ }
+        }
+
+        private async Task ReadMassOsFastbootInfoAsync(MassOsRow row)
+        {
+            var vars = OsUpdatePackage.ParseFastbootVars(await RunFastbootAsync($"-s {row.Serial} getvar all", 20));
+            string V(string k) => vars.TryGetValue(k, out var v) ? v : "";
+            row.Model = V("product");
+            row.DeviceIds = new[] { V("product"), V("variant") }.Where(x => x.Length > 0).Distinct().ToList();
+            row.Bootloader = V("version-bootloader");
+            row.FlashLocked = V("unlocked") == "yes" ? false : V("unlocked") == "no" ? true : (bool?)null;
+            row.DisplayId = Loc.T("(mode bootloader)");
         }
 
         private void BuildMassOsRow(MassOsRow row)
@@ -207,37 +346,86 @@ namespace ADBToolsNew
             MassOsList.Children.Add(g);
         }
 
-        /// <summary>Recalcule, pour chaque terminal, s'il peut recevoir le paquet (sans toucher aux lignes déjà lancées).</summary>
+        /// <summary>Le paquet convient-il à ce terminal, pour la méthode choisie ?</summary>
+        private (OsUpdatePackage.Fit Fit, string Why) MassOsFit(OsUpdatePackage pkg, MassOsRow r, string method)
+        {
+            if (method == "fastboot")
+                return pkg.CheckFastboot(r.DeviceIds, r.FlashLocked, r.Bootloader);
+            if (pkg.IsFastbootImage)
+                return (OsUpdatePackage.Fit.Blocked, Loc.T("Image fastboot : choisissez la méthode « Fastboot »"));
+            if (pkg.IsFactoryArchive)
+                return (OsUpdatePackage.Fit.Blocked, Loc.T("Archive d'usine pour fastboot : elle ne s'installe pas par le Recovery"));
+            return pkg.Check(r.DeviceIds, r.Fingerprint, r.BuildUtc);
+        }
+
+        /// <summary>Bibliothèque : paquet le plus récent prévu pour ce terminal (jamais un retour arrière).</summary>
+        private (OsUpdatePackage Package, OsUpdatePackage.Fit Fit, string Why) PickMassOsLibraryPackage(MassOsRow r, string method)
+        {
+            var candidates = _massOsLibrary.Where(p => method == "fastboot" ? p.IsFastbootImage : p.IsOtaPackage)
+                                           .Select(p => new { P = p, F = MassOsFit(p, r, method) }).ToList();
+            var ok = candidates.Where(c => c.F.Fit == OsUpdatePackage.Fit.Ok)
+                               .OrderByDescending(c => c.P.PostTimestamp).ThenByDescending(c => c.P.FileDate).FirstOrDefault();
+            if (ok != null) return (ok.P, OsUpdatePackage.Fit.Ok, "");
+            var same = candidates.FirstOrDefault(c => c.F.Fit == OsUpdatePackage.Fit.AlreadyThere);
+            if (same != null) return (same.P, OsUpdatePackage.Fit.AlreadyThere, Loc.T("À jour : la bibliothèque n'a pas de version plus récente pour ce modèle"));
+            var locked = candidates.FirstOrDefault(c => c.F.Fit == OsUpdatePackage.Fit.Blocked && r.FlashLocked == true && method == "fastboot");
+            if (locked != null) return (null, OsUpdatePackage.Fit.Blocked, locked.F.Why);
+            return (null, OsUpdatePackage.Fit.Blocked, Loc.T("Aucun paquet de la bibliothèque n'est prévu pour ce modèle"));
+        }
+
+        /// <summary>Recalcule, pour chaque terminal, s'il peut être mis à jour et avec quel paquet.</summary>
         private void RefreshMassOsFit()
         {
-            if (_massOsBusy) return;
+            if (_massOsBusy || ChkMassOsBattery == null) return;
+            string method = MassOsMethod;
+            bool library = MassOsLibraryMode;
             foreach (var r in _massOsRows)
             {
                 if (r.Outcome.Length > 0) { r.Outcome = ""; r.Bar.Visibility = Visibility.Collapsed; }
                 string msg; string brush = "Muted"; bool selectable = true; bool checkByDefault = true;
-                r.Wipe = false; r.Downgrade = false;
+                r.Wipe = false; r.Downgrade = false; r.Package = null;
                 switch (r.State)
                 {
                     case "device":
+                    case "fastboot":
+                        if (r.State == "fastboot" && method != "fastboot")
+                        { msg = Loc.T("En mode bootloader : choisissez la méthode « Fastboot », ou redémarrez-le normalement"); brush = "WarnFg"; selectable = false; break; }
                         msg = Loc.T("Prêt");
                         if (ChkMassOsBattery.IsChecked == true && r.Battery >= 0 && r.Battery < MassOsMinBattery)
-                        { msg = Loc.F("Batterie trop faible ({0} %) : à charger avant la mise à jour", r.Battery); brush = "WarnFg"; selectable = false; }
-                        else if (_massOsPackage != null)
+                        { msg = Loc.F("Batterie trop faible ({0} %) : à charger avant la mise à jour", r.Battery); brush = "WarnFg"; selectable = false; break; }
+                        if (method == "fastboot" && !File.Exists(FastbootExePath))
+                        { msg = Loc.T("fastboot.exe absent du dossier Tools : réinstallez ADB / Fastboot (Paramètres ▸ Outils tiers)"); brush = "BadFg"; selectable = false; break; }
+                        OsUpdatePackage pkg; OsUpdatePackage.Fit fit; string why;
+                        if (library)
                         {
-                            var (fit, why) = _massOsPackage.Check(r.DeviceIds, r.Fingerprint, r.BuildUtc);
-                            if (fit == OsUpdatePackage.Fit.Blocked) { msg = why; brush = "BadFg"; selectable = false; }
-                            else if (fit == OsUpdatePackage.Fit.AlreadyThere) { msg = why; checkByDefault = false; }
-                            // Retour arrière : jamais coché d'office, le technicien le choisit en connaissance de cause.
-                            else if (fit == OsUpdatePackage.Fit.Downgrade) { msg = "⚠️ " + why; brush = "WarnFg"; checkByDefault = false; }
-                            r.Downgrade = fit == OsUpdatePackage.Fit.Downgrade;
-                            r.Wipe = r.Downgrade || _massOsPackage.Wipes;
+                            if (_massOsLibrary.Count == 0) { msg = Loc.T("Choisissez le dossier des paquets"); break; }
+                            (pkg, fit, why) = PickMassOsLibraryPackage(r, method);
                         }
+                        else
+                        {
+                            pkg = _massOsPackage;
+                            if (pkg == null) break;
+                            (fit, why) = MassOsFit(pkg, r, method);
+                        }
+                        if (fit == OsUpdatePackage.Fit.Blocked) { msg = why; brush = "BadFg"; selectable = false; break; }
+                        r.Package = pkg;
+                        if (fit == OsUpdatePackage.Fit.AlreadyThere) { msg = why.Length > 0 ? why : Loc.T("Déjà à cette version"); checkByDefault = false; if (library) selectable = false; }
+                        // Retour arrière : jamais coché d'office, le technicien le choisit en connaissance de cause.
+                        else if (fit == OsUpdatePackage.Fit.Downgrade) { msg = "⚠️ " + why; brush = "WarnFg"; checkByDefault = false; }
+                        else if (library) msg = Loc.F("Prêt — paquet : {0}", Path.GetFileName(pkg.FilePath));
+                        r.Downgrade = fit == OsUpdatePackage.Fit.Downgrade;
+                        r.Wipe = r.Downgrade || (method != "fastboot" && pkg.Wipes) || (method == "fastboot" && ChkMassOsWipe.IsChecked == true);
                         break;
                     case "sideload":
                     case "recovery":
-                        if (MassOsCopyMode) { msg = Loc.T("La copie demande un terminal démarré normalement (pas en Recovery)"); brush = "WarnFg"; selectable = false; }
-                        else if (r.State == "sideload") msg = Loc.T("Déjà en mode mise à jour par ADB");
-                        else { msg = Loc.T("En Recovery : choisissez « Apply update from ADB » sur le terminal"); brush = "WarnFg"; }
+                        if (method != "sideload") { msg = Loc.T("En Recovery : redémarrez-le normalement pour cette méthode"); brush = "WarnFg"; selectable = false; }
+                        else if (library) { msg = Loc.T("En Recovery : ADB Tools ne peut pas savoir quel paquet lui convient. Redémarrez-le normalement, ou choisissez « Un paquet pour tous »."); brush = "WarnFg"; selectable = false; }
+                        else
+                        {
+                            r.Package = _massOsPackage;
+                            if (r.State == "sideload") msg = Loc.T("Déjà en mode mise à jour par ADB");
+                            else { msg = Loc.T("En Recovery : choisissez « Apply update from ADB » sur le terminal"); brush = "WarnFg"; }
+                        }
                         break;
                     case "unauthorized":
                         msg = Loc.T("Non autorisé : acceptez le débogage USB sur l'écran du terminal, puis « Actualiser »"); brush = "WarnFg"; selectable = false; break;
@@ -246,19 +434,20 @@ namespace ADBToolsNew
                 }
                 r.Selectable = selectable;
                 r.Check.IsEnabled = selectable;
-                r.Check.IsChecked = selectable && checkByDefault;
+                r.Check.IsChecked = selectable && checkByDefault && r.Package != null;
                 SetMassOsStatus(r, msg, brush);
             }
             UpdateMassOsRunButton();
             if (!_massOsBusy && _massOsRows.Count > 0)
-                TxtMassOsSummary.Text = Loc.F("{0} terminal(aux) branché(s), {1} pouvant être mis à jour.", _massOsRows.Count, _massOsRows.Count(r => r.Selectable));
+                TxtMassOsSummary.Text = Loc.F("{0} terminal(aux) branché(s), {1} pouvant être mis à jour.", _massOsRows.Count, _massOsRows.Count(r => r.Selectable && r.Package != null));
         }
 
         private void UpdateMassOsRunButton()
         {
-            int n = _massOsRows.Count(r => r.Selectable && r.Check.IsChecked == true);
-            BtnMassOsRun.IsEnabled = !_massOsBusy && _massOsPackage != null && n > 0;
-            BtnMassOsRun.Content = _massOsPackage == null ? Loc.T("Choisissez d'abord le paquet")
+            int n = _massOsRows.Count(r => r.Selectable && r.Package != null && r.Check.IsChecked == true);
+            bool havePackage = MassOsLibraryMode ? _massOsLibrary.Count > 0 : _massOsPackage != null;
+            BtnMassOsRun.IsEnabled = !_massOsBusy && havePackage && n > 0;
+            BtnMassOsRun.Content = !havePackage ? (MassOsLibraryMode ? Loc.T("Choisissez d'abord le dossier") : Loc.T("Choisissez d'abord le paquet"))
                 : n > 0 ? Loc.F("Mettre à jour {0} terminal(aux)", n) : Loc.T("Mettre à jour");
         }
 
@@ -270,45 +459,68 @@ namespace ADBToolsNew
 
         // ------------------------------------------------------------------ Lancement
 
+        private sealed class MassOsAfter
+        {
+            public List<string> Apks = new List<string>();
+            public List<string> Commands = new List<string>();
+            public bool Any => Apks.Count > 0 || Commands.Count > 0;
+        }
+
         private async void BtnMassOsRun_Click(object sender, RoutedEventArgs e)
         {
-            var rows = _massOsRows.Where(r => r.Selectable && r.Check.IsChecked == true).ToList();
-            if (rows.Count == 0 || _massOsPackage == null) return;
-            string file = _massOsPackage.FilePath;
-            if (!System.IO.File.Exists(file)) { TxtMassOsPackage.Text = Loc.T("Le paquet n'est plus à cet emplacement : choisissez-le à nouveau."); return; }
+            var rows = _massOsRows.Where(r => r.Selectable && r.Package != null && r.Check.IsChecked == true).ToList();
+            if (rows.Count == 0) return;
+            var missing = rows.Select(r => r.Package.FilePath).Distinct().Where(f => !File.Exists(f)).ToList();
+            if (missing.Count > 0) { TxtMassOsPackage.Text = Loc.F("Paquet introuvable : {0}. Choisissez-le à nouveau.", Path.GetFileName(missing[0])); return; }
 
+            string method = MassOsMethod;
             int wiped = rows.Count(r => r.Wipe);
+            var packages = rows.Select(r => r.Package.FilePath).Distinct().ToList();
+            string what = packages.Count == 1 ? Path.GetFileName(packages[0]) : Loc.F("{0} paquets différents (un par modèle)", packages.Count);
             string wipeWarning = wiped > 0
                 ? Loc.F("\n\n⚠️ {0} terminal(aux) seront EFFACÉS par ce paquet (retour à une version antérieure ou effacement demandé par le fabricant) : applications, réglages et données perdus.", wiped)
                 : "";
+            if (method == "fastboot")
+                wipeWarning += Loc.T("\n\nFastboot : ne débranchez surtout pas un terminal pendant le flash, il pourrait ne plus démarrer.");
             bool ok = await ShowCustomDialogAsync(Loc.T("⚠️ Mise à jour OS"),
                 Loc.F("{0} terminal(aux) vont recevoir {1}.{2}\n\nPendant la mise à jour, ne débranchez aucun terminal et ne fermez pas ADB Tools. Les terminaux redémarrent plusieurs fois ; l'installation peut durer de 5 à 20 minutes.\n\nLancer la mise à jour ?",
-                      rows.Count, System.IO.Path.GetFileName(file), wipeWarning),
+                      rows.Count, what, wipeWarning),
                 Loc.T("Lancer la mise à jour"), Loc.T("Annuler"), true);
             if (!ok) return;
 
             bool verify = ChkMassOsVerify.IsChecked == true;
-            bool copy = MassOsCopyMode;
+            var after = new MassOsAfter();
+            if (ChkMassOsAfterApk.IsChecked == true) after.Apks.AddRange(_massOsApks.Where(File.Exists));
+            if (ChkMassOsAfterCmd.IsChecked == true)
+                after.Commands.AddRange((TxtMassOsCmds.Text ?? "").Replace("\r", "").Split('\n').Select(NormalizeMassOsCommand).Where(c => c.Length > 0));
+            int parallel = MassOsParallel();
+
             _massOsBusy = true;
             _massOsWaitCts = new CancellationTokenSource();
+            _massOsSlots = new SemaphoreSlim(parallel > 0 ? parallel : rows.Count);
             SetMassOsLocked(true);
             AnimateNavButton(BtnNavOsUpdate, true); // le bouton du menu pulse tant que la mise à jour tourne
-            foreach (var r in rows) { r.Method = copy ? Loc.T("Copie dans la mémoire") : Loc.T("Par câble"); r.VersionBefore = r.TxtVersion.Text; r.Started = DateTime.Now; r.Ended = null; }
+            string methodName = method == "fastboot" ? Loc.T("Fastboot") : method == "copy" ? Loc.T("Copie dans la mémoire") : Loc.T("Par câble");
+            foreach (var r in rows) { r.Method = methodName; r.VersionBefore = r.TxtVersion.Text; r.Started = DateTime.Now; r.Ended = null; }
             foreach (var r in _massOsRows.Where(x => !rows.Contains(x))) r.Check.IsEnabled = false;
-            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Mise à jour OS : {1} terminal(aux), paquet {2} ({3}).", DateTime.Now, rows.Count, System.IO.Path.GetFileName(file),
-                copy ? Loc.T("copie dans la mémoire du terminal") : Loc.T("par câble")));
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Mise à jour OS : {1} terminal(aux), paquet {2} ({3}).", DateTime.Now, rows.Count, what, methodName));
             AppendConsole(Loc.T("\n⚠️ NE DÉBRANCHEZ AUCUN TERMINAL PENDANT LA MISE À JOUR."));
             UpdateMassOsProgressSummary(rows);
             try
             {
                 var token = _massOsWaitCts.Token;
-                await Task.WhenAll(rows.Select(r => copy ? RunMassOsCopyAsync(r, file, verify, token, rows) : RunMassOsDeviceAsync(r, file, verify, token, rows)));
+                await Task.WhenAll(rows.Select(r =>
+                    method == "fastboot" ? RunMassOsFastbootAsync(r, verify, after, token, rows)
+                    : method == "copy" ? RunMassOsCopyAsync(r, verify, after, token, rows)
+                    : RunMassOsDeviceAsync(r, verify, after, token, rows)));
             }
             finally
             {
                 _massOsBusy = false;
                 _massOsWaitCts.Dispose();
                 _massOsWaitCts = null;
+                _massOsSlots.Dispose();
+                _massOsSlots = null;
                 SetMassOsLocked(false);
                 AnimateNavButton(BtnNavOsUpdate, false);
                 if (MainTabControl.SelectedIndex == OsUpdateTabIndex) UpdateNavButtonsUI(BtnNavOsUpdate);
@@ -324,17 +536,22 @@ namespace ADBToolsNew
                 await ShowCustomDialogAsync(Loc.T("📦 Mise à jour OS terminée"), TxtMassOsSummary.Text, "OK", null, false);
         }
 
+        /// <summary>« adb -s X shell ls » ou « adb shell ls » → « shell ls » : ADB Tools vise lui-même chaque terminal.</summary>
+        internal static string NormalizeMassOsCommand(string line)
+        {
+            string c = (line ?? "").Trim();
+            if (c.Length == 0 || c.StartsWith("#")) return "";
+            c = System.Text.RegularExpressions.Regex.Replace(c, @"^(adb(\.exe)?\s+)", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            c = System.Text.RegularExpressions.Regex.Replace(c, @"^-s\s+\S+\s+", "");
+            return c.Trim();
+        }
+
         private void SetMassOsLocked(bool busy)
         {
-            BtnMassOsPick.IsEnabled = !busy;
-            BtnMassOsRefresh.IsEnabled = !busy;
-            BtnMassOsAll.IsEnabled = !busy;
-            ChkMassOsBattery.IsEnabled = !busy;
-            ChkMassOsVerify.IsEnabled = !busy;
-            RbMassOsSideload.IsEnabled = !busy;
-            RbMassOsCopy.IsEnabled = !busy;
-            BtnMassOsRun.IsEnabled = !busy;
-            BtnMassOsExport.IsEnabled = !busy;
+            foreach (var c in new Control[] { BtnMassOsPick, BtnMassOsRefresh, BtnMassOsAll, ChkMassOsBattery, ChkMassOsVerify, ChkMassOsWipe,
+                                              RbMassOsSideload, RbMassOsCopy, RbMassOsFastboot, RbMassOsSingle, RbMassOsLibrary, CmbMassOsParallel,
+                                              ChkMassOsAfterApk, ChkMassOsAfterCmd, BtnMassOsApks, TxtMassOsCmds, BtnMassOsRun, BtnMassOsExport })
+                c.IsEnabled = !busy;
             BtnMassOsStop.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             BtnMassOsStop.IsEnabled = busy;
         }
@@ -346,8 +563,19 @@ namespace ADBToolsNew
             TxtMassOsSummary.Text = Loc.F("En cours : {0} / {1} terminé(s). Ne débranchez aucun terminal.", done, rows.Count);
         }
 
-        private async Task RunMassOsDeviceAsync(MassOsRow row, string file, bool verify, CancellationToken waitToken, List<MassOsRow> all)
+        /// <summary>Attend une place pour envoyer (option « Envois simultanés ») ; la ligne l'indique si l'attente dure.</summary>
+        private async Task WaitMassOsSlotAsync(MassOsRow row)
         {
+            if (_massOsSlots.Wait(0)) return;
+            SetMassOsStatus(row, Loc.T("En attente de son tour (envois simultanés limités)…"), "Muted");
+            await _massOsSlots.WaitAsync();
+        }
+
+        // ------------------------------------------------------------------ Par câble (sideload)
+
+        private async Task RunMassOsDeviceAsync(MassOsRow row, bool verify, MassOsAfter after, CancellationToken waitToken, List<MassOsRow> all)
+        {
+            string file = row.Package.FilePath;
             _massOsRunning++;
             row.Check.IsEnabled = false;
             row.Bar.Visibility = Visibility.Visible;
@@ -386,18 +614,25 @@ namespace ADBToolsNew
                 }
 
                 // 2. Envoi : jamais interrompu.
-                SetMassOsStatus(row, Loc.T("Envoi du paquet… ne pas débrancher"), "Ink");
-                row.Bar.IsIndeterminate = false;
-                row.Bar.Value = 0;
-                var transfer = new AdbTransferProcess(OsUpdatePackage.SideloadProgress);
-                var (exitOk, output) = await transfer.RunAsync(_adbExePath, $"-s {row.Serial} sideload {AdbManager.QuoteLocalArg(file)}",
-                    pct => Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        row.Bar.Value = pct;
-                        SetMassOsStatus(row, Loc.F("Envoi du paquet… {0} % — ne pas débrancher", pct), "Ink");
-                    })), CancellationToken.None);
-                // Certains recovery ferment la connexion en fin de transfert (code de sortie non nul) : « Total xfer » confirme la réussite.
-                bool sent = exitOk || (output ?? "").IndexOf("Total xfer", StringComparison.OrdinalIgnoreCase) >= 0;
+                await WaitMassOsSlotAsync(row);
+                bool sent; string output;
+                try
+                {
+                    SetMassOsStatus(row, Loc.T("Envoi du paquet… ne pas débrancher"), "Ink");
+                    row.Bar.IsIndeterminate = false;
+                    row.Bar.Value = 0;
+                    var transfer = new AdbTransferProcess(OsUpdatePackage.SideloadProgress);
+                    bool exitOk;
+                    (exitOk, output) = await transfer.RunAsync(_adbExePath, $"-s {row.Serial} sideload {AdbManager.QuoteLocalArg(file)}",
+                        pct => Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            row.Bar.Value = pct;
+                            SetMassOsStatus(row, Loc.F("Envoi du paquet… {0} % — ne pas débrancher", pct), "Ink");
+                        })), CancellationToken.None);
+                    // Certains recovery ferment la connexion en fin de transfert (code de sortie non nul) : « Total xfer » confirme la réussite.
+                    sent = exitOk || (output ?? "").IndexOf("Total xfer", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+                finally { _massOsSlots.Release(); }
                 if (!sent)
                 {
                     FinishMassOs(row, "bad", Loc.F("Paquet refusé ou envoi interrompu : {0}", LastLines(output, 2)));
@@ -426,16 +661,7 @@ namespace ADBToolsNew
                     FinishMassOs(row, "warn", Loc.T("Paquet envoyé, mais le terminal n'a pas redémarré normalement : vérifiez son écran"));
                     return;
                 }
-                string before = row.Fingerprint;
-                await Task.Delay(TimeSpan.FromSeconds(5)); // laisse Android finir de démarrer avant de lire ses propriétés
-                await ReadMassOsInfoAsync(row);
-                row.DisplayIdAfter = row.DisplayId;
-                row.TxtVersion.Text = row.DisplayId.Length > 0 ? row.DisplayId : OsUpdatePackage.ShortBuild(row.Fingerprint);
-                row.TxtVersion.ToolTip = row.Fingerprint;
-                if (before.Length > 0 && row.Fingerprint.Length > 0 && row.Fingerprint == before)
-                    FinishMassOs(row, "warn", Loc.T("Redémarré, mais la version n'a pas changé : le terminal a peut-être refusé le paquet (voir son écran Recovery)"));
-                else
-                    FinishMassOs(row, "ok", Loc.F("À jour : {0}", row.TxtVersion.Text));
+                await FinishMassOsVerifiedAsync(row, after, Loc.T("Redémarré, mais la version n'a pas changé : le terminal a peut-être refusé le paquet (voir son écran Recovery)"));
             }
             catch (Exception ex)
             {
@@ -448,13 +674,16 @@ namespace ADBToolsNew
             }
         }
 
+        // ------------------------------------------------------------------ Copie dans la mémoire du terminal
+
         /// <summary>
         /// Méthode « copie dans la mémoire du terminal » : envoi du paquet sur le stockage interne, contrôle de sa
         /// taille, redémarrage en Recovery ; le technicien lance l'installation sur l'écran du terminal. Au retour,
         /// contrôle de la version et effacement de la copie.
         /// </summary>
-        private async Task RunMassOsCopyAsync(MassOsRow row, string file, bool verify, CancellationToken waitToken, List<MassOsRow> all)
+        private async Task RunMassOsCopyAsync(MassOsRow row, bool verify, MassOsAfter after, CancellationToken waitToken, List<MassOsRow> all)
         {
+            string file = row.Package.FilePath;
             _massOsRunning++;
             row.Check.IsEnabled = false;
             row.Bar.Visibility = Visibility.Visible;
@@ -464,14 +693,20 @@ namespace ADBToolsNew
             string remote = "/sdcard/" + MassOsRemoteName(file);
             try
             {
-                SetMassOsStatus(row, Loc.T("Copie du paquet sur le terminal… ne pas débrancher"), "Ink");
-                var transfer = new AdbTransferProcess();
-                var (pushed, output) = await transfer.RunAsync(_adbExePath, $"-s {row.Serial} push {AdbManager.QuoteLocalArg(file)} {remote}",
-                    pct => Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        row.Bar.Value = pct;
-                        SetMassOsStatus(row, Loc.F("Copie du paquet… {0} % — ne pas débrancher", pct), "Ink");
-                    })), CancellationToken.None);
+                await WaitMassOsSlotAsync(row);
+                bool pushed; string output;
+                try
+                {
+                    SetMassOsStatus(row, Loc.T("Copie du paquet sur le terminal… ne pas débrancher"), "Ink");
+                    var transfer = new AdbTransferProcess();
+                    (pushed, output) = await transfer.RunAsync(_adbExePath, $"-s {row.Serial} push {AdbManager.QuoteLocalArg(file)} {remote}",
+                        pct => Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            row.Bar.Value = pct;
+                            SetMassOsStatus(row, Loc.F("Copie du paquet… {0} % — ne pas débrancher", pct), "Ink");
+                        })), CancellationToken.None);
+                }
+                finally { _massOsSlots.Release(); }
                 if (!pushed)
                 {
                     FinishMassOs(row, "bad", Loc.F("Copie impossible : {0}", LastLines(output, 2)));
@@ -479,7 +714,7 @@ namespace ADBToolsNew
                 }
                 // Taille relue sur le terminal : une copie tronquée ne doit jamais être proposée à l'installation.
                 var size = await _adbManager.ExecuteAsync($"-s {row.Serial} shell stat -c %s {remote}", TimeSpan.FromSeconds(15));
-                long expected = new System.IO.FileInfo(file).Length;
+                long expected = new FileInfo(file).Length;
                 if (!long.TryParse((size.StandardOutput ?? "").Trim(), out long got) || got != expected)
                 {
                     await _adbManager.ExecuteAsync($"-s {row.Serial} shell rm -f {remote}", TimeSpan.FromSeconds(15));
@@ -489,7 +724,7 @@ namespace ADBToolsNew
                 row.Bar.Value = 100;
 
                 await _adbManager.ExecuteAsync($"-s {row.Serial} reboot recovery", TimeSpan.FromSeconds(20));
-                string name = System.IO.Path.GetFileName(remote);
+                string name = Path.GetFileName(remote);
                 if (row.Downgrade)
                 {
                     // L'effacement supprime aussi la copie et désactive le débogage USB : pas de contrôle au retour.
@@ -514,16 +749,8 @@ namespace ADBToolsNew
                         : Loc.F("Le terminal n'est pas revenu en 45 minutes : vérifiez son écran (la copie {0} reste dans sa mémoire)", name));
                     return;
                 }
-                string before = row.Fingerprint;
-                await Task.Delay(TimeSpan.FromSeconds(5));
-                await ReadMassOsInfoAsync(row);
                 try { await _adbManager.ExecuteAsync($"-s {row.Serial} shell rm -f {remote}", TimeSpan.FromSeconds(15)); } catch { }
-                row.TxtVersion.Text = row.DisplayId.Length > 0 ? row.DisplayId : OsUpdatePackage.ShortBuild(row.Fingerprint);
-                row.TxtVersion.ToolTip = row.Fingerprint;
-                if (before.Length > 0 && row.Fingerprint.Length > 0 && row.Fingerprint == before)
-                    FinishMassOs(row, "warn", Loc.T("Redémarré, mais la version n'a pas changé : l'installation n'a pas été lancée ou a été refusée"));
-                else
-                    FinishMassOs(row, "ok", Loc.F("À jour : {0}", row.TxtVersion.Text));
+                await FinishMassOsVerifiedAsync(row, after, Loc.T("Redémarré, mais la version n'a pas changé : l'installation n'a pas été lancée ou a été refusée"));
             }
             catch (Exception ex)
             {
@@ -536,10 +763,197 @@ namespace ADBToolsNew
             }
         }
 
+        // ------------------------------------------------------------------ Fastboot
+
+        /// <summary>
+        /// Méthode fastboot : passage en mode bootloader, contrôles (bootloader déverrouillé, modèle, version du
+        /// bootloader) relus en mode bootloader, puis « fastboot update » de l'image d'usine. En cas de refus avant le
+        /// flash, le terminal est redémarré normalement : rien n'a été modifié.
+        /// </summary>
+        private async Task RunMassOsFastbootAsync(MassOsRow row, bool verify, MassOsAfter after, CancellationToken waitToken, List<MassOsRow> all)
+        {
+            string file = row.Package.FilePath;
+            bool wipe = ChkMassOsWipe.IsChecked == true;
+            _massOsRunning++;
+            row.Check.IsEnabled = false;
+            row.Bar.Visibility = Visibility.Visible;
+            row.Bar.IsIndeterminate = true;
+            try
+            {
+                // 1. Mode bootloader.
+                if (row.State == "device")
+                {
+                    SetMassOsStatus(row, Loc.T("Redémarrage en mode bootloader (fastboot)…"), "Ink");
+                    await _adbManager.ExecuteAsync($"-s {row.Serial} reboot bootloader", TimeSpan.FromSeconds(20));
+                    bool inFastboot = await WaitForMassOsStateAsync(row, "fastboot", TimeSpan.FromMinutes(5), waitToken, TimeSpan.FromSeconds(60),
+                        () => SetMassOsStatus(row, Loc.T("Le terminal n'apparaît pas en fastboot : s'il affiche l'écran du bootloader, installez le pilote USB fastboot (Google USB Driver ou celui du fabricant)."), "WarnFg"));
+                    if (!inFastboot)
+                    {
+                        FinishMassOs(row, "bad", waitToken.IsCancellationRequested ? Loc.T("Attente arrêtée : rien n'a été flashé")
+                                                                                    : Loc.T("Le terminal n'est pas apparu en mode fastboot : rien n'a été flashé (pilote USB fastboot ?)"));
+                        return;
+                    }
+                }
+
+                // 2. Contrôles relus en mode bootloader : c'est là qu'ils font foi.
+                SetMassOsStatus(row, Loc.T("Vérification du bootloader…"), "Ink");
+                var vars = OsUpdatePackage.ParseFastbootVars(await RunFastbootAsync($"-s {row.Serial} getvar all", 20));
+                string V(string k) => vars.TryGetValue(k, out var v) ? v : "";
+                var ids = row.DeviceIds.Concat(new[] { V("product"), V("variant") }).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                bool? locked = V("unlocked") == "yes" ? false : V("unlocked") == "no" ? true : row.FlashLocked;
+                string bl = V("version-bootloader").Length > 0 ? V("version-bootloader") : row.Bootloader;
+                var (fit, why) = row.Package.CheckFastboot(ids, locked, bl);
+                if (fit == OsUpdatePackage.Fit.Blocked)
+                {
+                    await RunFastbootAsync($"-s {row.Serial} reboot", 20);
+                    FinishMassOs(row, "bad", why + " " + Loc.T("Rien n'a été flashé ; le terminal redémarre normalement."));
+                    return;
+                }
+
+                // 3. Flash : jamais interrompu.
+                await WaitMassOsSlotAsync(row);
+                bool flashed; string output;
+                try
+                {
+                    SetMassOsStatus(row, Loc.T("Flash en cours… ne pas débrancher"), "Ink");
+                    var transfer = new AdbTransferProcess();
+                    var lastShown = DateTime.MinValue;
+                    transfer.LineReceived = line =>
+                    {
+                        // « Sending sparse 'system_a' 2/8 (262140 KB) » : l'étape en cours, sans inonder l'interface.
+                        if ((DateTime.Now - lastShown).TotalMilliseconds < 400 || !System.Text.RegularExpressions.Regex.IsMatch(line, @"^(Sending|Writing|Erasing|Rebooting|Setting|Checking|extracting|archive)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return;
+                        lastShown = DateTime.Now;
+                        string step = line.Trim();
+                        if (step.Length > 90) step = step.Substring(0, 90) + "…";
+                        Dispatcher.BeginInvoke(new Action(() => SetMassOsStatus(row, Loc.F("Flash : {0} — ne pas débrancher", step), "Ink")));
+                    };
+                    (flashed, output) = await transfer.RunAsync(FastbootExePath, $"-s {row.Serial} {(wipe ? "-w " : "")}update {AdbManager.QuoteLocalArg(file)}", null, CancellationToken.None);
+                }
+                finally { _massOsSlots.Release(); }
+                if (!flashed)
+                {
+                    FinishMassOs(row, "bad", Loc.F("Échec du flash : {0}. Le terminal reste en mode bootloader : ne le redémarrez pas avant d'avoir relancé un flash correct.", LastLines(output, 2)));
+                    return;
+                }
+                row.Bar.IsIndeterminate = false;
+                row.Bar.Value = 100;
+
+                if (wipe)
+                {
+                    FinishMassOs(row, "ok", Loc.T("Flashé et effacé : le terminal redémarre. Le débogage USB étant désactivé par l'effacement, vérifiez la version sur le terminal."));
+                    return;
+                }
+                if (!verify)
+                {
+                    FinishMassOs(row, "ok", Loc.T("Flashé : le terminal redémarre sur sa nouvelle version"));
+                    return;
+                }
+                SetMassOsStatus(row, Loc.T("Redémarrage du terminal…"), "Ink");
+                row.Bar.IsIndeterminate = true;
+                bool back = await WaitForMassOsStateAsync(row, "device", TimeSpan.FromMinutes(20), waitToken, TimeSpan.Zero, null);
+                if (!back)
+                {
+                    FinishMassOs(row, "warn", Loc.T("Flashé, mais le terminal n'est pas revenu sous Android : vérifiez son écran (le premier démarrage peut être long)"));
+                    return;
+                }
+                await FinishMassOsVerifiedAsync(row, after, Loc.T("Redémarré, mais la version n'a pas changé : vérifiez l'image choisie"));
+            }
+            catch (Exception ex)
+            {
+                FinishMassOs(row, "bad", Loc.F("Erreur : {0}", ex.Message));
+            }
+            finally
+            {
+                _massOsRunning--;
+                UpdateMassOsProgressSummary(all);
+            }
+        }
+
+        /// <summary>Lance fastboot.exe et rend sa sortie (vide en cas d'erreur ou de délai dépassé).</summary>
+        private async Task<string> RunFastbootAsync(string args, int timeoutSeconds)
+        {
+            if (!File.Exists(FastbootExePath)) return "";
+            try
+            {
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds)))
+                {
+                    var (_, output) = await new AdbTransferProcess().RunAsync(FastbootExePath, args, null, cts.Token);
+                    return output ?? "";
+                }
+            }
+            catch { return ""; }
+        }
+
+        // ------------------------------------------------------------------ Retour du terminal
+
+        /// <summary>Terminal revenu sous Android : contrôle de la version, puis actions « Après la mise à jour ».</summary>
+        private async Task FinishMassOsVerifiedAsync(MassOsRow row, MassOsAfter after, string unchangedMessage)
+        {
+            string before = row.Fingerprint;
+            await Task.Delay(TimeSpan.FromSeconds(5)); // laisse Android finir de démarrer avant de lire ses propriétés
+            await ReadMassOsInfoAsync(row);
+            row.TxtVersion.Text = row.DisplayId.Length > 0 ? row.DisplayId : OsUpdatePackage.ShortBuild(row.Fingerprint);
+            row.TxtVersion.ToolTip = row.Fingerprint;
+            bool unchanged = before.Length > 0 && row.Fingerprint.Length > 0 && row.Fingerprint == before;
+            string outcome = unchanged ? "warn" : "ok";
+            string message = unchanged ? unchangedMessage : Loc.F("À jour : {0}", row.TxtVersion.Text);
+            if (!unchanged && after.Any)
+            {
+                var (allOk, summary) = await RunMassOsAfterAsync(row, after);
+                message += " — " + summary;
+                if (!allOk) outcome = "warn";
+            }
+            FinishMassOs(row, outcome, message);
+        }
+
+        /// <summary>Applications et commandes à passer après la mise à jour ; rend le résumé (« 2/2 applis, 1/1 commande »).</summary>
+        private async Task<(bool AllOk, string Summary)> RunMassOsAfterAsync(MassOsRow row, MassOsAfter after)
+        {
+            int apkOk = 0, cmdOk = 0;
+            var failed = new List<string>();
+            // Android tout juste démarré : le gestionnaire de paquets peut ne pas être prêt aussitôt.
+            await WaitForMassOsBootCompletedAsync(row);
+            foreach (var apk in after.Apks)
+            {
+                SetMassOsStatus(row, Loc.F("Installation de {0}…", Path.GetFileName(apk)), "Ink");
+                var res = await _adbManager.ExecuteAsync($"-s {row.Serial} install -r {AdbManager.QuoteLocalArg(apk)}", TimeSpan.FromMinutes(5));
+                if ((res.StandardOutput ?? "").Contains("Success")) apkOk++;
+                else failed.Add(Path.GetFileName(apk));
+            }
+            foreach (var cmd in after.Commands)
+            {
+                SetMassOsStatus(row, Loc.F("Commande : {0}", cmd), "Ink");
+                var res = await _adbManager.ExecuteAsync($"-s {row.Serial} {cmd}", TimeSpan.FromMinutes(2));
+                if (res.IsSuccess) cmdOk++;
+                else failed.Add(cmd);
+            }
+            var parts = new List<string>();
+            if (after.Apks.Count > 0) parts.Add(Loc.F("{0}/{1} application(s) installée(s)", apkOk, after.Apks.Count));
+            if (after.Commands.Count > 0) parts.Add(Loc.F("{0}/{1} commande(s) réussie(s)", cmdOk, after.Commands.Count));
+            if (failed.Count > 0) parts.Add(Loc.F("en échec : {0}", string.Join(", ", failed)));
+            return (failed.Count == 0, string.Join(", ", parts));
+        }
+
+        private async Task WaitForMassOsBootCompletedAsync(MassOsRow row)
+        {
+            for (int i = 0; i < 40; i++)
+            {
+                try
+                {
+                    var r = await _adbManager.ExecuteAsync($"-s {row.Serial} shell getprop sys.boot_completed", TimeSpan.FromSeconds(10));
+                    if ((r.StandardOutput ?? "").Trim() == "1") return;
+                }
+                catch { }
+                await Task.Delay(3000);
+            }
+        }
+
+        // ------------------------------------------------------------------ Outils
+
         /// <summary>« Mise à jour TC58 14.zip » → « update_Mise_a_jour_TC58_14.zip » (lettres, chiffres, . _ - seulement).</summary>
         private static string MassOsRemoteName(string file)
         {
-            string n = System.IO.Path.GetFileName(file).Normalize(NormalizationForm.FormD);
+            string n = Path.GetFileName(file).Normalize(NormalizationForm.FormD);
             var sb = new StringBuilder();
             foreach (char c in n)
             {
@@ -563,8 +977,8 @@ namespace ADBToolsNew
         }
 
         /// <summary>
-        /// Attend que le terminal apparaisse dans l'état voulu (« sideload », « device »…). <paramref name="hintAfter"/> :
-        /// délai au-delà duquel <paramref name="onSlow"/> est appelé une fois (ex. consigne pour un passage manuel).
+        /// Attend que le terminal apparaisse dans l'état voulu (« sideload », « device », « fastboot »…).
+        /// <paramref name="hintAfter"/> : délai au-delà duquel <paramref name="onSlow"/> est appelé une fois.
         /// </summary>
         private async Task<bool> WaitForMassOsStateAsync(MassOsRow row, string state, TimeSpan timeout, CancellationToken token, TimeSpan hintAfter, Action onSlow)
         {
@@ -575,8 +989,15 @@ namespace ADBToolsNew
                 if (token.IsCancellationRequested) return false;
                 try
                 {
-                    var res = await _adbManager.ExecuteAsync("devices", TimeSpan.FromSeconds(10));
-                    if (res.IsSuccess && ParseAdbDevices(res.StandardOutput).Any(d => d.Serial == row.Serial && d.State == state)) return true;
+                    if (state == "fastboot")
+                    {
+                        if (OsUpdatePackage.ParseFastbootDevices(await RunFastbootAsync("devices", 10)).Contains(row.Serial)) return true;
+                    }
+                    else
+                    {
+                        var res = await _adbManager.ExecuteAsync("devices", TimeSpan.FromSeconds(10));
+                        if (res.IsSuccess && ParseAdbDevices(res.StandardOutput).Any(d => d.Serial == row.Serial && d.State == state)) return true;
+                    }
                 }
                 catch { /* adb occupé par les autres envois : on réessaie au tour suivant */ }
                 if (!hinted && onSlow != null && hintAfter > TimeSpan.Zero && DateTime.UtcNow - start > hintAfter) { hinted = true; onSlow(); }
@@ -592,7 +1013,7 @@ namespace ADBToolsNew
         // ------------------------------------------------------------------ Bilan
 
         private static readonly string[] MassOsReportHeaders =
-            { "N° de série", "Modèle", "Version avant", "Version après", "Batterie", "Méthode", "Résultat", "Détail", "Début", "Fin" };
+            { "N° de série", "Modèle", "Version avant", "Version après", "Batterie", "Méthode", "Paquet", "Résultat", "Détail", "Début", "Fin" };
 
         private string MassOsOutcomeText(MassOsRow r) =>
             r.Outcome == "ok" ? Loc.T("Réussi") : r.Outcome == "warn" ? Loc.T("À vérifier") : r.Outcome == "bad" ? Loc.T("Échec") : Loc.T("Non lancé");
@@ -604,6 +1025,7 @@ namespace ADBToolsNew
             r.Outcome.Length > 0 ? r.TxtVersion.Text : "",
             r.Battery >= 0 ? r.Battery + " %" : "",
             r.Method,
+            r.Package != null ? Path.GetFileName(r.Package.FilePath) : "",
             MassOsOutcomeText(r),
             r.Outcome.Length > 0 ? r.Message : r.TxtStatus.Text,
             r.Started?.ToString("dd/MM/yyyy HH:mm:ss") ?? "",
@@ -613,7 +1035,8 @@ namespace ADBToolsNew
         private List<string> MassOsReportTitle()
         {
             var t = new List<string> { Loc.F("Mise à jour OS — {0:dd/MM/yyyy HH:mm}", DateTime.Now) };
-            if (_massOsPackage != null) t.Add(Loc.F("Paquet : {0}", System.IO.Path.GetFileName(_massOsPackage.FilePath) + " — " + _massOsPackage.Describe()));
+            if (MassOsLibraryMode) { if (TxtMassOsFile.Text.Length > 0) t.Add(Loc.F("Bibliothèque : {0}", TxtMassOsFile.Text)); }
+            else if (_massOsPackage != null) t.Add(Loc.F("Paquet : {0}", Path.GetFileName(_massOsPackage.FilePath) + " — " + _massOsPackage.Describe()));
             int good = _massOsRows.Count(r => r.Outcome == "ok"), warn = _massOsRows.Count(r => r.Outcome == "warn"), bad = _massOsRows.Count(r => r.Outcome == "bad");
             if (good + warn + bad > 0) t.Add(Loc.F("Bilan : {0} réussi(s), {1} à vérifier, {2} en échec.", good, warn, bad));
             return t;
@@ -635,7 +1058,7 @@ namespace ADBToolsNew
                 XlsxExport.Write(dlg.FileName, Loc.T("Mise à jour OS"), MassOsReportTitle(), MassOsReportHeaders.Select(Loc.T).ToList(), rows,
                     i => _massOsRows[i].Outcome == "ok" ? XlsxExport.StyleOk : _massOsRows[i].Outcome == "warn" ? XlsxExport.StyleWarn
                        : _massOsRows[i].Outcome == "bad" ? XlsxExport.StyleBad : XlsxExport.StyleNormal);
-                TxtMassOsSummary.Text = Loc.F("Bilan exporté : {0}", System.IO.Path.GetFileName(dlg.FileName));
+                TxtMassOsSummary.Text = Loc.F("Bilan exporté : {0}", Path.GetFileName(dlg.FileName));
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📊 Bilan de la mise à jour OS exporté : {1}", DateTime.Now, dlg.FileName));
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); } catch { /* pas d'Excel : le fichier reste enregistré */ }
             }

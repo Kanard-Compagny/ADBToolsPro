@@ -33,14 +33,34 @@ namespace ADBToolsNew.Core
         /// <summary>Modèles listés par le DeviceManifest.xml des paquets Zebra (ro.product.name), vide sinon.</summary>
         public List<string> ManifestModels { get; private set; } = new List<string>();
 
+        /// <summary>Image fastboot (« fastboot update ») : android-info.txt à la racine du .zip.</summary>
+        public bool IsFastbootImage { get; private set; }
+        /// <summary>Cartes visées par l'image fastboot (« require board= »).</summary>
+        public List<string> FastbootBoards { get; private set; } = new List<string>();
+        /// <summary>Versions de bootloader exigées par l'image fastboot (« require version-bootloader= »), vide si aucune.</summary>
+        public List<string> FastbootBootloaders { get; private set; } = new List<string>();
+        /// <summary>Archive d'usine complète (flash-all + image-….zip à l'intérieur) : à décompresser d'abord.</summary>
+        public bool IsFactoryArchive { get; private set; }
+        public DateTime FileDate { get; private set; }
+
+        /// <summary>Paquet de mise à jour (recovery : sideload ou copie), reconnu par son metadata ou son manifeste.</summary>
+        public bool IsOtaPackage => HasMetadata || ManifestModels.Count > 0;
+
         /// <summary>Mise à jour différentielle : ne s'installe que sur une version précise.</summary>
         public bool IsIncremental => PreBuilds.Count > 0;
 
         public static OsUpdatePackage Read(string zipPath)
         {
-            var pkg = new OsUpdatePackage { FilePath = zipPath, Size = new FileInfo(zipPath).Length };
+            var fi = new FileInfo(zipPath);
+            var pkg = new OsUpdatePackage { FilePath = zipPath, Size = fi.Length, FileDate = fi.LastWriteTime };
             using (var zip = ZipFile.OpenRead(zipPath))
             {
+                var info = zip.GetEntry("android-info.txt");
+                if (info != null)
+                    using (var r = new StreamReader(info.Open(), Encoding.UTF8))
+                        pkg.ApplyAndroidInfo(r.ReadToEnd());
+                pkg.IsFactoryArchive = zip.Entries.Any(e => e.Name.StartsWith("flash-all", StringComparison.OrdinalIgnoreCase))
+                                    && zip.Entries.Any(e => Regex.IsMatch(e.Name, @"^image-.*\.zip$", RegexOptions.IgnoreCase));
                 var entry = zip.GetEntry("META-INF/com/android/metadata");
                 if (entry != null)
                     using (var r = new StreamReader(entry.Open(), Encoding.UTF8))
@@ -59,6 +79,43 @@ namespace ADBToolsNew.Core
             var pkg = new OsUpdatePackage { FilePath = "" };
             pkg.ApplyMetadata(metadata);
             return pkg;
+        }
+
+        /// <summary>Fonction pure, testable : lit l'android-info.txt d'une image fastboot (« require board=sargo|bonito »).</summary>
+        public void ApplyAndroidInfo(string text)
+        {
+            IsFastbootImage = true;
+            foreach (var raw in (text ?? "").Replace("\r", "").Split('\n'))
+            {
+                var m = Regex.Match(raw.Trim(), @"^require\s+(board|product|version-bootloader)\s*=\s*(.+)$", RegexOptions.IgnoreCase);
+                if (!m.Success) continue;
+                var values = m.Groups[2].Value.Split('|').Select(v => v.Trim()).Where(v => v.Length > 0);
+                if (m.Groups[1].Value.Equals("version-bootloader", StringComparison.OrdinalIgnoreCase)) FastbootBootloaders.AddRange(values);
+                else FastbootBoards.AddRange(values);
+            }
+        }
+
+        /// <summary>
+        /// L'image fastboot convient-elle à ce terminal ? <paramref name="flashLocked"/> : bootloader verrouillé (true),
+        /// déverrouillé (false) ou inconnu (null) ; <paramref name="bootloader"/> : version du bootloader (ro.bootloader
+        /// ou getvar version-bootloader), vide si inconnue.
+        /// </summary>
+        public (Fit Result, string Message) CheckFastboot(IList<string> deviceIds, bool? flashLocked, string bootloader)
+        {
+            if (IsFactoryArchive && !IsFastbootImage)
+                return (Fit.Blocked, Loc.T("Archive d'usine complète : décompressez-la et choisissez le fichier « image-….zip » qu'elle contient"));
+            if (!IsFastbootImage)
+                return (Fit.Blocked, Loc.T("Pas une image fastboot (pas d'android-info.txt) : c'est un paquet pour la méthode « Par câble »"));
+            if (flashLocked == true)
+                return (Fit.Blocked, Loc.T("Bootloader verrouillé : fastboot ne peut rien flasher sur ce terminal. Utilisez « Par câble » (cas de Zebra, Honeywell, Samsung…)."));
+            deviceIds = deviceIds ?? new List<string>();
+            if (FastbootBoards.Count > 0 && deviceIds.Count > 0 &&
+                !FastbootBoards.Any(b => deviceIds.Any(id => string.Equals(b, id, StringComparison.OrdinalIgnoreCase))))
+                return (Fit.Blocked, Loc.F("Image prévue pour {0}, pas pour ce modèle ({1})", string.Join(", ", FastbootBoards), deviceIds[0]));
+            if (FastbootBootloaders.Count > 0 && !string.IsNullOrEmpty(bootloader) &&
+                !FastbootBootloaders.Any(b => string.Equals(b, bootloader, StringComparison.OrdinalIgnoreCase)))
+                return (Fit.Blocked, Loc.F("Bootloader {0} attendu ({1} sur le terminal) : mettez-le d'abord à jour avec le script flash-all du fabricant", string.Join(", ", FastbootBootloaders), bootloader));
+            return (Fit.Ok, "");
         }
 
         /// <summary>Fonction pure, testable : lit les modèles d'un DeviceManifest.xml Zebra (product/ro.product.name, _npi, _ng).</summary>
@@ -109,6 +166,14 @@ namespace ADBToolsNew.Core
         public string Describe()
         {
             var parts = new List<string> { Loc.F("{0:0.0} Mo", Size / 1048576.0) };
+            if (IsFastbootImage)
+            {
+                parts.Add(Loc.T("image fastboot"));
+                if (FastbootBoards.Count > 0) parts.Add(Loc.F("pour {0}", string.Join(", ", FastbootBoards)));
+                if (FastbootBootloaders.Count > 0) parts.Add(Loc.F("bootloader exigé : {0}", string.Join(", ", FastbootBootloaders)));
+                return string.Join(" — ", parts);
+            }
+            if (IsFactoryArchive) { parts.Add(Loc.T("archive d'usine complète (flash-all) : à décompresser, puis choisir son « image-….zip »")); return string.Join(" — ", parts); }
             if (!HasMetadata && ManifestModels.Count == 0) { parts.Add(Loc.T("pas de description dans le paquet : le terminal vérifiera lui-même")); return string.Join(" — ", parts); }
             if (PreDevices.Count > 0) parts.Add(Loc.F("pour {0}", string.Join(", ", PreDevices)));
             if (ManifestModels.Count > 0) parts.Add(Loc.F("{0} modèles listés par le fabricant", ManifestModels.Count));
@@ -188,6 +253,28 @@ namespace ADBToolsNew.Core
         /// <summary>Raccourci pour un seul nom de terminal (tests).</summary>
         public (Fit Result, string Message) Check(string device, string fingerprint) =>
             Check(string.IsNullOrEmpty(device) ? new List<string>() : new List<string> { device }, fingerprint);
+
+        /// <summary>Fonction pure, testable : numéros de série listés par « fastboot devices ».</summary>
+        public static List<string> ParseFastbootDevices(string output) =>
+            (output ?? "").Replace("\r", "").Split('\n')
+                .Select(l => l.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                .Where(p => p.Length >= 2 && (p[1] == "fastboot" || p[1] == "fastbootd"))
+                .Select(p => p[0]).Distinct().ToList();
+
+        /// <summary>Fonction pure, testable : « (bootloader) product: sargo » ou « unlocked: yes » → dictionnaire.</summary>
+        public static Dictionary<string, string> ParseFastbootVars(string output)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in (output ?? "").Replace("\r", "").Split('\n'))
+            {
+                var m = Regex.Match(raw.Trim(), @"^(?:\(bootloader\)\s*)?([A-Za-z0-9_.\-:]+?):\s*(.*)$");
+                if (!m.Success) continue;
+                string key = m.Groups[1].Value, val = m.Groups[2].Value.Trim();
+                if (key.Equals("Finished", StringComparison.OrdinalIgnoreCase) || key.Equals("Total time", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!map.ContainsKey(key)) map[key] = val;
+            }
+            return map;
+        }
 
         // « serving: 'update.zip'  (~47%) » : progression affichée par adb pendant un sideload.
         public static readonly Regex SideloadProgress = new Regex(@"\(~\s*(\d{1,3})%\)", RegexOptions.Compiled);
