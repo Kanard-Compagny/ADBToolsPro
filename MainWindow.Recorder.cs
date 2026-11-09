@@ -22,13 +22,22 @@ namespace ADBToolsNew
         private async void BtnOpenRecorder_Click(object sender, RoutedEventArgs e)
         {
             RecorderOverlay.Visibility = Visibility.Visible;
+            if (_recorderTargetSuggest == null)
+                _recorderTargetSuggest = AttachSuggest(TxtRecorderTarget, PopRecorderTarget, LstRecorderTarget, null);
+            _recorderTargetSuggest.Source = () => _recorderTargets;
             await FillRecorderTargetsAsync();
         }
 
-        private void BtnRecorderClose_Click(object sender, RoutedEventArgs e) => RecorderOverlay.Visibility = Visibility.Collapsed;
+        private void BtnRecorderClose_Click(object sender, RoutedEventArgs e)
+        {
+            PopRecorderTarget.IsOpen = false;
+            RecorderOverlay.Visibility = Visibility.Collapsed;
+        }
 
         /// <summary>Applications installées par l'utilisateur ou le MDM (pm list packages -3), pour choisir l'appli métier.</summary>
         private string _recorderTargetsSerial;
+        private List<string> _recorderTargets = new List<string>();
+        private SuggestBox _recorderTargetSuggest;
 
         /// <summary>
         /// Applications proposées pour l'appli métier : celles installées par l'utilisateur ou le MDM (pm list packages -3) ;
@@ -49,7 +58,7 @@ namespace ADBToolsNew
                         .Where(p => !p.StartsWith("android", StringComparison.Ordinal) && !p.StartsWith("com.android.", StringComparison.Ordinal)
                                  && !p.StartsWith("com.google.android.", StringComparison.Ordinal) && !p.StartsWith("com.qualcomm", StringComparison.Ordinal)
                                  && !p.StartsWith("com.qti", StringComparison.Ordinal) && !p.StartsWith("vendor.", StringComparison.Ordinal)).ToList();
-                CmbRecorderTarget.ItemsSource = pkgs;
+                _recorderTargets = pkgs;
                 _recorderTargetsSerial = dev.Serial;
             }
             catch { /* liste facultative : la saisie libre reste possible */ }
@@ -68,7 +77,7 @@ namespace ADBToolsNew
                 await ShowCustomDialogAsync(Loc.T("🎙 Enregistreur terrain"), Loc.T("Branchez le terminal en USB pour démarrer l'enregistrement (une connexion ADB par Wi-Fi serait coupée une fois le terminal emporté)."), Loc.T("OK"), "", false);
                 return;
             }
-            string target = (CmbRecorderTarget.Text ?? "").Trim();
+            string target = (TxtRecorderTarget.Text ?? "").Trim();
             if (target.Length > 0 && !Regex.IsMatch(target, @"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$"))
             {
                 TxtRecorderStatus.Text = Loc.T("Nom d'application invalide (ex. com.entreprise.appli).");

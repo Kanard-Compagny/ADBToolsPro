@@ -3957,7 +3957,14 @@
                                                 <DockPanel x:Name="FaAppPanel" Visibility="Collapsed">
                                                     <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
                                                         <TextBlock Text="Application (les plus démarrées d'abord) :" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
-                                                        <ComboBox x:Name="CmbFaApp" Height="30" IsEditable="True" SelectionChanged="CmbFaApp_SelectionChanged" KeyDown="CmbFaApp_KeyDown"/>
+                                                        <Grid>
+                                    <TextBox x:Name="TxtFaApp" Tag="Tapez pour chercher une application…" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" ToolTip="Tapez une partie du nom pour filtrer la liste"/>
+                                    <Popup x:Name="PopFaApp" PlacementTarget="{Binding ElementName=TxtFaApp}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True" MinWidth="{Binding ActualWidth, ElementName=TxtFaApp}">
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="6" Padding="2" Margin="0,2,0,0">
+                                            <ListBox x:Name="LstFaApp" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
                                                         <TextBlock x:Name="TxtFaAppSummary" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                                     </StackPanel>
                                                     <ListBox x:Name="FaAppList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
@@ -4484,7 +4491,14 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Text="Application métier suivie (facultatif)" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="CmbRecorderTarget" Height="30" IsEditable="True" ToolTip="Sa mémoire est relevée à chaque incident ; ses plantages et blocages ressortent dans l'analyse"/>
+                                <Grid>
+                                    <TextBox x:Name="TxtRecorderTarget" Tag="Tapez pour chercher (ex. wms, scan…)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" ToolTip="Sa mémoire est relevée à chaque incident ; ses plantages et blocages ressortent dans l'analyse"/>
+                                    <Popup x:Name="PopRecorderTarget" PlacementTarget="{Binding ElementName=TxtRecorderTarget}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True" MinWidth="{Binding ActualWidth, ElementName=TxtRecorderTarget}">
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="6" Padding="2" Margin="0,2,0,0">
+                                            <ListBox x:Name="LstRecorderTarget" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Relevé de l'état" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,0,0,4"/>

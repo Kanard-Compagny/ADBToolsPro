@@ -106,6 +106,8 @@ namespace ADBToolsNew.Core
             int boots = o.Sessions?.Count(s => s.FromBoot && s.StartEntry != null && s.StartEntry.Minute >= from && s.StartEntry.Minute <= to) ?? 0;
             if (boots > 0) parts.Add(names[0] + " : " + boots);
             for (int i = 1; i < counts.Length; i++) if (counts[i] > 0) parts.Add(Loc.F("{0} : {1} ligne(s)", names[i], counts[i]));
+            int incidents = src.Count(e => e.Tag == LogArchive.IncidentTag);
+            if (incidents > 0) parts.Add(Loc.F("Incidents signalés : {0}", incidents));
             return parts.Count == 0 ? Loc.T("Aucun redémarrage, plantage, coupure Wi-Fi, manque de mémoire ni défaut du lecteur sur la période.")
                                     : Loc.T("Événements sur la période") + " — " + string.Join(" · ", parts);
         }

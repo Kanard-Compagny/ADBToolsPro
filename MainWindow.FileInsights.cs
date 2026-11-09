@@ -53,13 +53,19 @@ namespace ADBToolsNew
 
             // Appli métier : celle suivie par l'enregistreur si c'en est un, sinon la plus démarrée hors système.
             var apps = LogInsights.StartedApps(a);
-            CmbFaApp.ItemsSource = apps.Select(p => p.Key).ToList();
+            _faAppNames = apps.Select(p => p.Key).ToList();
+            if (_faAppSuggest == null)
+                _faAppSuggest = AttachSuggest(TxtFaApp, PopFaApp, LstFaApp, ShowFaAppLife);
+            _faAppSuggest.Source = () => _faAppNames;
             string followed = a.Entries.Where(e => e.Tag == "ADBTools-Rec").Select(e => Regex.Match(e.Message ?? "", @"application suivie ([\w.]+)")).FirstOrDefault(m => m.Success)?.Groups[1].Value;
             string guess = followed ?? apps.Select(p => p.Key).FirstOrDefault(k => !IsSystemPackage(k));
             _faAppLife = null;
             FaAppList.ItemsSource = null;
             TxtFaAppSummary.Text = apps.Count == 0 ? Loc.T("Aucun démarrage d'application dans ce relevé.") : "";
-            if (!string.IsNullOrEmpty(guess)) { CmbFaApp.Text = guess; ShowFaAppLife(guess); }
+            _faAppSuggest.Updating = true;
+            TxtFaApp.Text = guess ?? "";
+            _faAppSuggest.Updating = false;
+            if (!string.IsNullOrEmpty(guess)) ShowFaAppLife(guess);
         }
 
         private static bool IsSystemPackage(string p) =>
@@ -129,15 +135,8 @@ namespace ADBToolsNew
 
         // ------------------------------------------------------------------ Vie de l'appli métier
 
-        private void CmbFaApp_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (CmbFaApp.SelectedItem is string pkg) ShowFaAppLife(pkg);
-        }
-
-        private void CmbFaApp_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(CmbFaApp.Text)) ShowFaAppLife(CmbFaApp.Text.Trim());
-        }
+        private List<string> _faAppNames = new List<string>();
+        private SuggestBox _faAppSuggest;
 
         private async void ShowFaAppLife(string pkg)
         {
