@@ -66,7 +66,8 @@ namespace ADBToolsNew
             p.StartsWith("android", StringComparison.Ordinal) || p.StartsWith("com.android.", StringComparison.Ordinal) || p.StartsWith("com.google.", StringComparison.Ordinal)
             || p.StartsWith("com.qualcomm", StringComparison.Ordinal) || p.StartsWith("com.qti", StringComparison.Ordinal) || p.StartsWith("vendor.", StringComparison.Ordinal)
             || p.StartsWith("com.symbol.", StringComparison.Ordinal) || p.StartsWith("com.zebra.", StringComparison.Ordinal) || p.StartsWith("com.honeywell.", StringComparison.Ordinal)
-            || p.StartsWith("com.samsung.", StringComparison.Ordinal) || p.StartsWith("com.sec.", StringComparison.Ordinal) || p == "system" || !p.Contains(".");
+            || p.StartsWith("com.samsung.", StringComparison.Ordinal) || p.StartsWith("com.sec.", StringComparison.Ordinal) || p == "system"
+            || p.StartsWith(".", StringComparison.Ordinal) || p.Count(ch => ch == '.') < 2;
 
         /// <summary>Analyse complète d'une partie du relevé : analyseur, pannes connues, ANR / tombstones, redémarrages inattendus, tendances.</summary>
         private static LogAnalysis AnalyzeFa(LogArchive a, IList<FileLogEntry> lines, int from, int to, List<LogInsights.Signature> sigs,
@@ -77,7 +78,7 @@ namespace ADBToolsNew
             extra.AddRange(LogInsights.MatchSignatures(lines, sigs));
             extra.AddRange(LogInsights.AnnexFindings(a, from, to));
             extra.AddRange(LogInsights.SessionFindings(sessions, from, to));
-            var all = extra.Concat(an.Findings)
+            var all = LogInsights.FoldBootNoise(extra.Concat(an.Findings).ToList(), sessions)
                 .OrderByDescending(f => f.Severity)
                 .ThenBy(f => f.Category == LogInsights.CatKnown ? 0 : f.Category == LogAnalyzer.CatIncident ? 1 : 2)
                 .ToList();

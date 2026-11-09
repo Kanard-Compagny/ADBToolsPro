@@ -124,6 +124,8 @@ namespace ADBToolsNew.Core
         /// <summary>Informations sur le terminal (modèle, Android, build…) retrouvées dans le relevé.</summary>
         public List<KeyValuePair<string, string>> Device { get; } = new List<KeyValuePair<string, string>>();
         public string Note { get; private set; } = "";
+        /// <summary>Raisons des derniers démarrages (persist.sys.boot.reason.history des snapshots) : raison, minute du démarrage.</summary>
+        public List<(string Reason, int Minute)> BootReasons { get; } = new List<(string Reason, int Minute)>();
         private bool _isZip, _isFolder;
 
         public IEnumerable<ArchiveFile> LogFiles => Files.Where(f => f.IsLog);
@@ -307,6 +309,7 @@ namespace ADBToolsNew.Core
             }
 
             ReadSnapshotProps(all);
+            ReadBootReasonHistory(all);
             Note = skipped > 0 ? Loc.F("{0} journal(aux) plus ancien(s) non chargé(s) (limite de {1} lignes).", skipped, MaxLines.ToString("N0", CultureInfo.CurrentCulture)) : "";
         }
 
@@ -419,6 +422,47 @@ namespace ADBToolsNew.Core
                     if (found.TryGetValue(w.Item1, out var v)) AddDevice(Loc.T(w.Item2), v);
             }
             catch { /* fiche facultative */ }
+        }
+
+        private static readonly Regex BootHistoryItem = new Regex(@"([a-z_]+(?:,[\w\-]*)*),(\d{9,11})\]?\s*$", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Historique des raisons de démarrage (propriété Android persist.sys.boot.reason.history, sur plusieurs lignes) :
+        /// « reboot,ota,1793801829 » = démarrage à cette date (heure Unix) après un redémarrage pour mise à jour.
+        /// </summary>
+        private void ReadBootReasonHistory(List<Candidate> all)
+        {
+            foreach (var c in all.Where(x => x.Kind == ArchiveFileKind.Snapshot || x.Name.StartsWith("bugreport", StringComparison.OrdinalIgnoreCase)).Take(60))
+            {
+                try
+                {
+                    using (var s = c.Open())
+                    using (var r = new StreamReader(s, Encoding.UTF8, true))
+                    {
+                        string line; bool inside = false; int n = 0;
+                        while ((line = r.ReadLine()) != null && n++ < 3000000)
+                        {
+                            if (!inside)
+                            {
+                                if (!line.StartsWith("[persist.sys.boot.reason.history]", StringComparison.Ordinal)) continue;
+                                inside = true;
+                                int b = line.IndexOf(": [", StringComparison.Ordinal);
+                                line = b >= 0 ? line.Substring(b + 3) : "";
+                            }
+                            var m = BootHistoryItem.Match(line.Trim());
+                            if (m.Success && long.TryParse(m.Groups[2].Value, out long epoch))
+                            {
+                                var local = DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime();
+                                int minute = ToMinute(local.ToString("MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
+                                string reason = m.Groups[1].Value.TrimEnd(',');
+                                if (minute >= 0 && !BootReasons.Any(x => x.Minute == minute && x.Reason == reason)) BootReasons.Add((reason, minute));
+                            }
+                            if (line.TrimEnd().EndsWith("]", StringComparison.Ordinal)) break;
+                        }
+                    }
+                }
+                catch { /* facultatif */ }
+            }
         }
 
         /// <summary>Contenu d'un fichier annexe (tronqué au-delà de <paramref name="maxChars"/> caractères).</summary>

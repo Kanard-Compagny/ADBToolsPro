@@ -18,7 +18,7 @@ namespace ADBToolsNew
         private void UpdateTeamProfileUi()
         {
             var s = AppSettings.Current;
-            ChkTeamTemplates.IsEnabled = ReportTemplates.HasUserTemplate(ReportKind.Sav) || ReportTemplates.HasUserTemplate(ReportKind.Wifi);
+            ChkTeamTemplates.IsEnabled = ReportTemplates.HasUserTemplate(ReportKind.Sav) || ReportTemplates.HasUserTemplate(ReportKind.Wifi) || ReportTemplates.HasUserTemplate(ReportKind.Logs);
             if (!ChkTeamTemplates.IsEnabled) ChkTeamTemplates.IsChecked = false;
             ChkTeamUpdateShare.IsEnabled = !string.IsNullOrWhiteSpace(s.UpdateShareFolder);
             if (!ChkTeamUpdateShare.IsEnabled) ChkTeamUpdateShare.IsChecked = false;

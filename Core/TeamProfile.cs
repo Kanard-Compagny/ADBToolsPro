@@ -38,6 +38,7 @@ namespace ADBToolsNew.Core
         public TeamProfileInfo Info { get; set; }
         public byte[] SavTemplate { get; set; }
         public byte[] WifiTemplate { get; set; }
+        public byte[] LogsTemplate { get; set; }
         public byte[] Logo { get; set; }
         public string LogoExtension { get; set; }
         public string LibraryJson { get; set; }
@@ -57,6 +58,7 @@ namespace ADBToolsNew.Core
         private const string InfoEntry = "profil.json";
         private const string SavEntry = "modeles/Rapport_SAV.docx";
         private const string WifiEntry = "modeles/Rapport_Wifi.docx";
+        private const string LogsEntry = "modeles/Rapport_Logs.docx";
         private const string LogoEntryPrefix = "modeles/logo";
         private const string LibraryEntry = "bibliotheque.json";
 
@@ -86,6 +88,7 @@ namespace ADBToolsNew.Core
                 {
                     if (ReportTemplates.HasUserTemplate(ReportKind.Sav)) zip.CreateEntryFromFile(ReportTemplates.UserTemplatePath(ReportKind.Sav), SavEntry);
                     if (ReportTemplates.HasUserTemplate(ReportKind.Wifi)) zip.CreateEntryFromFile(ReportTemplates.UserTemplatePath(ReportKind.Wifi), WifiEntry);
+                    if (ReportTemplates.HasUserTemplate(ReportKind.Logs)) zip.CreateEntryFromFile(ReportTemplates.UserTemplatePath(ReportKind.Logs), LogsEntry);
                 }
                 if (options.Header)
                 {
@@ -112,6 +115,7 @@ namespace ADBToolsNew.Core
 
                 pkg.SavTemplate = ReadBytes(zip.GetEntry(SavEntry));
                 pkg.WifiTemplate = ReadBytes(zip.GetEntry(WifiEntry));
+                pkg.LogsTemplate = ReadBytes(zip.GetEntry(LogsEntry));
                 foreach (var ext in new[] { ".png", ".jpg", ".jpeg" })
                 {
                     var e = zip.GetEntry(LogoEntryPrefix + ext);
@@ -145,6 +149,7 @@ namespace ADBToolsNew.Core
             {
                 if (pkg.SavTemplate != null) ReportTemplates.Import(ReportKind.Sav, WriteTemp(tmpDir, "Rapport_SAV.docx", pkg.SavTemplate));
                 if (pkg.WifiTemplate != null) ReportTemplates.Import(ReportKind.Wifi, WriteTemp(tmpDir, "Rapport_Wifi.docx", pkg.WifiTemplate));
+                if (pkg.LogsTemplate != null) ReportTemplates.Import(ReportKind.Logs, WriteTemp(tmpDir, "Rapport_Logs.docx", pkg.LogsTemplate));
                 if (pkg.Logo != null) ReportTemplates.SetLogo(WriteTemp(tmpDir, "logo" + pkg.LogoExtension, pkg.Logo));
             }
             finally

@@ -16,10 +16,20 @@ namespace ADBToolsNew
         private void BtnReportTemplate_Click(object sender, RoutedEventArgs e)
         {
             if (!(sender is Button button)) return;
-            var kind = (button.Tag as string) == "Wifi" ? ReportKind.Wifi : ReportKind.Sav;
+            string tag = button.Tag as string;
+            var kind = tag == "Wifi" ? ReportKind.Wifi : tag == "Logs" ? ReportKind.Logs : ReportKind.Sav;
+            ShowReportTemplateMenu(button, kind);
+        }
+
+        /// <summary>Analyse de fichiers ▸ Exporter ▸ « Modèle Word » : même menu que dans les Paramètres.</summary>
+        private void MenuFaReportTemplate_Click(object sender, RoutedEventArgs e) =>
+            Dispatcher.BeginInvoke(new Action(() => ShowReportTemplateMenu(BtnFaExport, ReportKind.Logs)), System.Windows.Threading.DispatcherPriority.Background);
+
+        private void ShowReportTemplateMenu(FrameworkElement target, ReportKind kind)
+        {
             bool hasUser = ReportTemplates.HasUserTemplate(kind);
 
-            var menu = new ContextMenu { PlacementTarget = button, Placement = PlacementMode.Bottom };
+            var menu = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
 
             menu.Items.Add(new MenuItem
             {

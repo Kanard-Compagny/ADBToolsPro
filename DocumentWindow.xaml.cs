@@ -160,6 +160,26 @@ namespace ADBToolsNew
                 new[] { "{{STATS_RSSI}}", "Statistiques du signal" },
                 new[] { "{{JOURNAL}}", "Journal brut des événements (police à chasse fixe)" }
             }));
+
+            host.Children.Add(H2(Loc.T("Rapport d'analyse des logs (Analyse de fichiers)")));
+            host.Children.Add(BuildSimpleTable(new[] { "Balise", "Contenu" }, new[] { 1.0, 2.2 }, new List<string[]>
+            {
+                new[] { "{{ANDROID}}", "Version d'Android du terminal" },
+                new[] { "{{BUILD}}", "Numéro de build du système" },
+                new[] { "{{RELEVE}}", "Relevé analysé et journaux retenus" },
+                new[] { "{{PERIODE}}", "Période analysée" },
+                new[] { "{{LIGNES}}", "Nombre de lignes analysées" },
+                new[] { "{{NB_PROBLEMES}}", "Nombre de problèmes importants" },
+                new[] { "{{NB_SURVEILLER}}", "Nombre de points à surveiller" },
+                new[] { "{{NB_INCIDENTS}}", "Nombre d'incidents signalés depuis le terminal" },
+                new[] { "{{GRAPHIQUE_FRISE}}", "Frise des erreurs et des événements (image)" },
+                new[] { "{{STATS_FRISE}}", "Nombre d'événements par sujet sur la période" },
+                new[] { "{{CONSTATS}}", "Tableau des constats (repris du tableau « Paramètre / Valeur » du modèle)" },
+                new[] { "{{AVANT_INCIDENT}}", "Ce qui change avant l'incident examiné" },
+                new[] { "{{SESSIONS}}", "Redémarrages, sessions et vie de l'application métier" },
+                new[] { "{{SIGNETS}}", "Observations du technicien (signets)" },
+                new[] { "{{EXTRAITS}}", "Courts extraits du journal (police à chasse fixe)" }
+            }));
             w.Show();
         }
 

@@ -161,7 +161,7 @@ namespace ADBToolsNew
 
         private async void BtnRecorderOpen_Click(object sender, RoutedEventArgs e)
         {
-            string path = PickFolder(Loc.T("Dossier d'enregistrement (rec_…)"));
+            string path = FolderPicker.Pick(this, Loc.T("Dossier d'enregistrement (rec_…)"), Path.Combine(GetCaptureFolderPath(), "Enregistrements"));
             if (path == null) return;
             RecorderOverlay.Visibility = Visibility.Collapsed;
             NavFileAnalysis_Click(null, null);

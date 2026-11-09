@@ -360,6 +360,9 @@ namespace ADBToolsNew.Core
             public string Duration { get; set; } = "";
             public string EndCause { get; set; } = "";
             public bool Unexpected { get; set; }
+            public bool FromBoot { get; set; }
+            /// <summary>Raison du démarrage qui ouvre la session (bootstat / historique), vide si inconnue.</summary>
+            public string StartReason { get; set; } = "";
             public FileLogEntry StartEntry { get; set; }
             public string Icon => Unexpected ? "⚠️" : "🔄";
         }
@@ -367,55 +370,145 @@ namespace ADBToolsNew.Core
         private static readonly Regex ReasonRx = new Regex(@"reason[:=\s]+'?([\w\-,. ]{2,40})", OI);
 
         /// <summary>Sessions entre deux démarrages du terminal, et comment chacune s'est terminée.</summary>
+        private static readonly Regex BootstatReason = new Regex(@"^(?:Canonical boot reason|Normalized last reboot reason)\s*:\s*(\S+)", RegexOptions.Compiled);
+
+        /// <summary>Raison Android d'un démarrage (bootstat / persist.sys.boot.reason) en clair, et si elle est anormale.</summary>
+        public static (string Text, bool Unexpected) DescribeBootReason(string reason)
+        {
+            string r = (reason ?? "").ToLowerInvariant();
+            if (r.Length == 0) return (Loc.T("Redémarrage inattendu (aucun arrêt propre noté)"), true);
+            bool user = r.Contains("userrequested") || r.Contains("user_requested");
+            if (r.Contains("panic")) return (Loc.T("Plantage du noyau (kernel panic)"), true);
+            if (r.Contains("watchdog") || r.Contains("wdog")) return (Loc.T("Blocage du système (watchdog)"), true);
+            if (r.Contains("thermal")) return (Loc.T("Arrêt thermique (surchauffe)"), true);
+            if (r.Contains("battery") || r.Contains("lowbatt")) return (Loc.T("Batterie à plat"), true);
+            if (r.Contains("longkey") || r.Contains("long_key") || r.Contains("longpress")) return (Loc.T("Redémarrage forcé (appui long sur le bouton marche)"), true);
+            if (r.Contains("ota")) return (Loc.T("Redémarrage pour mise à jour du système (OTA)"), false);
+            if (r.Contains("recovery") || r.Contains("bootloader")) return (Loc.T("Redémarrage en mode recovery / bootloader"), false);
+            if (r.Contains("cold") || r.Contains("hard") || r.Contains("hw_reset") || r.Contains("pmic") || r.Contains("abnormal") || r.Contains("crash") || r.Contains("unknown"))
+                return (Loc.F("Redémarrage anormal ({0})", reason), true);
+            if (r.StartsWith("shutdown", StringComparison.Ordinal)) return (user ? Loc.T("Arrêt demandé par l'utilisateur") : Loc.T("Arrêt demandé"), false);
+            if (r.StartsWith("reboot", StringComparison.Ordinal))
+                return (user ? Loc.T("Redémarrage demandé par l'utilisateur") : r.Contains("shell") || r.Contains("adb") ? Loc.T("Redémarrage demandé par commande") : Loc.T("Redémarrage demandé"), false);
+            return (reason, false);
+        }
+
+        /// <summary>Sessions entre deux démarrages du terminal, et comment chacune s'est terminée.</summary>
         public static List<Session> Sessions(LogArchive a)
         {
             var list = new List<Session>();
             if (a.Entries.Count == 0 || a.SpanFrom < 0) return list;
+            int lo = a.SpanFrom - 60, hi = a.SpanTo + 60;
             var boots = new List<int>();
             var shutdowns = new List<(int Index, string Reason)>();
+            var bootstat = new List<(int Minute, string Reason)>();
             for (int i = 0; i < a.Entries.Count; i++)
             {
                 var e = a.Entries[i];
                 if (IsBoot(e))
                 {
-                    // Un même démarrage est noté par plusieurs marqueurs proches (boot_progress_start, SystemServer).
-                    bool same = false;
-                    if (boots.Count > 0)
-                    {
-                        var p = a.Entries[boots[boots.Count - 1]];
-                        same = i - boots[boots.Count - 1] < 2000 && (p.Minute < 0 || e.Minute < 0 || Math.Abs(e.Minute - p.Minute) <= 2);
-                    }
-                    if (!same) boots.Add(i);
+                    // Lignes d'avant la mise à l'heure du terminal : sans date fiable, ignorées.
+                    if (e.Minute < lo || e.Minute > hi) continue;
+                    // Un même démarrage est noté par plusieurs marqueurs à quelques secondes d'écart.
+                    if (boots.Count > 0 && Math.Abs(e.Minute - a.Entries[boots[boots.Count - 1]].Minute) <= 3) continue;
+                    boots.Add(i);
                 }
                 else if (e.Tag == "ShutdownThread" && ShutdownMsg.IsMatch(e.Message ?? ""))
                 {
                     var m = ReasonRx.Match(e.Message ?? "");
-                    shutdowns.Add((i, m.Success ? m.Groups[1].Value.Trim() : ""));
+                    string kind = (e.Message ?? "").IndexOf("reboot", StringComparison.OrdinalIgnoreCase) >= 0 ? "reboot" : "shutdown";
+                    shutdowns.Add((i, kind + (m.Success ? "," + m.Groups[1].Value.Trim() : "")));
+                }
+                else if (e.Tag == "bootstat" && e.Minute >= lo)
+                {
+                    var m = BootstatReason.Match(e.Message ?? "");
+                    if (m.Success) bootstat.Add((e.Minute, m.Groups[1].Value.Trim().TrimEnd('.')));
                 }
             }
-            // Bornes : début du relevé, puis chaque démarrage.
-            var starts = new List<int> { 0 };
-            foreach (int b in boots) if (b > 20) starts.Add(b);
+            string ReasonFor(int bootMinute)
+            {
+                var bs = bootstat.Where(x => x.Minute >= bootMinute - 1 && x.Minute <= bootMinute + 4).Select(x => x.Reason).FirstOrDefault();
+                if (!string.IsNullOrEmpty(bs)) return bs;
+                return a.BootReasons.Where(x => Math.Abs(x.Minute - bootMinute) <= 4).OrderBy(x => Math.Abs(x.Minute - bootMinute)).Select(x => x.Reason).FirstOrDefault();
+            }
+
+            // Bornes : début du relevé (s'il ne commence pas déjà par un démarrage), puis chaque démarrage.
+            var starts = new List<int>();
+            bool startsWithBoot = boots.Count > 0 && a.Entries[boots[0]].Minute - a.SpanFrom <= 3;
+            if (!startsWithBoot) starts.Add(0);
+            starts.AddRange(boots);
             for (int s = 0; s < starts.Count; s++)
             {
                 int a0 = starts[s], a1 = s + 1 < starts.Count ? starts[s + 1] - 1 : a.Entries.Count - 1;
                 var first = FirstValid(a, a0, a1, true);
                 var last = FirstValid(a, a0, a1, false);
                 if (first == null || last == null) continue;
-                var shut = shutdowns.LastOrDefault(x => x.Index >= a0 && x.Index <= a1);
+                bool fromBoot = boots.Contains(a0);
                 var sess = new Session
                 {
-                    Number = list.Count + 1, StartEntry = first,
-                    Start = LogArchive.MinuteText(first.Minute) + (s == 0 && !boots.Contains(a0) ? " " + Loc.T("(début du relevé)") : ""),
+                    Number = list.Count + 1, StartEntry = first, FromBoot = fromBoot,
+                    Start = LogArchive.MinuteText(first.Minute) + (fromBoot ? "" : " " + Loc.T("(début du relevé)")),
                     End = LogArchive.MinuteText(last.Minute),
                     Duration = DurationText(last.Minute - first.Minute),
                 };
+                if (fromBoot)
+                {
+                    string why = ReasonFor(a.Entries[a0].Minute);
+                    if (!string.IsNullOrEmpty(why)) sess.StartReason = DescribeBootReason(why).Text + " — " + why;
+                }
                 if (s + 1 >= starts.Count) sess.EndCause = Loc.T("Fin du relevé");
-                else if (shut.Index > 0) sess.EndCause = Loc.T("Arrêt / redémarrage demandé") + (shut.Reason.Length > 0 ? " (" + shut.Reason + ")" : "");
-                else { sess.EndCause = Loc.T("Redémarrage inattendu (aucun arrêt propre noté)"); sess.Unexpected = true; }
+                else
+                {
+                    string why = ReasonFor(a.Entries[starts[s + 1]].Minute);
+                    var shut = shutdowns.LastOrDefault(x => x.Index >= a0 && x.Index <= a1);
+                    if (string.IsNullOrEmpty(why) && shut.Index > 0) why = shut.Reason;
+                    var d = DescribeBootReason(why);
+                    sess.EndCause = d.Text + (string.IsNullOrEmpty(why) ? "" : " — " + Loc.F("raison Android : {0}", why));
+                    sess.Unexpected = d.Unexpected;
+                }
                 list.Add(sess);
             }
             return list;
+        }
+
+        /// <summary>
+        /// Les premières minutes après un démarrage, le lecteur et le réseau écrivent beaucoup d'erreurs passagères
+        /// (services qui démarrent, réseau pas encore connecté) : regroupées en un seul constat d'information par démarrage.
+        /// </summary>
+        public static List<LogFinding> FoldBootNoise(List<LogFinding> findings, IList<Session> sessions, int minutesAfterBoot = 4)
+        {
+            if (sessions == null) return findings;
+            var bootMinutes = sessions.Where(s => s.FromBoot && s.StartEntry != null).Select(s => s.StartEntry.Minute).ToList();
+            if (bootMinutes.Count == 0) return findings;
+            var result = new List<LogFinding>();
+            var folded = new Dictionary<int, List<LogFinding>>();
+            foreach (var f in findings)
+            {
+                bool candidate = f.Category == LogAnalyzer.CatScanner || f.Category == LogAnalyzer.CatNetwork;
+                int first = f.FirstEntry is FileLogEntry fe ? fe.Minute : LogArchive.ToMinute(f.FirstTime);
+                int last = string.IsNullOrEmpty(f.LastTime) ? first : LogArchive.ToMinute(f.LastTime);
+                int boot = candidate && first >= 0 ? bootMinutes.Where(b => first >= b && Math.Max(first, last) <= b + minutesAfterBoot).DefaultIfEmpty(-1).First() : -1;
+                if (boot < 0) { result.Add(f); continue; }
+                if (!folded.TryGetValue(boot, out var l)) folded[boot] = l = new List<LogFinding>();
+                l.Add(f);
+            }
+            foreach (var kv in folded)
+            {
+                var l = kv.Value;
+                if (l.Count == 1) { result.Add(l[0]); continue; }
+                var firstF = l.OrderBy(x => x.FirstEntry is FileLogEntry fe ? fe.Index : int.MaxValue).First();
+                result.Add(new LogFinding
+                {
+                    Category = LogAnalyzer.CatOverview, Severity = FindingSeverity.Info,
+                    Title = Loc.T("Messages au démarrage du terminal (normaux après un redémarrage)"),
+                    App = string.Join(", ", l.Select(x => x.App).Where(x => !string.IsNullOrEmpty(x)).Distinct().Take(3)),
+                    Detail = Loc.F("{0} messages différents ({1} fois) du lecteur ou du réseau dans les {2} minutes qui suivent le démarrage de {3}, pendant que les services se lancent.",
+                        l.Count, l.Sum(x => Math.Max(1, x.Count)), minutesAfterBoot, LogArchive.MinuteText(kv.Key)),
+                    Advice = Loc.T("Sans conséquence s'ils ne se répètent pas ensuite. À regarder seulement si le lecteur ou le réseau ne fonctionne pas après le démarrage."),
+                    Count = l.Sum(x => Math.Max(1, x.Count)), FirstEntry = firstF.FirstEntry, FirstTime = firstF.FirstTime, LastTime = l.Select(x => x.LastTime).Max() ?? "",
+                });
+            }
+            return result;
         }
 
         /// <summary>Un constat par redémarrage inattendu (dans la période donnée).</summary>

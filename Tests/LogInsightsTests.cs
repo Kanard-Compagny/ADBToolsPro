@@ -101,6 +101,56 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Sessions_RaisonAndroidEtDoublonsEtBruitAuDemarrage()
+        {
+            string dir = Dir();
+            try
+            {
+                var lines = new List<string>();
+                for (int i = 0; i < 30; i++) lines.Add($"11-05 07:{i:00}:00.000   100   100 I App: ligne {i}");
+                // Deux marqueurs du même démarrage, à 3 s d'écart, puis la raison donnée par bootstat.
+                lines.Add("11-05 08:25:56.771  1191  1191 I boot_progress_start: 12666");
+                lines.Add("11-05 08:25:56.998  1541  1541 I bootstat: Canonical boot reason: shutdown,userrequested");
+                lines.Add("11-05 08:25:59.668  2154  2154 I SystemServer: Entered the Android system server!");
+                // Bruit du lecteur pendant le démarrage des services.
+                for (int i = 0; i < 6; i++) lines.Add($"11-05 08:26:3{i}.000  5794  5794 E ScannerFramework: [Module{(char)('A' + i)}::Init] Unable to set scheduling parameters");
+                for (int i = 0; i < 30; i++) lines.Add($"11-05 09:{i:00}:00.000   100   100 I App: ligne {i}");
+                var a = Open(dir, lines.ToArray());
+
+                var s = LogInsights.Sessions(a);
+                Assert.AreEqual(2, s.Count, "un démarrage noté deux fois ne fait qu'une session");
+                Assert.IsFalse(s[0].Unexpected);
+                StringAssert.Contains(s[0].EndCause, "Arrêt demandé par l'utilisateur");
+                StringAssert.Contains(s[1].StartReason, "shutdown,userrequested");
+
+                var analysis = LogAnalyzer.Analyze(a.Entries.Cast<LogEntry>().ToList());
+                Assert.IsTrue(analysis.Findings.Count(f => f.Category == LogAnalyzer.CatScanner) >= 2);
+                var folded = LogInsights.FoldBootNoise(analysis.Findings.ToList(), s);
+                Assert.AreEqual(0, folded.Count(f => f.Category == LogAnalyzer.CatScanner));
+                Assert.AreEqual(FindingSeverity.Info, folded.Single(f => f.Title.Contains("démarrage")).Severity);
+
+                // Rapport client : les constats du même genre forment une ligne.
+                var many = Enumerable.Range(0, 5).Select(i => new LogFinding { Title = "Erreur du lecteur code-barres", Severity = FindingSeverity.Bad, Category = LogAnalyzer.CatScanner, Detail = "msg " + i, Count = 2 }).ToList();
+                var grouped = LogWordReport.GroupForCustomer(many);
+                Assert.AreEqual(1, grouped.Count);
+                Assert.AreEqual(10, grouped[0].Count);
+                StringAssert.Contains(grouped[0].Detail, "5 messages différents");
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [TestMethod]
+        public void RaisonDeDemarrage_EnClair()
+        {
+            Assert.IsFalse(LogInsights.DescribeBootReason("reboot,ota").Unexpected);
+            StringAssert.Contains(LogInsights.DescribeBootReason("reboot,ota").Text, "OTA");
+            Assert.IsTrue(LogInsights.DescribeBootReason("kernel_panic").Unexpected);
+            Assert.IsTrue(LogInsights.DescribeBootReason("reboot,longkey").Unexpected);
+            Assert.IsFalse(LogInsights.DescribeBootReason("reboot,userrequested").Unexpected);
+            Assert.IsTrue(LogInsights.DescribeBootReason("").Unexpected);
+        }
+
+        [TestMethod]
         public void Annexes_ResumeAnrEtTombstone()
         {
             var anr = LogInsights.Summarize(ArchiveFileKind.Anr,

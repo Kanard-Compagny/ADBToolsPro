@@ -3255,6 +3255,24 @@
                                         </Grid>
                                     </Border>
                                     <Border Style="{StaticResource SettingsCardStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Rapport d'analyse des logs (Analyse de fichiers)" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <Border x:Name="BadgeLogs" CornerRadius="10" Padding="8,2" Margin="0,0,8,0" VerticalAlignment="Center" Background="{DynamicResource Surface2}">
+                                                        <TextBlock x:Name="TxtBadgeLogs" Text="Fourni" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}"/>
+                                                    </Border>
+                                                    <TextBlock x:Name="TxtReportLogsState" Text="" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="⚙️ Gérer le modèle" Tag="Logs" Click="BtnReportTemplate_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource SettingsCardStyle}">
                                         <StackPanel>
                                         <TextBlock Text="Balises des modèles" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
                                         <TextBlock Text="Les balises comme {{SOCIETE}} ou {{MA_SOCIETE}} indiquent où placer chaque information dans votre modèle Word. Une ligne qui ne contient qu'une balise vide disparaît du rapport." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"/>
@@ -3666,6 +3684,7 @@
                                                     <MenuItem Header="📄 Rapport client (Word)" Click="MenuFaExportWord_Click" ToolTip="Au format de vos rapports SAV et Wi-Fi : en-tête, logo, constats en tableau, courts extraits"/>
                                                     <MenuItem Header="🔬 Rapport technique détaillé (PDF)" Click="MenuFaExportPdf_Click" ToolTip="Tous les constats avec leurs lignes de journal, avant l'incident, sessions, signets"/>
                                                     <MenuItem Header="🌐 Rapport technique détaillé (HTML)" Click="MenuFaExportReport_Click"/>
+                                                    <MenuItem x:Name="MenuFaReportTemplate" Header="⚙️ Modèle Word : fourni" Click="MenuFaReportTemplate_Click" ToolTip="Modèle du rapport client : le modifier, importer le vôtre ou revenir au modèle fourni"/>
                                                     <Separator/>
                                                     <MenuItem Header="📜 Lignes affichées (.txt)" Click="MenuFaExportTxt_Click"/>
                                                     <MenuItem Header="📊 Lignes affichées (.csv, Excel)" Click="MenuFaExportCsv_Click"/>
@@ -3968,7 +3987,8 @@
                                                                         <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource Ink}"><Run Text="Session "/><Run Text="{Binding Number, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Duration, Mode=OneWay}"/></TextBlock>
                                                                     </StackPanel>
                                                                     <TextBlock Foreground="{DynamicResource Muted}" FontSize="11"><Run Text="{Binding Start, Mode=OneWay}"/><Run Text=" → "/><Run Text="{Binding End, Mode=OneWay}"/></TextBlock>
-                                                                    <TextBlock Text="{Binding EndCause}" Foreground="{DynamicResource Ink}" FontSize="11" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding StartReason}" Foreground="{DynamicResource Muted}" FontSize="11" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                    <TextBlock Foreground="{DynamicResource Ink}" FontSize="11" TextWrapping="Wrap"><Run Text="⏹ "/><Run Text="{Binding EndCause, Mode=OneWay}"/></TextBlock>
                                                                 </StackPanel>
                                                             </DataTemplate>
                                                         </ListBox.ItemTemplate>

@@ -75,11 +75,8 @@ namespace ADBToolsNew
             if (path != null) await LoadFileAnalysisAsync(path);
         }
 
-        private static string PickFolder(string description)
-        {
-            using (var dlg = new System.Windows.Forms.FolderBrowserDialog { Description = description, ShowNewFolderButton = false })
-                return dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dlg.SelectedPath : null;
-        }
+        /// <summary>Sélecteur de dossier moderne de Windows (comme dans les Paramètres et l'Explorateur).</summary>
+        private string PickFolder(string description) => FolderPicker.Pick(this, description, null);
 
         /// <summary>Ouvre un relevé dans la page (appelé aussi à la récupération d'un enregistrement du terminal).</summary>
         internal async Task LoadFileAnalysisAsync(string path)

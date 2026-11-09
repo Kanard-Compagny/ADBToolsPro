@@ -204,6 +204,7 @@ namespace ADBToolsNew.Core
             SetCellLines(hc[0], new[] { Loc.T("Constat") }, false);
             SetCellLines(hc[1], new[] { Loc.T("Détail et conseil") }, false);
 
+            findings = GroupForCustomer(findings);
             foreach (var f in findings.Take(MaxFindings))
             {
                 var row = (TableRow)template.CloneNode(true);
@@ -233,6 +234,34 @@ namespace ADBToolsNew.Core
             }
             marker.InsertBeforeSelf(table);
             marker.Remove();
+        }
+
+        /// <summary>
+        /// Pour le client, les constats du même genre (ex. 12 « Erreur du lecteur code-barres » aux messages différents)
+        /// forment une seule ligne, avec le nombre de messages et quelques exemples ; le rapport technique garde le détail.
+        /// </summary>
+        public static List<LogFinding> GroupForCustomer(List<LogFinding> findings)
+        {
+            var result = new List<LogFinding>();
+            foreach (var g in findings.GroupBy(f => f.Severity + "|" + f.Title))
+            {
+                var l = g.ToList();
+                if (l.Count < 3 || l[0].Category == LogAnalyzer.CatIncident || l[0].Category == LogInsights.CatKnown) { result.AddRange(l); continue; }
+                var first = l[0];
+                var examples = l.Select(x => (x.Detail ?? "").Split('\n')[0]).Where(x => x.Length > 0).Distinct().Take(3)
+                                .Select(x => "• " + (x.Length > 110 ? x.Substring(0, 110) + "…" : x));
+                result.Add(new LogFinding
+                {
+                    Category = first.Category, Severity = first.Severity, Title = first.Title,
+                    App = string.Join(", ", l.Select(x => x.App).Where(x => !string.IsNullOrEmpty(x)).Distinct().Take(3)),
+                    Detail = Loc.F("{0} messages différents, {1} fois au total, par exemple :", l.Count, l.Sum(x => Math.Max(1, x.Count))) + "\n" + string.Join("\n", examples),
+                    Advice = first.Advice, Count = l.Sum(x => Math.Max(1, x.Count)),
+                    FirstEntry = first.FirstEntry, FirstTime = l.Select(x => x.FirstTime).Where(x => !string.IsNullOrEmpty(x)).DefaultIfEmpty("").Min(),
+                    LastTime = l.Select(x => x.LastTime).Where(x => !string.IsNullOrEmpty(x)).DefaultIfEmpty("").Max(),
+                    TrendText = first.TrendText,
+                });
+            }
+            return result.OrderByDescending(f => f.Severity).ToList();
         }
 
         /// <summary>Texte d'une cellule sur plusieurs lignes, en gardant la mise en forme de son premier paragraphe.</summary>

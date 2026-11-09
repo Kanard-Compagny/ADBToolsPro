@@ -124,6 +124,7 @@ namespace ADBToolsNew
         {
             ShowTemplateState(ReportKind.Sav, BadgeSav, TxtBadgeSav, TxtReportSavState);
             ShowTemplateState(ReportKind.Wifi, BadgeWifi, TxtBadgeWifi, TxtReportWifiState);
+            ShowTemplateState(ReportKind.Logs, BadgeLogs, TxtBadgeLogs, TxtReportLogsState);
             UpdateReportTemplateButtons();
         }
 
@@ -131,6 +132,7 @@ namespace ADBToolsNew
         {
             if (BtnReportTemplateSav != null) BtnReportTemplateSav.Content = Loc.T("⚙️ Modèle : ") + (ReportTemplates.HasUserTemplate(ReportKind.Sav) ? Loc.T("personnel") : Loc.T("fourni"));
             if (BtnReportTemplateWifi != null) BtnReportTemplateWifi.Content = Loc.T("⚙️ Modèle : ") + (ReportTemplates.HasUserTemplate(ReportKind.Wifi) ? Loc.T("personnel") : Loc.T("fourni"));
+            if (MenuFaReportTemplate != null) MenuFaReportTemplate.Header = Loc.T("⚙️ Modèle Word : ") + (ReportTemplates.HasUserTemplate(ReportKind.Logs) ? Loc.T("personnel") : Loc.T("fourni"));
         }
 
         private static void ShowTemplateState(ReportKind kind, Border badge, TextBlock badgeText, TextBlock state)
