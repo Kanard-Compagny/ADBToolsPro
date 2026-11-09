@@ -836,6 +836,35 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Lignes des listes (suggestions, panneaux de l'Analyse de fichiers) : couleurs du thème clair / sombre,
+             au lieu du bleu et du texte noir par défaut de Windows. -->
+        <Style x:Key="ThemedListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface2}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSoft}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSoft}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- Carte d'un constat de l'analyse des logs (page Logs et page Analyse de fichiers). -->
         <DataTemplate x:Key="LogFindingCardTemplate">
             <Border x:Name="Card" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="3,1,1,1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Cursor="Hand" MouseLeftButtonUp="LogFinding_Click" ToolTip="{Binding Category}">
@@ -3771,7 +3800,7 @@
                                     <Border x:Name="FaLeftPanel" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
                                         <DockPanel>
                                             <TextBlock DockPanel.Dock="Top" Text="Journaux (cochés = affichés)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="12,10,12,6"/>
-                                            <ListBox x:Name="FaLogFilesList" DockPanel.Dock="Top" MaxHeight="260" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox x:Name="FaLogFilesList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" DockPanel.Dock="Top" MaxHeight="260" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <CheckBox IsChecked="{Binding Included, Mode=TwoWay}" Checked="FaSource_Changed" Unchecked="FaSource_Changed" Style="{StaticResource ModernCheckBoxStyle}">
@@ -3784,7 +3813,7 @@
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
                                             <TextBlock DockPanel.Dock="Top" Text="Autres fichiers (clic = ouvrir)" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="12,12,12,6"/>
-                                            <ListBox x:Name="FaOtherFilesList" Background="Transparent" BorderThickness="0" SelectionChanged="FaOtherFilesList_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox x:Name="FaOtherFilesList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" SelectionChanged="FaOtherFilesList_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal" ToolTip="{Binding FullName}">
@@ -3936,7 +3965,7 @@
                                                 <!-- Avant l'incident -->
                                                 <DockPanel x:Name="FaBeforePanel" Visibility="Collapsed">
                                                     <TextBlock x:Name="TxtFaBeforeSummary" DockPanel.Dock="Top" Text="« Aller à l'incident » ou « 🕵 Avant cette ligne » : ce qui change dans les minutes qui précèdent (messages jamais vus avant, pics de fréquence, événements marquants)." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
-                                                    <ListBox x:Name="FaBeforeList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                    <ListBox x:Name="FaBeforeList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Margin="0,2,0,6">
@@ -3961,13 +3990,13 @@
                                     <TextBox x:Name="TxtFaApp" Tag="Tapez pour chercher une application…" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" ToolTip="Tapez une partie du nom pour filtrer la liste"/>
                                     <Popup x:Name="PopFaApp" PlacementTarget="{Binding ElementName=TxtFaApp}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True" MinWidth="{Binding ActualWidth, ElementName=TxtFaApp}">
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="6" Padding="2" Margin="0,2,0,0">
-                                            <ListBox x:Name="LstFaApp" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                            <ListBox x:Name="LstFaApp" ItemContainerStyle="{StaticResource ThemedListItemStyle}" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
                                         </Border>
                                     </Popup>
                                 </Grid>
                                                         <TextBlock x:Name="TxtFaAppSummary" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                                     </StackPanel>
-                                                    <ListBox x:Name="FaAppList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                    <ListBox x:Name="FaAppList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Margin="0,2,0,4">
@@ -3985,7 +4014,7 @@
                                                 <!-- Redémarrages et sessions -->
                                                 <DockPanel x:Name="FaSessionsPanel" Visibility="Collapsed">
                                                     <TextBlock x:Name="TxtFaSessionsSummary" DockPanel.Dock="Top" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="12,0,12,8"/>
-                                                    <ListBox x:Name="FaSessionsList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                    <ListBox x:Name="FaSessionsList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Margin="0,2,0,8">
@@ -4007,7 +4036,7 @@
                                                         <TextBlock Text="Lignes marquées (🔖 Signet sous le tableau). Elles sont gardées pour ce relevé et reprises dans le rapport." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,110,0"/>
                                                         <Button Content="🗑 Supprimer" Click="BtnFaDeleteBookmark_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                                                     </Grid>
-                                                    <ListBox x:Name="FaBookmarksList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
+                                                    <ListBox x:Name="FaBookmarksList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FaInsightList_SelectionChanged" Margin="6,0,6,10">
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Margin="0,2,0,8">
@@ -4028,7 +4057,7 @@
                                                         <TextBlock x:Name="TxtFaSignaturesInfo" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,110,0"/>
                                                         <Button Content="🗑 Supprimer" Click="BtnFaDeleteSignature_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                                                     </Grid>
-                                                    <ListBox x:Name="FaSignaturesList" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="6,0,6,10">
+                                                    <ListBox x:Name="FaSignaturesList" ItemContainerStyle="{StaticResource ThemedListItemStyle}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="6,0,6,10">
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Margin="0,2,0,8">
@@ -4495,7 +4524,7 @@
                                     <TextBox x:Name="TxtRecorderTarget" Tag="Tapez pour chercher (ex. wms, scan…)" Style="{StaticResource PlaceholderTextBoxStyle}" Height="30" VerticalContentAlignment="Center" ToolTip="Sa mémoire est relevée à chaque incident ; ses plantages et blocages ressortent dans l'analyse"/>
                                     <Popup x:Name="PopRecorderTarget" PlacementTarget="{Binding ElementName=TxtRecorderTarget}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True" MinWidth="{Binding ActualWidth, ElementName=TxtRecorderTarget}">
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="6" Padding="2" Margin="0,2,0,0">
-                                            <ListBox x:Name="LstRecorderTarget" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                            <ListBox x:Name="LstRecorderTarget" ItemContainerStyle="{StaticResource ThemedListItemStyle}" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
                                         </Border>
                                     </Popup>
                                 </Grid>

@@ -188,7 +188,7 @@ namespace ADBToolsNew.Core
         // « Scanner » Wi-Fi, Bluetooth, média… : rien à voir avec le lecteur code-barres.
         private static readonly Regex NotBarcode = new Regex(@"wifi|wlan|bluetooth|\bble|media|location|gnss|gps|nfc|bt_|network|cell", OI);
         // Journaux du système qui citent le lecteur sans qu'il soit en cause (suivi des processus, installation…).
-        private static readonly Regex SystemTag = new Regex(@"^(?:ProcessStats|ActivityManager|ActivityTaskManager|PackageManager|PackageInstaller|ApkAssets|AppOps|BroadcastQueue|JobScheduler.*|WindowManager|InputMethodManagerService|Zygote|SELinux|audit|ndroid\..*|.*\.settings|ContentProvider.*|ActivityThread|ApplicationPackageManager)$", OI);
+        private static readonly Regex SystemTag = new Regex(@"^(?:Finsky|Vending|PlayCore|GmsCore|.*Play ?Store|ProcessStats|ActivityManager|ActivityTaskManager|PackageManager|PackageInstaller|ApkAssets|AppOps|BroadcastQueue|JobScheduler.*|WindowManager|InputMethodManagerService|Zygote|SELinux|audit|ndroid\..*|.*\.settings|ContentProvider.*|ActivityThread|ApplicationPackageManager)$", OI);
         private static readonly Regex ErrorWords = new Regex(@"error|fail|exception|not found|invalid|unable|timeout|timed out|denied|refused|cannot|can't", OI);
         // Signes de panne propres au lecteur, même sans le mot « error » : moteur qui ne répond plus, qui s'arrête
         // ou se réinitialise (cas typique : un éclair à l'ouverture puis plus aucune lecture).

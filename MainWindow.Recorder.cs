@@ -196,12 +196,14 @@ namespace ADBToolsNew
         /// Après ouverture d'un enregistrement : placé sur le premier incident signalé, sinon sur le début de
         /// l'enregistrement (le journal commence par l'historique gardé par Android, souvent plusieurs jours avant).
         /// </summary>
-        private void GoToFirstIncident()
+        private async void GoToFirstIncident()
         {
             if (_faArchive == null) return;
-            var first = _faArchive.Entries.FirstOrDefault(x => x.Tag == LogArchive.IncidentTag)
-                     ?? _faArchive.Entries.FirstOrDefault(x => x.Tag == "ADBTools-Rec");
+            var incident = _faArchive.Entries.FirstOrDefault(x => x.Tag == LogArchive.IncidentTag);
+            var first = incident ?? _faArchive.Entries.FirstOrDefault(x => x.Tag == "ADBTools-Rec");
             if (first != null) FaGoToEntry(first);
+            // Incident signalé : « Avant l'incident » préparé d'office (repris dans les rapports).
+            if (incident != null && incident.Minute >= 0) await RunFaBeforeAsync(incident.Minute, incident.Time);
         }
 
         /// <summary>
