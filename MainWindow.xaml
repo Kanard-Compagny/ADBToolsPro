@@ -4214,7 +4214,8 @@
                                                 <CheckBox x:Name="ChkMassOsVerify" Content="Redémarrer à la fin et vérifier la nouvelle version" IsChecked="True" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,8"/>
                                                 <CheckBox x:Name="ChkMassOsWipe" Content="Effacer les données (fastboot -w)" IsChecked="False" Style="{StaticResource ModernCheckBoxStyle}" Margin="0,0,28,8" Visibility="Collapsed"
                                                           ToolTip="Remet le terminal à zéro (applications, comptes, réglages, fichiers). Le débogage USB est désactivé ensuite : la version se vérifie sur l'écran du terminal."/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <!-- Visible seulement à partir de 5 terminaux branchés (MassOsParallelThreshold) : en dessous, tout part en même temps. -->
+                                                <StackPanel x:Name="PnlMassOsParallel" Orientation="Horizontal" Margin="0,0,0,8" Visibility="Collapsed">
                                                     <TextBlock Text="Envois simultanés :" FontSize="13" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                     <ComboBox x:Name="CmbMassOsParallel" Width="80" Height="28" SelectionChanged="CmbMassOsParallel_SelectionChanged"
                                                               ToolTip="Limite le nombre de terminaux qui reçoivent le paquet en même temps (hub USB ou PC qui saturent) ; les autres attendent leur tour.">

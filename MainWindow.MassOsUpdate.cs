@@ -112,13 +112,18 @@ namespace ADBToolsNew
 
         private void CmbMassOsParallel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!_massOsInit) return;
+            if (!_massOsInit || PnlMassOsParallel.Visibility != Visibility.Visible) return;
             AppSettings.Current.OsMaxParallel = MassOsParallel();
             AppSettings.Save();
         }
 
+        // En dessous de ce nombre de terminaux, la limite d'envois simultanés n'apporte rien : elle est masquée et
+        // tout part en même temps. Au-delà, un hub USB partagé peut saturer ou décrocher un terminal.
+        private const int MassOsParallelThreshold = 5;
+
         private int MassOsParallel() =>
-            (CmbMassOsParallel?.SelectedItem as ComboBoxItem)?.Tag is string t && int.TryParse(t, out int n) ? n : 0;
+            PnlMassOsParallel?.Visibility != Visibility.Visible ? 0
+            : (CmbMassOsParallel?.SelectedItem as ComboBoxItem)?.Tag is string t && int.TryParse(t, out int n) ? n : 0;
 
         // ------------------------------------------------------------------ Page
 
@@ -320,6 +325,7 @@ namespace ADBToolsNew
                 TxtMassOsSummary.Text = Loc.F("Impossible de lister les terminaux : {0}", ex.Message);
             }
             finally { BtnMassOsRefresh.IsEnabled = !_massOsBusy; }
+            PnlMassOsParallel.Visibility = _massOsRows.Count >= MassOsParallelThreshold ? Visibility.Visible : Visibility.Collapsed;
             RefreshMassOsFit();
         }
 
