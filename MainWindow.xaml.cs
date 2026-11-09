@@ -515,7 +515,7 @@ namespace ADBToolsNew
         private void UpdateNavButtonsUI(Button activeBtn)
         {
             // Liste complète de tous les boutons du menu latéral (BtnNavLibrary ajouté à la fin)
-            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavSettings };
+            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavOsUpdate, BtnNavSettings };
 
             foreach (var btn in navBtns)
             {
@@ -551,6 +551,9 @@ namespace ADBToolsNew
 
             // 4. Enregistrement Vidéo (NOUVEAU)
             if (_isRecording) AnimateNavButton(BtnNavMirroring, true);
+
+            // 5. Mise à jour OS (un ou plusieurs terminaux)
+            if (_massOsBusy) AnimateNavButton(BtnNavOsUpdate, true);
         }
 
         private void NavDashboard_Click(object sender, RoutedEventArgs e)

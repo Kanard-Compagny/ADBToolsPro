@@ -130,6 +130,7 @@
     <Compile Include="MainWindow.SuggestBox.cs" />
     <Compile Include="MainWindow.MassOsUpdate.cs" />
     <Compile Include="Core\OsUpdatePackage.cs" />
+    <Compile Include="Core\XlsxExport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />
     <Compile Include="Core\DeviceTests.cs" />

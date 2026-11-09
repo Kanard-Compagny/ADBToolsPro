@@ -32,6 +32,9 @@ namespace ADBToolsNew
             public string Fingerprint = "";
             public string DisplayId = "";
             public string DisplayIdAfter = "";
+            public string VersionBefore = "";
+            public string Method = "";
+            public DateTime? Started, Ended;
             public int Battery = -1;
             public bool Selectable;
             public string Outcome = "";   // ok, warn, bad ou vide (pas lancé)
@@ -50,23 +53,15 @@ namespace ADBToolsNew
         private bool _massOsBusy;
         private bool _massOsHooked;
 
-        // ------------------------------------------------------------------ Ouverture / fermeture
+        // ------------------------------------------------------------------ Page
 
+        private const int OsUpdateTabIndex = 12;
         private const string MassOsIntroSideload = "Tous les terminaux cochés reçoivent le même paquet, en même temps. ADB Tools redémarre chacun en mode « mise à jour par ADB » ; si un modèle ne le permet pas, choisissez « Apply update from ADB » dans son menu Recovery et ADB Tools continue tout seul. Un terminal pour lequel le paquet n'est pas prévu est écarté. Ne débranchez aucun terminal pendant l'envoi.";
         private const string MassOsIntroCopy = "Le paquet est copié dans la mémoire de chaque terminal coché, puis le terminal redémarre en Recovery : choisissez « Apply update from SD card » (ou « internal storage ») puis le fichier « update_… ». ADB Tools attend son retour pour vérifier la version, puis efface la copie. Pour les modèles qui refusent le sideload.";
-        private const string OsHelpSideload = "Le paquet passe par le câble et le terminal l'installe depuis son mode Recovery. Zebra, Honeywell, Datalogic, Newland, Urovo et la plupart des terminaux Android.";
-        private const string OsHelpCopy = "Le paquet est copié sur le terminal, qui redémarre en Recovery : il reste à choisir « Apply update from SD card / internal storage » sur son écran. Pour les modèles qui refusent le sideload.";
 
         private bool MassOsCopyMode => RbMassOsCopy.IsChecked == true;
 
-        // Choix de la méthode sur la carte de la page Outils avancés.
-        private void OsMethod_Checked(object sender, RoutedEventArgs e)
-        {
-            if (TxtOsMethodHelp == null) return;
-            TxtOsMethodHelp.Text = Loc.T(RbOsCopy.IsChecked == true ? OsHelpCopy : OsHelpSideload);
-        }
-
-        // Choix de la méthode dans la fenêtre : textes et terminaux éligibles mis à jour.
+        // Choix de la méthode : textes et terminaux éligibles mis à jour.
         private void MassOsMethod_Checked(object sender, RoutedEventArgs e)
         {
             if (TxtMassOsIntro == null) return;
@@ -74,29 +69,23 @@ namespace ADBToolsNew
             RefreshMassOsFit();
         }
 
-        private async void BtnMassOsOpen_Click(object sender, RoutedEventArgs e)
+        // Renvoi depuis la page Outils avancés.
+        private void BtnMassOsOpen_Click(object sender, RoutedEventArgs e) => NavOsUpdate_Click(sender, e);
+
+        private async void NavOsUpdate_Click(object sender, RoutedEventArgs e)
         {
-            if (!_massOsBusy)
-            {
-                if (RbOsCopy.IsChecked == true) RbMassOsCopy.IsChecked = true; else RbMassOsSideload.IsChecked = true;
-                TxtMassOsIntro.Text = Loc.T(MassOsCopyMode ? MassOsIntroCopy : MassOsIntroSideload);
-            }
+            if (MainTabControl == null) return;
+            MainTabControl.SelectedIndex = OsUpdateTabIndex;
+            UpdateNavButtonsUI(BtnNavOsUpdate);
             if (!_massOsHooked)
             {
                 _massOsHooked = true;
                 ChkMassOsBattery.Checked += (s, a) => RefreshMassOsFit();
                 ChkMassOsBattery.Unchecked += (s, a) => RefreshMassOsFit();
             }
-            MassOsOverlay.Visibility = Visibility.Visible;
-            // Pendant une mise à jour, la fenêtre se rouvre telle quelle (les lignes suivent les envois en cours).
-            if (!_massOsBusy) await LoadMassOsDevicesAsync();
-        }
-
-        private void BtnMassOsClose_Click(object sender, RoutedEventArgs e)
-        {
-            MassOsOverlay.Visibility = Visibility.Collapsed;
-            if (_massOsBusy)
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 La mise à jour OS continue : rouvrez « Mettre à jour l'OS… » pour suivre les terminaux.", DateTime.Now));
+            // Pendant une mise à jour, la page reste telle quelle (les lignes suivent les envois en cours) ;
+            // après une mise à jour, le bilan reste affiché jusqu'à « Actualiser ».
+            if (!_massOsBusy && !_massOsRows.Any(r => r.Outcome.Length > 0)) await LoadMassOsDevicesAsync();
         }
 
         private async void BtnMassOsRefresh_Click(object sender, RoutedEventArgs e) => await LoadMassOsDevicesAsync();
@@ -182,8 +171,8 @@ namespace ADBToolsNew
 
         private void BuildMassOsRow(MassOsRow row)
         {
-            var g = new Grid { Margin = new Thickness(0, 5, 0, 5) };
-            foreach (var w in new[] { new GridLength(30), new GridLength(200), new GridLength(220), new GridLength(70), new GridLength(1, GridUnitType.Star) })
+            var g = new Grid { Margin = new Thickness(0, 8, 0, 8) };
+            foreach (var w in new[] { new GridLength(30), new GridLength(220), new GridLength(260), new GridLength(80), new GridLength(1, GridUnitType.Star) })
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = w });
 
             row.Check = new CheckBox { Style = (Style)FindResource("ModernCheckBoxStyle"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0) };
@@ -293,6 +282,8 @@ namespace ADBToolsNew
             _massOsBusy = true;
             _massOsWaitCts = new CancellationTokenSource();
             SetMassOsLocked(true);
+            AnimateNavButton(BtnNavOsUpdate, true); // le bouton du menu pulse tant que la mise à jour tourne
+            foreach (var r in rows) { r.Method = copy ? Loc.T("Copie dans la mémoire") : Loc.T("Par câble"); r.VersionBefore = r.TxtVersion.Text; r.Started = DateTime.Now; r.Ended = null; }
             foreach (var r in _massOsRows.Where(x => !rows.Contains(x))) r.Check.IsEnabled = false;
             AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Mise à jour OS : {1} terminal(aux), paquet {2} ({3}).", DateTime.Now, rows.Count, System.IO.Path.GetFileName(file),
                 copy ? Loc.T("copie dans la mémoire du terminal") : Loc.T("par câble")));
@@ -309,6 +300,8 @@ namespace ADBToolsNew
                 _massOsWaitCts.Dispose();
                 _massOsWaitCts = null;
                 SetMassOsLocked(false);
+                AnimateNavButton(BtnNavOsUpdate, false);
+                if (MainTabControl.SelectedIndex == OsUpdateTabIndex) UpdateNavButtonsUI(BtnNavOsUpdate);
                 foreach (var r in _massOsRows) r.Check.IsEnabled = r.Selectable && r.Outcome.Length == 0;
                 foreach (var r in rows) r.Check.IsChecked = false;
                 UpdateMassOsRunButton();
@@ -317,7 +310,7 @@ namespace ADBToolsNew
             int good = rows.Count(r => r.Outcome == "ok"), warn = rows.Count(r => r.Outcome == "warn"), bad = rows.Count(r => r.Outcome == "bad");
             TxtMassOsSummary.Text = Loc.F("Terminé : {0} réussi(s), {1} à vérifier, {2} en échec.", good, warn, bad);
             AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Mise à jour OS terminée : {1} réussi(s), {2} à vérifier, {3} en échec.", DateTime.Now, good, warn, bad));
-            if (MassOsOverlay.Visibility != Visibility.Visible)
+            if (MainTabControl.SelectedIndex != OsUpdateTabIndex)
                 await ShowCustomDialogAsync(Loc.T("📦 Mise à jour OS terminée"), TxtMassOsSummary.Text, "OK", null, false);
         }
 
@@ -331,6 +324,7 @@ namespace ADBToolsNew
             RbMassOsSideload.IsEnabled = !busy;
             RbMassOsCopy.IsEnabled = !busy;
             BtnMassOsRun.IsEnabled = !busy;
+            BtnMassOsExport.IsEnabled = !busy;
             BtnMassOsStop.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             BtnMassOsStop.IsEnabled = busy;
         }
@@ -528,6 +522,7 @@ namespace ADBToolsNew
         {
             row.Outcome = outcome;
             row.Message = message;
+            row.Ended = DateTime.Now;
             row.Bar.IsIndeterminate = false;
             if (outcome != "ok") row.Bar.Visibility = Visibility.Collapsed;
             string icon = outcome == "ok" ? "✅" : outcome == "warn" ? "⚠️" : "❌";
@@ -564,15 +559,67 @@ namespace ADBToolsNew
 
         // ------------------------------------------------------------------ Bilan
 
+        private static readonly string[] MassOsReportHeaders =
+            { "N° de série", "Modèle", "Version avant", "Version après", "Batterie", "Méthode", "Résultat", "Détail", "Début", "Fin" };
+
+        private string MassOsOutcomeText(MassOsRow r) =>
+            r.Outcome == "ok" ? Loc.T("Réussi") : r.Outcome == "warn" ? Loc.T("À vérifier") : r.Outcome == "bad" ? Loc.T("Échec") : Loc.T("Non lancé");
+
+        private List<string[]> MassOsReportRows() => _massOsRows.Select(r => new[]
+        {
+            r.Serial, r.Model,
+            r.Outcome.Length > 0 ? r.VersionBefore : r.TxtVersion.Text,
+            r.Outcome.Length > 0 ? r.TxtVersion.Text : "",
+            r.Battery >= 0 ? r.Battery + " %" : "",
+            r.Method,
+            MassOsOutcomeText(r),
+            r.Outcome.Length > 0 ? r.Message : r.TxtStatus.Text,
+            r.Started?.ToString("dd/MM/yyyy HH:mm:ss") ?? "",
+            r.Ended?.ToString("dd/MM/yyyy HH:mm:ss") ?? ""
+        }).ToList();
+
+        private List<string> MassOsReportTitle()
+        {
+            var t = new List<string> { Loc.F("Mise à jour OS — {0:dd/MM/yyyy HH:mm}", DateTime.Now) };
+            if (_massOsPackage != null) t.Add(Loc.F("Paquet : {0}", System.IO.Path.GetFileName(_massOsPackage.FilePath) + " — " + _massOsPackage.Describe()));
+            int good = _massOsRows.Count(r => r.Outcome == "ok"), warn = _massOsRows.Count(r => r.Outcome == "warn"), bad = _massOsRows.Count(r => r.Outcome == "bad");
+            if (good + warn + bad > 0) t.Add(Loc.F("Bilan : {0} réussi(s), {1} à vérifier, {2} en échec.", good, warn, bad));
+            return t;
+        }
+
+        private void BtnMassOsExport_Click(object sender, RoutedEventArgs e)
+        {
+            if (_massOsRows.Count == 0) { TxtMassOsSummary.Text = Loc.T("Aucun terminal dans la liste : rien à exporter."); return; }
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = Loc.T("Classeur Excel (*.xlsx)|*.xlsx"),
+                FileName = $"MiseAJourOS_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+                Title = Loc.T("Exporter le bilan de la mise à jour OS")
+            };
+            if (dlg.ShowDialog() != true) return;
+            try
+            {
+                var rows = MassOsReportRows();
+                XlsxExport.Write(dlg.FileName, Loc.T("Mise à jour OS"), MassOsReportTitle(), MassOsReportHeaders.Select(Loc.T).ToList(), rows,
+                    i => _massOsRows[i].Outcome == "ok" ? XlsxExport.StyleOk : _massOsRows[i].Outcome == "warn" ? XlsxExport.StyleWarn
+                       : _massOsRows[i].Outcome == "bad" ? XlsxExport.StyleBad : XlsxExport.StyleNormal);
+                TxtMassOsSummary.Text = Loc.F("Bilan exporté : {0}", System.IO.Path.GetFileName(dlg.FileName));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📊 Bilan de la mise à jour OS exporté : {1}", DateTime.Now, dlg.FileName));
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); } catch { /* pas d'Excel : le fichier reste enregistré */ }
+            }
+            catch (Exception ex)
+            {
+                TxtMassOsSummary.Text = Loc.F("Export impossible : {0}", ex.Message);
+            }
+        }
+
         private void BtnMassOsCopy_Click(object sender, RoutedEventArgs e)
         {
             if (_massOsRows.Count == 0) return;
             var sb = new StringBuilder();
-            sb.AppendLine(Loc.F("Mise à jour OS — {0:dd/MM/yyyy HH:mm}", DateTime.Now));
-            if (_massOsPackage != null) sb.AppendLine(Loc.F("Paquet : {0}", System.IO.Path.GetFileName(_massOsPackage.FilePath)));
-            sb.AppendLine(string.Join("\t", Loc.T("N° de série"), Loc.T("Modèle"), Loc.T("Version"), Loc.T("Résultat")));
-            foreach (var r in _massOsRows)
-                sb.AppendLine(string.Join("\t", r.Serial, r.Model, r.TxtVersion.Text, r.TxtStatus.Text));
+            foreach (var line in MassOsReportTitle()) sb.AppendLine(line);
+            sb.AppendLine(string.Join("\t", MassOsReportHeaders.Select(Loc.T)));
+            foreach (var r in MassOsReportRows()) sb.AppendLine(string.Join("\t", r));
             try
             {
                 Clipboard.SetText(sb.ToString());
