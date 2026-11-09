@@ -239,10 +239,32 @@ namespace ADBToolsNew
                 Multiselect = true
             };
             if (dlg.ShowDialog() != true) return;
+            TxtMassOsApks.Text = Loc.T("Aucune application choisie.");
             foreach (var f in dlg.FileNames)
                 if (!_massOsApks.Contains(f, StringComparer.OrdinalIgnoreCase)) _massOsApks.Add(f);
             RenderMassOsApks();
             ChkMassOsAfterApk.IsChecked = _massOsApks.Count > 0;
+        }
+
+        /// <summary>Toutes les applications d'un dossier (ex. le dossier d'un client), ajoutées aux APK déjà choisis.</summary>
+        private void BtnMassOsApkFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string folder = FolderPicker.Pick(this, Loc.T("Dossier des applications à installer après la mise à jour"), null);
+            if (string.IsNullOrEmpty(folder)) return;
+            List<string> apks;
+            try { apks = Directory.GetFiles(folder, "*.apk", SearchOption.TopDirectoryOnly).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList(); }
+            catch (Exception ex) { TxtMassOsApks.Text = Loc.F("Dossier illisible : {0}", ex.Message); TxtMassOsApks.Visibility = Visibility.Visible; return; }
+            if (apks.Count == 0)
+            {
+                TxtMassOsApks.Text = Loc.F("Aucune application (.apk) dans « {0} ».", Path.GetFileName(folder));
+                TxtMassOsApks.Visibility = Visibility.Visible;
+                return;
+            }
+            foreach (var f in apks)
+                if (!_massOsApks.Contains(f, StringComparer.OrdinalIgnoreCase)) _massOsApks.Add(f);
+            TxtMassOsApks.Text = Loc.T("Aucune application choisie.");
+            RenderMassOsApks();
+            ChkMassOsAfterApk.IsChecked = true;
         }
 
         /// <summary>Une étiquette par application choisie, avec ✕ pour la retirer : lisible même avec beaucoup d'APK.</summary>
@@ -574,7 +596,7 @@ namespace ADBToolsNew
         {
             foreach (var c in new Control[] { BtnMassOsPick, BtnMassOsRefresh, BtnMassOsAll, ChkMassOsBattery, ChkMassOsVerify, ChkMassOsWipe,
                                               RbMassOsSideload, RbMassOsCopy, RbMassOsFastboot, RbMassOsSingle, RbMassOsLibrary, CmbMassOsParallel,
-                                              ChkMassOsAfterApk, ChkMassOsAfterCmd, BtnMassOsApks, TxtMassOsCmds, BtnMassOsRun, BtnMassOsExport })
+                                              ChkMassOsAfterApk, ChkMassOsAfterCmd, BtnMassOsApks, BtnMassOsApkFolder, TxtMassOsCmds, BtnMassOsRun, BtnMassOsExport })
                 c.IsEnabled = !busy;
             BtnMassOsStop.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             BtnMassOsStop.IsEnabled = busy;
