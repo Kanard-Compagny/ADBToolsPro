@@ -207,6 +207,10 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ActionHover}"/>
                 </Trigger>
+                <!-- Bouton indisponible (rien à lancer, tâche en cours) : estompé, pour ne pas inviter au clic. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
 
