@@ -29,7 +29,8 @@ namespace ADBToolsNew.Core
 
         private static readonly Regex ShutdownMsg = new Regex(@"Rebooting|Shutting down|low-level shutdown|reboot reason|Shutdown thread|shutdown reason", OI);
         private static readonly Regex ScannerFault = new Regex(@"More than \d+ Null frames? received|trigger source failed", OI);
-        private static readonly Regex LmkMsg = new Regex(@"^Kill '|^Killing '|kill '|low ?memory", OI);
+        // Arrêt réel d'une application par manque de mémoire (pas les lignes de suivi « Not killing… », « thrashing… »).
+        private static readonly Regex LmkMsg = new Regex(@"\bKill(?:ing)? '|\bkill '", OI);
         private static readonly Regex HeatMsg = new Regex(@"overheat|too hot|thermal (?:shutdown|throttl|mitigation)|battery (?:is )?low|batterie faible|battery_low", OI);
 
         /// <summary>Couloir d'une ligne (0 à LaneCount-1), ou -1 si elle n'en relève pas.</summary>
@@ -41,7 +42,7 @@ namespace ADBToolsNew.Core
                 || (tag == "ActivityManager" && msg.StartsWith("ANR in", StringComparison.Ordinal)) || (tag == "libc" && lvl == "F" && msg.Contains("Fatal signal")))
                 return 1;
             if ((tag.StartsWith("wpa_supplicant", StringComparison.Ordinal) && msg.Contains("CTRL-EVENT-DISCONNECTED")) || (tag == "ADBTools-Wifi" && lvl == "W")) return 2;
-            if (tag == "lowmemorykiller" || tag == "lmkd" && LmkMsg.IsMatch(msg) || tag == "am_low_memory"
+            if ((tag == "lowmemorykiller" || tag == "lmkd") && LmkMsg.IsMatch(msg) || tag == "am_low_memory"
                 || (tag == "am_kill" && msg.IndexOf("lmk", StringComparison.OrdinalIgnoreCase) >= 0)
                 || (tag == "ActivityManager" && msg.StartsWith("Low on memory", StringComparison.Ordinal))) return 3;
             if ((lvl == "W" || lvl == "E" || tag.StartsWith("ADBTools", StringComparison.Ordinal)) && HeatMsg.IsMatch(msg)) return 4;

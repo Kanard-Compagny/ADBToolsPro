@@ -203,7 +203,18 @@ namespace ADBToolsNew.Core
                 }
                 case ToolComponent.Scrcpy:
                 {
-                    string json = await GetStringAsync(ScrcpyLatestApi, ct).ConfigureAwait(false);
+                    string json;
+                    try { json = await GetStringAsync(ScrcpyLatestApi, ct).ConfigureAwait(false); }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch
+                    {
+                        // API GitHub indisponible (504, limite de requêtes, proxy) : la page « dernière version » du site
+                        // redirige vers …/releases/tag/vX.Y, dont on déduit l'adresse du zip Windows.
+                        string tagFromWeb = await GetScrcpyTagFromWebAsync(ct).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(tagFromWeb)) throw;
+                        return (tagFromWeb.TrimStart('v', 'V'),
+                                $"https://github.com/Genymobile/scrcpy/releases/download/{tagFromWeb}/scrcpy-win64-{tagFromWeb}.zip", null);
+                    }
                     using (var doc = JsonDocument.Parse(json))
                     {
                         string tag = doc.RootElement.GetProperty("tag_name").GetString() ?? "";
@@ -367,7 +378,7 @@ namespace ADBToolsNew.Core
             try
             {
                 // 1. Téléchargement (80 % de la barre)
-                using (var response = await Http.GetAsync(latest.Url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+                using (var response = await GetWithRetryAsync(latest.Url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     long? total = response.Content.Headers.ContentLength;
@@ -520,11 +531,62 @@ namespace ADBToolsNew.Core
 
         private static async Task<string> GetStringAsync(string url, CancellationToken ct)
         {
-            using (var response = await Http.GetAsync(url, ct).ConfigureAwait(false))
+            using (var response = await GetWithRetryAsync(url, HttpCompletionOption.ResponseContentRead, ct).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// GET qui réessaie (3 tentatives, 2 puis 5 s d'attente) quand le serveur ou un proxy répond une erreur passagère
+        /// (500 à 504, 429) ou que la connexion échoue : GitHub renvoie parfois un 504 isolé.
+        /// </summary>
+        private static async Task<HttpResponseMessage> GetWithRetryAsync(string url, HttpCompletionOption option, CancellationToken ct)
+        {
+            int[] waits = { 2000, 5000 };
+            for (int attempt = 0; ; attempt++)
+            {
+                HttpResponseMessage response = null;
+                try
+                {
+                    response = await Http.GetAsync(url, option, ct).ConfigureAwait(false);
+                    int code = (int)response.StatusCode;
+                    if ((code >= 500 && code <= 504 || code == 429) && attempt < waits.Length)
+                    {
+                        response.Dispose();
+                        await Task.Delay(waits[attempt], ct).ConfigureAwait(false);
+                        continue;
+                    }
+                    return response;
+                }
+                catch (HttpRequestException) when (attempt < waits.Length)
+                {
+                    response?.Dispose();
+                    await Task.Delay(waits[attempt], ct).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < waits.Length)
+                {
+                    response?.Dispose(); // délai dépassé, pas une annulation demandée
+                    await Task.Delay(waits[attempt], ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>Dernière version de scrcpy d'après la redirection de github.com/…/releases/latest (« v3.3.3 »), null si inconnue.</summary>
+        private static async Task<string> GetScrcpyTagFromWebAsync(CancellationToken ct)
+        {
+            try
+            {
+                using (var response = await GetWithRetryAsync("https://github.com/Genymobile/scrcpy/releases/latest", HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+                {
+                    string final = response.RequestMessage?.RequestUri?.AbsoluteUri ?? "";
+                    var m = Regex.Match(final, @"/releases/tag/(v?\d+(?:\.\d+)+)$", RegexOptions.IgnoreCase);
+                    return m.Success ? m.Groups[1].Value : null;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch { return null; }
         }
 
         private static string FirstMatch(string text, string pattern)

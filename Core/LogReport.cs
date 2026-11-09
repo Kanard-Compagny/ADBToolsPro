@@ -165,7 +165,7 @@ namespace ADBToolsNew.Core
                   .Append(H(Loc.T("Fin"))).Append("</th><th>").Append(H(Loc.T("Durée"))).Append("</th><th>").Append(H(Loc.T("Fin de session"))).Append("</th></tr>");
                 foreach (var s in o.Sessions)
                     sb.Append("<tr><td>").Append(s.Icon).Append(' ').Append(s.Number).Append("</td><td>").Append(H(s.Start)).Append("</td><td>").Append(H(s.End)).Append("</td><td>")
-                      .Append(H(s.Duration)).Append("</td><td>").Append(H(s.EndCause)).Append("</td></tr>");
+                      .Append(H(s.Duration)).Append("</td><td>").Append(H(s.EndCause)).Append(string.IsNullOrEmpty(s.StartReason) ? "" : "<br><span class=\"muted\">" + H(Loc.F("Démarrée après : {0}", s.StartReason)) + "</span>").Append("</td></tr>");
                 sb.Append("</table></section>");
             }
 

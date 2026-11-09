@@ -101,7 +101,11 @@ namespace ADBToolsNew.Core
             foreach (var e in src) if (e.Lane >= 0) counts[e.Lane]++;
             var names = LogInsights.LaneNames;
             var parts = new List<string>();
-            for (int i = 0; i < counts.Length; i++) if (counts[i] > 0) parts.Add(names[i] + " : " + counts[i]);
+            // Redémarrages : un par session (un démarrage est noté par plusieurs lignes) ; les autres sujets en lignes.
+            int from = o.From != int.MinValue ? o.From : int.MinValue, to = o.From != int.MinValue ? o.To : int.MaxValue;
+            int boots = o.Sessions?.Count(s => s.FromBoot && s.StartEntry != null && s.StartEntry.Minute >= from && s.StartEntry.Minute <= to) ?? 0;
+            if (boots > 0) parts.Add(names[0] + " : " + boots);
+            for (int i = 1; i < counts.Length; i++) if (counts[i] > 0) parts.Add(Loc.F("{0} : {1} ligne(s)", names[i], counts[i]));
             return parts.Count == 0 ? Loc.T("Aucun redémarrage, plantage, coupure Wi-Fi, manque de mémoire ni défaut du lecteur sur la période.")
                                     : Loc.T("Événements sur la période") + " — " + string.Join(" · ", parts);
         }
@@ -126,7 +130,10 @@ namespace ADBToolsNew.Core
             if (o.Sessions != null && o.Sessions.Count > 1)
             {
                 foreach (var s in o.Sessions)
+                {
                     sb.AppendLine(Loc.F("• Session {0} : {1} → {2} ({3}) — {4}", s.Number, s.Start, s.End, s.Duration, s.EndCause));
+                    if (!string.IsNullOrEmpty(s.StartReason)) sb.AppendLine("   " + Loc.F("Démarrée après : {0}", s.StartReason));
+                }
             }
             else sb.AppendLine(Loc.T("Aucun redémarrage du terminal dans le relevé."));
             if (o.App != null && o.App.Events.Count > 0)
