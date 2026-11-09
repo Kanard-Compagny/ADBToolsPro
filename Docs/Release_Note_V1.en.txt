@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.3.0
+                              RELEASE NOTES V1.4.0
 ================================================================================
-Version        : 1.3.0 (log analysis, device comparator)
-Release date   : November 2026 (1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.4.0 (file analysis, field recorder)
+Release date   : November 2026 (1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,55 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
+================================================================================
+FILE ANALYSIS (new menu page)
+  - Opens a log set received from the field: Zebra RxLogger archive,
+    bugreport, unzipped folder or logcat. All dated logs are merged in
+    chronological order with no line limit; ANR, tombstones, snapshots and the
+    kernel log remain viewable (with search).
+  - Search as you type (text or regex), level, tag, PID and log filters;
+    "Go to the incident" (e.g. 9:07 ± 5 min); "Show context".
+  - Timeline: lines and errors, then one lane per topic (restarts, crashes /
+    ANR, Wi-Fi down, memory, battery / heat, scanner), "you are here" marker,
+    incidents and bookmarks. Resizable panels.
+  - Findings for the area being viewed (they follow scrolling) or for the
+    whole log set, with their trend: one-off, steady, rising, falling.
+  - Before the incident: never-seen messages, frequency spikes and notable
+    events in the minutes before.
+  - Business app life: starts, crashes, ANR, stops for lack of memory or by
+    the system.
+  - Restarts and sessions, with their cause read from the device (OTA update,
+    requested shutdown, kernel panic, watchdog, long press, battery...).
+  - Team known issues: a message saved with its diagnosis and solution is
+    recognised automatically in later log sets (file shared in the team
+    distribution folder).
+  - Bookmarks with notes; comparison of two log sets (with / without a patch).
+  - Customer Word report in the format of the service and Wi-Fi reports
+    (template customisable in Settings ▸ Word reports), detailed technical
+    report as PDF or HTML, lines exported as .txt / .csv.
+
+FIELD RECORDER (File analysis ▸ Field recorder)
+  - The unplugged device records for several hours the full Android log, its
+    state (battery, temperature, memory, storage, Wi-Fi), Wi-Fi drops and the
+    incidents the user reports with one tap ("Report an incident", also in the
+    notification), with the system state at that moment.
+  - Back at the PC, "Retrieve the recording" opens it in File analysis, on the
+    first incident.
+  - Android 13 and later: accept "Allow access to all device logs" when the
+    recording starts.
+
+OTHER IMPROVEMENTS
+  - Log analysis: Zebra scanner faults detected (sensor no longer returning
+    images, trigger presses without a read), routine Zebra and Play Store
+    messages ignored.
+  - The title bar keeps its size whatever the interface zoom.
+  - Third-party tools: automatic retry when GitHub returns a transient error.
+  - "Open a file" on the Logs page opens File analysis.
+  - 64-bit program for large log sets.
+
+================================================================================
+2b. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
 ================================================================================
 AUTOMATIC LOG ANALYSIS (Logs page)
   - "Analyse displayed logs": the whole live capture is reviewed, even lines
@@ -99,7 +147,7 @@ OTHER IMPROVEMENTS
   - Wi-Fi check-up: correct SSID and access point (BSSID) on Android 11.
 
 ================================================================================
-2b. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+2c. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
 A fully redesigned Settings page, modelled on Scanalyse.
 
