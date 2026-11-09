@@ -1111,6 +1111,7 @@ namespace ADBToolsNew
         // ==========================================
         private void AnimateNavButton(System.Windows.Controls.Button navButton, bool isRunning)
         {
+            SetTaskbarBusy(navButton?.Name, isRunning); // icône de la barre des tâches : tâche en cours
             if (isRunning)
             {
                 // 1. On crée un pinceau transparent qu'on applique au bouton

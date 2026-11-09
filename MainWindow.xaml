@@ -4252,7 +4252,10 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock x:Name="TxtMassOsApks" Text="Aucune application choisie." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="32,0,10,0"/>
+                                                        <StackPanel Margin="32,0,10,0" VerticalAlignment="Center">
+                                                            <TextBlock x:Name="TxtMassOsApks" Text="Aucune application choisie." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                                                            <WrapPanel x:Name="PnlMassOsApks"/>
+                                                        </StackPanel>
                                                         <Button x:Name="BtnMassOsApks" Grid.Column="1" Content="📦 Choisir les APK…" Click="BtnMassOsApks_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" VerticalAlignment="Top"/>
                                                     </Grid>
                                                 </StackPanel>

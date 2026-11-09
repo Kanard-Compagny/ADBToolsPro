@@ -239,10 +239,32 @@ namespace ADBToolsNew
                 Multiselect = true
             };
             if (dlg.ShowDialog() != true) return;
-            _massOsApks.Clear();
-            _massOsApks.AddRange(dlg.FileNames);
-            TxtMassOsApks.Text = string.Join(", ", _massOsApks.Select(Path.GetFileName));
+            foreach (var f in dlg.FileNames)
+                if (!_massOsApks.Contains(f, StringComparer.OrdinalIgnoreCase)) _massOsApks.Add(f);
+            RenderMassOsApks();
             ChkMassOsAfterApk.IsChecked = _massOsApks.Count > 0;
+        }
+
+        /// <summary>Une étiquette par application choisie, avec ✕ pour la retirer : lisible même avec beaucoup d'APK.</summary>
+        private void RenderMassOsApks()
+        {
+            PnlMassOsApks.Children.Clear();
+            TxtMassOsApks.Visibility = _massOsApks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var apk in _massOsApks.ToList())
+            {
+                var chip = new Border { CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Padding = new Thickness(10, 3, 4, 3), Margin = new Thickness(0, 0, 6, 6), ToolTip = apk };
+                chip.SetResourceReference(Border.BackgroundProperty, "Surface2");
+                chip.SetResourceReference(Border.BorderBrushProperty, "Line");
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                var name = new TextBlock { Text = "📦 " + Path.GetFileName(apk), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+                name.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+                var remove = new Button { Content = "✕", Width = 20, Height = 20, FontSize = 10, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(0), ToolTip = Loc.T("Retirer"), Style = (Style)FindResource("SidebarToggleStyle") };
+                string path = apk;
+                remove.Click += (s, a) => { _massOsApks.Remove(path); RenderMassOsApks(); if (_massOsApks.Count == 0) ChkMassOsAfterApk.IsChecked = false; };
+                sp.Children.Add(name); sp.Children.Add(remove);
+                chip.Child = sp;
+                PnlMassOsApks.Children.Add(chip);
+            }
         }
 
         // ------------------------------------------------------------------ Liste des terminaux
@@ -523,6 +545,8 @@ namespace ADBToolsNew
                 _massOsSlots = null;
                 SetMassOsLocked(false);
                 AnimateNavButton(BtnNavOsUpdate, false);
+                SetTaskbarProgress(null);
+                FlashTaskbarIfInBackground();
                 if (MainTabControl.SelectedIndex == OsUpdateTabIndex) UpdateNavButtonsUI(BtnNavOsUpdate);
                 foreach (var r in _massOsRows) r.Check.IsEnabled = r.Selectable && r.Outcome.Length == 0;
                 foreach (var r in rows) r.Check.IsChecked = false;
@@ -560,6 +584,7 @@ namespace ADBToolsNew
         {
             if (!_massOsBusy) return;
             int done = rows.Count(r => r.Outcome.Length > 0);
+            SetTaskbarProgress(rows.Count > 0 ? (double)done / rows.Count : 0); // icône de la barre des tâches
             TxtMassOsSummary.Text = Loc.F("En cours : {0} / {1} terminé(s). Ne débranchez aucun terminal.", done, rows.Count);
         }
 
@@ -911,13 +936,14 @@ namespace ADBToolsNew
         {
             int apkOk = 0, cmdOk = 0;
             var failed = new List<string>();
+            var installed = new List<string>();
             // Android tout juste démarré : le gestionnaire de paquets peut ne pas être prêt aussitôt.
             await WaitForMassOsBootCompletedAsync(row);
             foreach (var apk in after.Apks)
             {
                 SetMassOsStatus(row, Loc.F("Installation de {0}…", Path.GetFileName(apk)), "Ink");
                 var res = await _adbManager.ExecuteAsync($"-s {row.Serial} install -r {AdbManager.QuoteLocalArg(apk)}", TimeSpan.FromMinutes(5));
-                if ((res.StandardOutput ?? "").Contains("Success")) apkOk++;
+                if ((res.StandardOutput ?? "").Contains("Success")) { apkOk++; installed.Add(Path.GetFileNameWithoutExtension(apk)); }
                 else failed.Add(Path.GetFileName(apk));
             }
             foreach (var cmd in after.Commands)
@@ -928,7 +954,7 @@ namespace ADBToolsNew
                 else failed.Add(cmd);
             }
             var parts = new List<string>();
-            if (after.Apks.Count > 0) parts.Add(Loc.F("{0}/{1} application(s) installée(s)", apkOk, after.Apks.Count));
+            if (after.Apks.Count > 0) parts.Add(Loc.F("{0}/{1} application(s) installée(s)", apkOk, after.Apks.Count) + (installed.Count > 0 ? " (" + string.Join(", ", installed) + ")" : ""));
             if (after.Commands.Count > 0) parts.Add(Loc.F("{0}/{1} commande(s) réussie(s)", cmdOk, after.Commands.Count));
             if (failed.Count > 0) parts.Add(Loc.F("en échec : {0}", string.Join(", ", failed)));
             return (failed.Count == 0, string.Join(", ", parts));
