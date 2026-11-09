@@ -24,6 +24,8 @@ namespace ADBToolsNew.Core
         public List<string> PreBuilds { get; private set; } = new List<string>();
         public string PostBuild { get; private set; } = "";
         public string OtaType { get; private set; } = "";
+        /// <summary>Modèles listés par le DeviceManifest.xml des paquets Zebra (ro.product.name), vide sinon.</summary>
+        public List<string> ManifestModels { get; private set; } = new List<string>();
 
         /// <summary>Mise à jour différentielle : ne s'installe que sur une version précise.</summary>
         public bool IsIncremental => PreBuilds.Count > 0;
@@ -34,9 +36,13 @@ namespace ADBToolsNew.Core
             using (var zip = ZipFile.OpenRead(zipPath))
             {
                 var entry = zip.GetEntry("META-INF/com/android/metadata");
-                if (entry == null) return pkg;
-                using (var r = new StreamReader(entry.Open(), Encoding.UTF8))
-                    pkg.ApplyMetadata(r.ReadToEnd());
+                if (entry != null)
+                    using (var r = new StreamReader(entry.Open(), Encoding.UTF8))
+                        pkg.ApplyMetadata(r.ReadToEnd());
+                var manifest = zip.Entries.FirstOrDefault(e => e.Name.Equals("DeviceManifest.xml", StringComparison.OrdinalIgnoreCase) && e.Length < 1_000_000);
+                if (manifest != null)
+                    using (var r = new StreamReader(manifest.Open(), Encoding.UTF8))
+                        pkg.ApplyDeviceManifest(r.ReadToEnd());
             }
             return pkg;
         }
@@ -47,6 +53,21 @@ namespace ADBToolsNew.Core
             var pkg = new OsUpdatePackage { FilePath = "" };
             pkg.ApplyMetadata(metadata);
             return pkg;
+        }
+
+        /// <summary>Fonction pure, testable : lit les modèles d'un DeviceManifest.xml Zebra (product/ro.product.name, _npi, _ng).</summary>
+        public void ApplyDeviceManifest(string xml)
+        {
+            try
+            {
+                var doc = System.Xml.Linq.XDocument.Parse(xml ?? "");
+                ManifestModels = doc.Descendants()
+                    .Where(e => e.Name.LocalName.StartsWith("ro.product.name", StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(e => ((string)e.Attribute("value") ?? "").Split(','))
+                    .Select(v => v.Trim()).Where(v => v.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch { ManifestModels = new List<string>(); }
         }
 
         private void ApplyMetadata(string metadata)
@@ -74,8 +95,9 @@ namespace ADBToolsNew.Core
         public string Describe()
         {
             var parts = new List<string> { Loc.F("{0:0.0} Mo", Size / 1048576.0) };
-            if (!HasMetadata) { parts.Add(Loc.T("pas de description dans le paquet : le terminal vérifiera lui-même")); return string.Join(" — ", parts); }
+            if (!HasMetadata && ManifestModels.Count == 0) { parts.Add(Loc.T("pas de description dans le paquet : le terminal vérifiera lui-même")); return string.Join(" — ", parts); }
             if (PreDevices.Count > 0) parts.Add(Loc.F("pour {0}", string.Join(", ", PreDevices)));
+            if (ManifestModels.Count > 0) parts.Add(Loc.F("{0} modèles listés par le fabricant", ManifestModels.Count));
             parts.Add(IsIncremental ? Loc.T("mise à jour différentielle (depuis une version précise)") : Loc.T("mise à jour complète"));
             if (PostBuild.Length > 0) parts.Add(Loc.F("version obtenue : {0}", ShortBuild(PostBuild)));
             return string.Join(" — ", parts);
@@ -97,15 +119,20 @@ namespace ADBToolsNew.Core
         /// </summary>
         public static readonly string[] DeviceIdProps =
         {
-            "ro.product.device", "ro.build.product", "ro.product.vendor.device", "ro.product.system.device",
+            "ro.product.device", "ro.build.product", "ro.build.platform", "ro.product.platform", "ro.product.vendor.device", "ro.product.system.device",
             "ro.product.odm.device", "ro.product.board", "ro.board.platform", "ro.product.name", "ro.hardware", "ro.boot.hardware",
             "ro.boot.product.hardware.sku", "ro.product.vendor.name"
         };
 
         /// <summary>Fonction pure, testable : noms du terminal lus dans ses propriétés (sans doublon ni vide).</summary>
-        public static List<string> DeviceIdsFrom(IDictionary<string, string> props) =>
-            DeviceIdProps.Select(k => props != null && props.TryGetValue(k, out var v) ? (v ?? "").Trim() : "")
-                         .Where(v => v.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        public static List<string> DeviceIdsFrom(IDictionary<string, string> props)
+        {
+            var ids = DeviceIdProps.Select(k => props != null && props.TryGetValue(k, out var v) ? (v ?? "").Trim() : "").ToList();
+            // ro.build.flavor = « athena-user » : la plateforme, sans le type de build.
+            if (props != null && props.TryGetValue("ro.build.flavor", out var flavor) && !string.IsNullOrEmpty(flavor))
+                ids.Add(Regex.Replace(flavor.Trim(), @"-(user|userdebug|eng)$", ""));
+            return ids.Where(v => v.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
 
         /// <summary>
         /// Le paquet convient-il à ce terminal ? <paramref name="deviceIds"/> : ses noms possibles (voir
@@ -113,11 +140,14 @@ namespace ADBToolsNew.Core
         /// </summary>
         public (Fit Result, string Message) Check(IList<string> deviceIds, string fingerprint)
         {
-            if (!HasMetadata) return (Fit.Ok, "");
+            if (!HasMetadata && ManifestModels.Count == 0) return (Fit.Ok, "");
             deviceIds = deviceIds ?? new List<string>();
-            if (PreDevices.Count > 0 && deviceIds.Count > 0 &&
-                !PreDevices.Any(d => deviceIds.Any(id => string.Equals(d, id, StringComparison.OrdinalIgnoreCase))))
-                return (Fit.Blocked, Loc.F("Paquet prévu pour {0}, pas pour ce modèle ({1})", string.Join(", ", PreDevices), deviceIds[0]));
+            // Noms acceptés : « pre-device » du paquet, plus les modèles de son DeviceManifest.xml (Zebra).
+            var accepted = PreDevices.Concat(ManifestModels).ToList();
+            if (accepted.Count > 0 && deviceIds.Count > 0 &&
+                !accepted.Any(d => deviceIds.Any(id => string.Equals(d, id, StringComparison.OrdinalIgnoreCase))))
+                return (Fit.Blocked, Loc.F("Paquet prévu pour {0}, pas pour ce modèle ({1})",
+                    PreDevices.Count > 0 ? string.Join(", ", PreDevices) : string.Join(", ", ManifestModels.Take(6)) + (ManifestModels.Count > 6 ? "…" : ""), deviceIds[0]));
             // Même version : empreinte identique, ou même numéro de build (un paquet commun à plusieurs modèles
             // porte l'empreinte d'un seul d'entre eux).
             if (PostBuild.Length > 0 && !string.IsNullOrEmpty(fingerprint) &&

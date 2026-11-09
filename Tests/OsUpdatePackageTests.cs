@@ -38,7 +38,7 @@ namespace ADBToolsNew.Tests
             var p = OsUpdatePackage.FromMetadata("pre-device=athena\npost-build=Zebra/athena/athena:14/14-35-10.00-UG-U166-STD-ATH-04/1176:user/release-keys");
             var props = new System.Collections.Generic.Dictionary<string, string>
             {
-                ["ro.product.device"] = "TC58", ["ro.product.name"] = "TC58", ["ro.board.platform"] = "athena", ["ro.hardware"] = "qcom"
+                ["ro.product.device"] = "TC58", ["ro.product.name"] = "TC58", ["ro.build.platform"] = "athena", ["ro.product.board"] = "lahaina"
             };
             var ids = OsUpdatePackage.DeviceIdsFrom(props);
             Assert.AreEqual("TC58", ids[0]);
@@ -49,6 +49,24 @@ namespace ADBToolsNew.Tests
             var blocked = p.Check(ids, Fp13);
             Assert.AreEqual(OsUpdatePackage.Fit.Blocked, blocked.Result);
             StringAssert.Contains(blocked.Message, "(TC58)");
+        }
+
+        [TestMethod]
+        public void PlatformFromBuildFlavor_IsUsed()
+        {
+            var ids = OsUpdatePackage.DeviceIdsFrom(new System.Collections.Generic.Dictionary<string, string>
+            { ["ro.product.device"] = "TC53", ["ro.build.flavor"] = "athena-user" });
+            CollectionAssert.Contains(ids, "athena");
+        }
+
+        [TestMethod]
+        public void ZebraDeviceManifest_ListsAcceptedModels()
+        {
+            var p = OsUpdatePackage.FromMetadata("");
+            p.ApplyDeviceManifest("<?xml version=\"1.0\"?><Properties><product><ro.product.name value=\"TC53,TC58,TC73\"/><ro.product.name_ng value=\"TC22A\"/><ro.product.board value=\"lahaina\"/></product></Properties>");
+            CollectionAssert.AreEquivalent(new[] { "TC53", "TC58", "TC73", "TC22A" }, p.ManifestModels);
+            Assert.AreEqual(OsUpdatePackage.Fit.Ok, p.Check(new System.Collections.Generic.List<string> { "TC53" }, Fp13).Result);
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, p.Check(new System.Collections.Generic.List<string> { "TC21" }, Fp13).Result);
         }
 
         [TestMethod]

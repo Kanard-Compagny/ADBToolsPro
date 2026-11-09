@@ -2042,6 +2042,7 @@
  "{0} messages différents ({1} fois) du lecteur ou du réseau dans les {2} minutes qui suivent le démarrage de {3}, pendant que les services se lancent.": "{0} different scanner or network messages ({1} times) in the {2} minutes after the start-up at {3}, while services are starting.",
  "{0} messages différents, {1} fois au total, par exemple :": "{0} different messages, {1} times in all, for example:",
  "{0} min": "{0} min",
+ "{0} modèles listés par le fabricant": "{0} models listed by the manufacturer",
  "{0} non applicable(s)": "{0} not applicable",
  "{0} non conforme": "{0} non-compliant",
  "{0} non conformes": "{0} non-compliant",
