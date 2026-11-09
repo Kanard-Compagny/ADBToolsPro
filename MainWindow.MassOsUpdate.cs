@@ -38,6 +38,7 @@ namespace ADBToolsNew
             public int Battery = -1;
             public long BuildUtc;
             public bool Wipe;
+            public bool Downgrade;   // paquet plus ancien que le terminal (paquet de « downgrade » du fabricant)
             public bool Selectable;
             public string Outcome = "";   // ok, warn, bad ou vide (pas lancé)
             public string Message = "";
@@ -214,7 +215,7 @@ namespace ADBToolsNew
             {
                 if (r.Outcome.Length > 0) { r.Outcome = ""; r.Bar.Visibility = Visibility.Collapsed; }
                 string msg; string brush = "Muted"; bool selectable = true; bool checkByDefault = true;
-                r.Wipe = false;
+                r.Wipe = false; r.Downgrade = false;
                 switch (r.State)
                 {
                     case "device":
@@ -228,7 +229,8 @@ namespace ADBToolsNew
                             else if (fit == OsUpdatePackage.Fit.AlreadyThere) { msg = why; checkByDefault = false; }
                             // Retour arrière : jamais coché d'office, le technicien le choisit en connaissance de cause.
                             else if (fit == OsUpdatePackage.Fit.Downgrade) { msg = "⚠️ " + why; brush = "WarnFg"; checkByDefault = false; }
-                            r.Wipe = fit == OsUpdatePackage.Fit.Downgrade || _massOsPackage.Wipes;
+                            r.Downgrade = fit == OsUpdatePackage.Fit.Downgrade;
+                            r.Wipe = r.Downgrade || _massOsPackage.Wipes;
                         }
                         break;
                     case "sideload":
@@ -353,7 +355,16 @@ namespace ADBToolsNew
             try
             {
                 // 1. Passage en mode « mise à jour par ADB ».
-                if (row.State == "device")
+                // Retour arrière : le mode sideload automatique est celui de la mise à jour, qui refuse une version plus
+                // ancienne. Le recovery propose une entrée distincte (« Downgrade from ADB » chez Zebra) : on redémarre
+                // en Recovery et le technicien la choisit ; ADB Tools envoie le paquet dès que le terminal est prêt.
+                if (row.State == "device" && row.Downgrade)
+                {
+                    SetMassOsStatus(row, Loc.T("Redémarrage en Recovery…"), "Ink");
+                    await _adbManager.ExecuteAsync($"-s {row.Serial} reboot recovery", TimeSpan.FromSeconds(20));
+                    SetMassOsStatus(row, Loc.T("Sur le terminal, menu Recovery : choisissez « Downgrade from ADB » (retour à une version antérieure). L'envoi démarre tout seul."), "WarnFg");
+                }
+                else if (row.State == "device")
                 {
                     SetMassOsStatus(row, Loc.T("Redémarrage en mode mise à jour…"), "Ink");
                     // sideload-auto-reboot : le terminal redémarre seul une fois le paquet installé.
@@ -361,10 +372,11 @@ namespace ADBToolsNew
                 }
                 else if (row.State == "recovery")
                 {
-                    SetMassOsStatus(row, Loc.T("Sur le terminal : choisissez « Apply update from ADB »"), "WarnFg");
+                    SetMassOsStatus(row, row.Downgrade ? Loc.T("Sur le terminal, menu Recovery : choisissez « Downgrade from ADB » (retour à une version antérieure). L'envoi démarre tout seul.")
+                                                       : Loc.T("Sur le terminal : choisissez « Apply update from ADB »"), "WarnFg");
                 }
 
-                bool ready = row.State == "sideload" || await WaitForMassOsStateAsync(row, "sideload", TimeSpan.FromMinutes(15), waitToken, TimeSpan.FromSeconds(75),
+                bool ready = row.State == "sideload" || await WaitForMassOsStateAsync(row, "sideload", TimeSpan.FromMinutes(15), waitToken, row.Downgrade ? TimeSpan.Zero : TimeSpan.FromSeconds(75),
                     () => SetMassOsStatus(row, Loc.T("Pas de passage automatique : sur le terminal, ouvrez le menu Recovery et choisissez « Apply update from ADB »"), "WarnFg"));
                 if (!ready)
                 {
@@ -393,6 +405,12 @@ namespace ADBToolsNew
                 }
                 row.Bar.Value = 100;
 
+                // Retour arrière : le terminal est effacé, le débogage USB avec ; il ne reviendra pas tout seul dans ADB Tools.
+                if (row.Downgrade)
+                {
+                    FinishMassOs(row, "ok", Loc.T("Paquet de retour arrière envoyé : le terminal s'efface puis redémarre. Le débogage USB étant désactivé par l'effacement, vérifiez la version sur le terminal."));
+                    return;
+                }
                 if (!verify)
                 {
                     FinishMassOs(row, "ok", Loc.T("Paquet envoyé : suivez l'installation sur l'écran du terminal"));
@@ -472,6 +490,12 @@ namespace ADBToolsNew
 
                 await _adbManager.ExecuteAsync($"-s {row.Serial} reboot recovery", TimeSpan.FromSeconds(20));
                 string name = System.IO.Path.GetFileName(remote);
+                if (row.Downgrade)
+                {
+                    // L'effacement supprime aussi la copie et désactive le débogage USB : pas de contrôle au retour.
+                    FinishMassOs(row, "ok", Loc.F("Copié, redémarré en Recovery : sur le terminal, « Downgrade from SD card / internal storage » ▸ {0}. Le terminal sera effacé ; vérifiez ensuite sa version à l'écran.", name));
+                    return;
+                }
                 if (!verify)
                 {
                     FinishMassOs(row, "ok", Loc.F("Copié, redémarré en Recovery : sur le terminal, « Apply update from SD card / internal storage » ▸ {0}", name));
