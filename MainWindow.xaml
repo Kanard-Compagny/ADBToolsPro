@@ -920,12 +920,12 @@
     <Border x:Name="RootBorder" Margin="12" CornerRadius="10" Background="{DynamicResource BgPrimary}" BorderBrush="{DynamicResource Line}" BorderThickness="1" SizeChanged="RootBorder_SizeChanged">
         <Grid x:Name="AppContentGrid">
             <Grid.RowDefinitions>
-                <RowDefinition Height="35"/>
+                <RowDefinition x:Name="TitleBarRow" Height="35"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Background="{DynamicResource TitleBg}" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+            <Grid x:Name="TitleBarGrid" Grid.Row="0" Background="{DynamicResource TitleBg}" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>

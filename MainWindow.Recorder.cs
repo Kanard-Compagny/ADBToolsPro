@@ -1,5 +1,6 @@
 ﻿using ADBToolsNew.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -27,17 +28,29 @@ namespace ADBToolsNew
         private void BtnRecorderClose_Click(object sender, RoutedEventArgs e) => RecorderOverlay.Visibility = Visibility.Collapsed;
 
         /// <summary>Applications installées par l'utilisateur ou le MDM (pm list packages -3), pour choisir l'appli métier.</summary>
+        private string _recorderTargetsSerial;
+
+        /// <summary>
+        /// Applications proposées pour l'appli métier : celles installées par l'utilisateur ou le MDM (pm list packages -3) ;
+        /// s'il n'y en a pas (terminal de test, appli métier intégrée au système), toutes les applications hors Android de base.
+        /// </summary>
         private async Task FillRecorderTargetsAsync()
         {
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
-            if (dev == null || dev.State != "device" || CmbRecorderTarget.Items.Count > 0) return;
+            if (dev == null || dev.State != "device" || _recorderTargetsSerial == dev.Serial) return;
             try
             {
-                var res = await _adbManager.ExecuteAsync($"-s {dev.Serial} shell pm list packages -3");
-                var pkgs = (res.StandardOutput ?? "").Replace("\r", "").Split('\n')
+                List<string> Parse(string output) => (output ?? "").Replace("\r", "").Split('\n')
                     .Where(l => l.StartsWith("package:", StringComparison.Ordinal)).Select(l => l.Substring(8).Trim())
                     .Where(p => p.Length > 0 && p != DiagApp.Package).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+                var pkgs = Parse((await _adbManager.ExecuteAsync($"-s {dev.Serial} shell pm list packages -3")).StandardOutput);
+                if (pkgs.Count == 0)
+                    pkgs = Parse((await _adbManager.ExecuteAsync($"-s {dev.Serial} shell pm list packages")).StandardOutput)
+                        .Where(p => !p.StartsWith("android", StringComparison.Ordinal) && !p.StartsWith("com.android.", StringComparison.Ordinal)
+                                 && !p.StartsWith("com.google.android.", StringComparison.Ordinal) && !p.StartsWith("com.qualcomm", StringComparison.Ordinal)
+                                 && !p.StartsWith("com.qti", StringComparison.Ordinal) && !p.StartsWith("vendor.", StringComparison.Ordinal)).ToList();
                 CmbRecorderTarget.ItemsSource = pkgs;
+                _recorderTargetsSerial = dev.Serial;
             }
             catch { /* liste facultative : la saisie libre reste possible */ }
         }
@@ -136,6 +149,7 @@ namespace ADBToolsNew
                     if (Directory.Exists(local) && Directory.EnumerateFiles(local).Any())
                     {
                         last = local;
+                        await WriteRecordingDeviceInfoAsync(serial, local);
                         await _adbManager.ExecuteAsync($"-s {serial} shell rm -r {RecorderRemoteDir}/{d}"); // copié : retiré du terminal
                     }
                 }
@@ -169,12 +183,37 @@ namespace ADBToolsNew
             GoToFirstIncident();
         }
 
-        /// <summary>Après ouverture d'un enregistrement : placé sur le premier incident signalé, s'il y en a.</summary>
+        /// <summary>
+        /// Après ouverture d'un enregistrement : placé sur le premier incident signalé, sinon sur le début de
+        /// l'enregistrement (le journal commence par l'historique gardé par Android, souvent plusieurs jours avant).
+        /// </summary>
         private void GoToFirstIncident()
         {
             if (_faArchive == null) return;
-            var first = _faArchive.Entries.FirstOrDefault(x => x.Tag == LogArchive.IncidentTag);
+            var first = _faArchive.Entries.FirstOrDefault(x => x.Tag == LogArchive.IncidentTag)
+                     ?? _faArchive.Entries.FirstOrDefault(x => x.Tag == "ADBTools-Rec");
             if (first != null) FaGoToEntry(first);
+        }
+
+        /// <summary>
+        /// Identité du terminal ajoutée à l'enregistrement récupéré : une appli ne peut pas lire le n° de série
+        /// (ro.serialno) sous Android 10 et plus, ADB si. Fichier au format getprop, lu par la fiche Terminal.
+        /// </summary>
+        private async Task WriteRecordingDeviceInfoAsync(string serial, string folder)
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"[ro.serialno]: [{serial}]");
+                foreach (var prop in new[] { "ro.product.manufacturer", "ro.product.model", "ro.build.version.release", "ro.build.version.security_patch", "ro.build.display.id" })
+                {
+                    var r = await _adbManager.ExecuteAsync($"-s {serial} shell getprop {prop}");
+                    string v = (r.StandardOutput ?? "").Trim();
+                    if (v.Length > 0) sb.AppendLine($"[{prop}]: [{v}]");
+                }
+                File.WriteAllText(Path.Combine(folder, "snapshot_device.txt"), sb.ToString());
+            }
+            catch { /* facultatif */ }
         }
 
         /// <summary>Un enregistrement non récupéré est encore sur le terminal (l'appli ne doit pas être désinstallée).</summary>

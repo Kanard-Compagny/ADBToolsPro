@@ -67,7 +67,7 @@ namespace ADBToolsNew
             || p.StartsWith("com.qualcomm", StringComparison.Ordinal) || p.StartsWith("com.qti", StringComparison.Ordinal) || p.StartsWith("vendor.", StringComparison.Ordinal)
             || p.StartsWith("com.symbol.", StringComparison.Ordinal) || p.StartsWith("com.zebra.", StringComparison.Ordinal) || p.StartsWith("com.honeywell.", StringComparison.Ordinal)
             || p.StartsWith("com.samsung.", StringComparison.Ordinal) || p.StartsWith("com.sec.", StringComparison.Ordinal) || p == "system"
-            || p.StartsWith(".", StringComparison.Ordinal) || p.Count(ch => ch == '.') < 2;
+            || p.StartsWith(".", StringComparison.Ordinal) || p.Count(ch => ch == '.') < 2 || p == DiagApp.Package;
 
         /// <summary>Analyse complète d'une partie du relevé : analyseur, pannes connues, ANR / tombstones, redémarrages inattendus, tendances.</summary>
         private static LogAnalysis AnalyzeFa(LogArchive a, IList<FileLogEntry> lines, int from, int to, List<LogInsights.Signature> sigs,

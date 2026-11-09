@@ -136,6 +136,13 @@ namespace ADBToolsNew
             if (AppContentGrid == null) return;
             _uiScale = scale;
             AppContentGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01 ? Transform.Identity : new ScaleTransform(scale, scale);
+            // La barre de titre (nom, réduire, agrandir, fermer) garde toujours sa taille : zoom inverse sur elle seule.
+            if (TitleBarGrid != null && TitleBarRow != null)
+            {
+                bool one = Math.Abs(scale - 1.0) < 0.01;
+                TitleBarGrid.LayoutTransform = one ? Transform.Identity : new ScaleTransform(1 / scale, 1 / scale);
+                TitleBarRow.Height = new GridLength(one ? 35 : 35 / scale);
+            }
             // Texte net malgré l'agrandissement / la réduction : positions arrondies au pixel près.
             AppContentGrid.UseLayoutRounding = true;
             FitScaledContent();

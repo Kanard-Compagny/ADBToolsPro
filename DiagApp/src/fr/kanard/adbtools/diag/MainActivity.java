@@ -647,7 +647,10 @@ public class MainActivity extends Activity {
                     Toast.makeText(MainActivity.this, "Incident noté / Incident recorded", Toast.LENGTH_SHORT).show();
                 }
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+            // Hauteur selon le texte (deux lignes FR / EN) : rien n'est coupé.
+            b.setMinHeight(dp(46));
+            b.setPadding(dp(10), dp(8), dp(10), dp(8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             lp.topMargin = dp(6);
             box.addView(b, lp);
         }

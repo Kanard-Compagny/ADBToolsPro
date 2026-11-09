@@ -261,6 +261,7 @@ namespace ADBToolsNew.Core
                 else if (e.Tag == "ActivityManager") { var m = StartProc.Match(e.Message ?? ""); if (m.Success) pkg = m.Groups[2].Value; }
                 if (string.IsNullOrEmpty(pkg)) continue;
                 int c = pkg.IndexOf(':'); if (c > 0) pkg = pkg.Substring(0, c);
+                if (pkg == DiagApp.Package) continue; // l'appli de diagnostic d'ADB Tools elle-même
                 counts.TryGetValue(pkg, out int n); counts[pkg] = n + 1;
             }
             return counts.OrderByDescending(p => p.Value).ThenBy(p => p.Key, StringComparer.Ordinal).ToList();

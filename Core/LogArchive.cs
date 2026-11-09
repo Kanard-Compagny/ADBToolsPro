@@ -401,27 +401,34 @@ namespace ADBToolsNew.Core
                 ("ro.build.version.release", "Version Android"), ("ro.build.version.security_patch", "Correctif de sécurité"),
                 ("ro.build.display.id", "Build"), ("persist.sys.timezone", "Fuseau horaire"), ("persist.sys.locale", "Langue"),
             };
-            var source = all.Where(c => c.Kind == ArchiveFileKind.Snapshot || (c.Name.StartsWith("bugreport", StringComparison.OrdinalIgnoreCase)))
-                            .OrderBy(c => c.Number < 0 ? 0 : c.Number).ThenBy(c => c.Name).FirstOrDefault();
-            if (source == null) return;
-            try
+            // Plusieurs fichiers possibles (snapshots RxLogger, bugreport, identité ajoutée par ADB Tools à un
+            // enregistrement) : on complète la fiche de l'un à l'autre ; une valeur vide n'en remplace pas une autre.
+            var sources = all.Where(c => c.Kind == ArchiveFileKind.Snapshot || (c.Name.StartsWith("bugreport", StringComparison.OrdinalIgnoreCase)))
+                             .OrderBy(c => c.Name.StartsWith("snapshot_device", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                             .ThenBy(c => c.Number < 0 ? 0 : c.Number).ThenBy(c => c.Name).Take(5).ToList();
+            var found = new Dictionary<string, string>();
+            foreach (var source in sources)
             {
-                var found = new Dictionary<string, string>();
-                using (var s = source.Open())
-                using (var r = new StreamReader(s, Encoding.UTF8, true))
+                if (found.Count >= wanted.Length) break;
+                try
                 {
-                    string line; int n = 0;
-                    while ((line = r.ReadLine()) != null && n++ < 3000000 && found.Count < wanted.Length)
+                    using (var s = source.Open())
+                    using (var r = new StreamReader(s, Encoding.UTF8, true))
                     {
-                        if (line.Length < 6 || line[0] != '[') continue;
-                        var m = PropLine.Match(line);
-                        if (m.Success && wanted.Any(w => w.Item1 == m.Groups[1].Value) && !found.ContainsKey(m.Groups[1].Value)) found[m.Groups[1].Value] = m.Groups[2].Value;
+                        string line; int n = 0;
+                        while ((line = r.ReadLine()) != null && n++ < 3000000 && found.Count < wanted.Length)
+                        {
+                            if (line.Length < 6 || line[0] != '[') continue;
+                            var m = PropLine.Match(line);
+                            if (m.Success && m.Groups[2].Value.Trim().Length > 0 && wanted.Any(w => w.Item1 == m.Groups[1].Value) && !found.ContainsKey(m.Groups[1].Value))
+                                found[m.Groups[1].Value] = m.Groups[2].Value;
+                        }
                     }
                 }
-                foreach (var w in wanted)
-                    if (found.TryGetValue(w.Item1, out var v)) AddDevice(Loc.T(w.Item2), v);
+                catch { /* fiche facultative */ }
             }
-            catch { /* fiche facultative */ }
+            foreach (var w in wanted)
+                if (found.TryGetValue(w.Item1, out var v)) AddDevice(Loc.T(w.Item2), v);
         }
 
         private static readonly Regex BootHistoryItem = new Regex(@"([a-z_]+(?:,[\w\-]*)*),(\d{9,11})\]?\s*$", RegexOptions.IgnoreCase);
