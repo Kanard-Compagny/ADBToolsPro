@@ -567,69 +567,10 @@ namespace ADBToolsNew
         private async void BtnRingerVibrate_Click(object sender, RoutedEventArgs e) => await SetRingerModeAsync(1);
         private async void BtnRingerSilent_Click(object sender, RoutedEventArgs e) => await SetRingerModeAsync(0);
 
-        // 🔒 Drapeau consulté à la fermeture de la fenêtre pour empêcher une interruption en plein flashage OS.
-        private bool _singleSideloading;
-        // Nombre de terminaux en cours de mise à jour OS en masse (MainWindow.MassOsUpdate.cs).
+        // 🔒 Drapeau consulté à la fermeture de la fenêtre (et avant un redémarrage d'ADB Tools) pour empêcher
+        // une interruption en plein flashage OS. La mise à jour OS passe par MainWindow.MassOsUpdate.cs (un ou
+        // plusieurs terminaux) ; _massOsRunning y compte les terminaux en cours.
         private int _massOsRunning;
-        private bool _isSideloading => _singleSideloading || _massOsRunning > 0;
-
-        private async void BtnSideloadOs_Click(object sender, RoutedEventArgs e)
-        {
-            bool confirm = await ShowCustomDialogAsync(Loc.T("⚠️ ATTENTION SIDELOAD"), Loc.T("Pour flasher un OS, assurez-vous qu'UN SEUL terminal est branché en USB à ce PC et qu'il est sur l'écran 'Apply update from ADB'.\n\nDébranchez tous les autres appareils avant de continuer !"), Loc.T("J'ai compris"), Loc.T("Annuler"), true);
-            if (!confirm) return;
-
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "Fichiers de mise à jour OS (*.zip)|*.zip",
-                Title = Loc.T("Sélectionnez le fichier OS_Update.zip")
-            };
-
-            if (dlg.ShowDialog() == true)
-            {
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📦 Démarrage du Sideload avec : {1}", DateTime.Now, System.IO.Path.GetFileName(dlg.FileName)));
-                AppendConsole(Loc.F("\n⚠️ NE DÉBRANCHEZ SURTOUT PAS LE TERMINAL ! PATIENTEZ..."));
-
-                _singleSideloading = true;
-                try
-                {
-                    // AdbTransferProcess lit stdout ET stderr (auparavant ni l'un ni l'autre n'était lu) et
-                    // rattache le process au Job Object. Pas d'annulation possible : on n'interrompt jamais
-                    // un flashage en cours.
-                    var transfer = new AdbTransferProcess();
-                    var (exitOk, output) = await transfer.RunAsync(
-                        _adbExePath,
-                        $"sideload {AdbManager.QuoteLocalArg(dlg.FileName)}",
-                        null,
-                        System.Threading.CancellationToken.None);
-
-                    // Certains recovery ferment la connexion en fin de transfert, ce qui donne un code de sortie
-                    // non nul alors que le transfert est complet : "Total xfer" confirme alors la réussite.
-                    bool transferComplete = exitOk || (output ?? "").IndexOf("Total xfer", StringComparison.OrdinalIgnoreCase) >= 0;
-                    string lastLines = string.Join(" | ", (output ?? "")
-                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(l => l.Trim())
-                        .Where(l => l.Length > 0)
-                        .Reverse().Take(3).Reverse());
-
-                    if (transferComplete)
-                    {
-                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ✅ Sideload terminé ! Suivez l'installation sur l'écran du terminal. ({1})", DateTime.Now, lastLines));
-                    }
-                    else
-                    {
-                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Le Sideload a échoué : {1}", DateTime.Now, lastLines) +
-                                              Loc.T("\n   Vérifiez que le terminal est bien sur 'Apply update from ADB' et qu'un seul appareil est branché."));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Erreur Sideload : {1}", DateTime.Now, ex.Message));
-                }
-                finally
-                {
-                    _singleSideloading = false;
-                }
-            }
-        }
+        private bool _isSideloading => _massOsRunning > 0;
     }
 }
