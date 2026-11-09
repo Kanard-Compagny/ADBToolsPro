@@ -32,6 +32,26 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void ZebraPlatformName_IsFoundInOtherProperties()
+        {
+            // Paquet Zebra commun TC53 / TC58 : pre-device = plateforme « athena », ro.product.device = « TC58 ».
+            var p = OsUpdatePackage.FromMetadata("pre-device=athena\npost-build=Zebra/athena/athena:14/14-35-10.00-UG-U166-STD-ATH-04/1176:user/release-keys");
+            var props = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["ro.product.device"] = "TC58", ["ro.product.name"] = "TC58", ["ro.board.platform"] = "athena", ["ro.hardware"] = "qcom"
+            };
+            var ids = OsUpdatePackage.DeviceIdsFrom(props);
+            Assert.AreEqual("TC58", ids[0]);
+            Assert.AreEqual(OsUpdatePackage.Fit.Ok, p.Check(ids, Fp13).Result);
+            // Même numéro de build que le paquet, même si l'empreinte porte un autre nom : déjà à jour.
+            Assert.AreEqual(OsUpdatePackage.Fit.AlreadyThere, p.Check(ids, Fp14).Result);
+            ids.Remove("athena");
+            var blocked = p.Check(ids, Fp13);
+            Assert.AreEqual(OsUpdatePackage.Fit.Blocked, blocked.Result);
+            StringAssert.Contains(blocked.Message, "(TC58)");
+        }
+
+        [TestMethod]
         public void AlreadyAtTargetVersion_IsReported()
         {
             var p = OsUpdatePackage.FromMetadata("pre-device=TC58\npost-build=" + Fp14);

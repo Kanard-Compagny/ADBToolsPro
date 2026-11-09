@@ -28,7 +28,7 @@ namespace ADBToolsNew
             public string Serial = "";
             public string State = "";
             public string Model = "";
-            public string Device = "";
+            public List<string> DeviceIds = new List<string>();
             public string Fingerprint = "";
             public string DisplayId = "";
             public string DisplayIdAfter = "";
@@ -169,10 +169,13 @@ namespace ADBToolsNew
         {
             try
             {
-                var s = await _adbManager.RunShellSectionsAsync(row.Serial, TimeSpan.FromSeconds(15),
-                    "getprop ro.product.model", "getprop ro.product.device", "getprop ro.build.fingerprint", "getprop ro.build.display.id", "dumpsys battery");
-                row.Model = s[0]; row.Device = s[1]; row.Fingerprint = s[2]; row.DisplayId = s[3];
-                row.Battery = OsUpdatePackage.ParseBatteryLevel(s[4]);
+                // Toutes les propriétés en un appel : le nom visé par le paquet varie selon le constructeur.
+                var s = await _adbManager.RunShellSectionsAsync(row.Serial, TimeSpan.FromSeconds(15), "getprop", "dumpsys battery");
+                var props = AdbManager.ParseGetprop(s[0]);
+                string P(string k) => props.TryGetValue(k, out var v) ? v : "";
+                row.Model = P("ro.product.model"); row.Fingerprint = P("ro.build.fingerprint"); row.DisplayId = P("ro.build.display.id");
+                row.DeviceIds = OsUpdatePackage.DeviceIdsFrom(props);
+                row.Battery = OsUpdatePackage.ParseBatteryLevel(s[1]);
             }
             catch { /* terminal qui ne répond pas : il reste listé, sans détails */ }
         }
@@ -230,7 +233,7 @@ namespace ADBToolsNew
                         { msg = Loc.F("Batterie trop faible ({0} %) : à charger avant la mise à jour", r.Battery); brush = "WarnFg"; selectable = false; }
                         else if (_massOsPackage != null)
                         {
-                            var (fit, why) = _massOsPackage.Check(r.Device, r.Fingerprint);
+                            var (fit, why) = _massOsPackage.Check(r.DeviceIds, r.Fingerprint);
                             if (fit == OsUpdatePackage.Fit.Blocked) { msg = why; brush = "BadFg"; selectable = false; }
                             else if (fit == OsUpdatePackage.Fit.AlreadyThere) { msg = why; checkByDefault = false; }
                         }

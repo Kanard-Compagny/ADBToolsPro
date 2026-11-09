@@ -91,19 +91,48 @@ namespace ADBToolsNew.Core
 
         public enum Fit { Ok, AlreadyThere, Blocked }
 
-        /// <summary>Le paquet convient-il à ce terminal ? (device = ro.product.device, fingerprint = ro.build.fingerprint)</summary>
-        public (Fit Result, string Message) Check(string device, string fingerprint)
+        /// <summary>
+        /// Propriétés où un terminal peut porter le nom visé par « pre-device ». Les constructeurs ne visent pas tous
+        /// le même : Zebra vise la plateforme (« athena » pour TC53 / TC58…), alors que ro.product.device vaut « TC58 ».
+        /// </summary>
+        public static readonly string[] DeviceIdProps =
+        {
+            "ro.product.device", "ro.build.product", "ro.product.vendor.device", "ro.product.system.device",
+            "ro.product.odm.device", "ro.product.board", "ro.board.platform", "ro.product.name", "ro.hardware", "ro.boot.hardware",
+            "ro.boot.product.hardware.sku", "ro.product.vendor.name"
+        };
+
+        /// <summary>Fonction pure, testable : noms du terminal lus dans ses propriétés (sans doublon ni vide).</summary>
+        public static List<string> DeviceIdsFrom(IDictionary<string, string> props) =>
+            DeviceIdProps.Select(k => props != null && props.TryGetValue(k, out var v) ? (v ?? "").Trim() : "")
+                         .Where(v => v.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        /// <summary>
+        /// Le paquet convient-il à ce terminal ? <paramref name="deviceIds"/> : ses noms possibles (voir
+        /// <see cref="DeviceIdsFrom"/>), le premier servant dans le message ; <paramref name="fingerprint"/> = ro.build.fingerprint.
+        /// </summary>
+        public (Fit Result, string Message) Check(IList<string> deviceIds, string fingerprint)
         {
             if (!HasMetadata) return (Fit.Ok, "");
-            if (PreDevices.Count > 0 && !string.IsNullOrEmpty(device) &&
-                !PreDevices.Any(d => string.Equals(d, device, StringComparison.OrdinalIgnoreCase)))
-                return (Fit.Blocked, Loc.F("Paquet prévu pour {0}, pas pour ce modèle ({1})", string.Join(", ", PreDevices), device));
-            if (PostBuild.Length > 0 && string.Equals(PostBuild, fingerprint, StringComparison.Ordinal))
+            deviceIds = deviceIds ?? new List<string>();
+            if (PreDevices.Count > 0 && deviceIds.Count > 0 &&
+                !PreDevices.Any(d => deviceIds.Any(id => string.Equals(d, id, StringComparison.OrdinalIgnoreCase))))
+                return (Fit.Blocked, Loc.F("Paquet prévu pour {0}, pas pour ce modèle ({1})", string.Join(", ", PreDevices), deviceIds[0]));
+            // Même version : empreinte identique, ou même numéro de build (un paquet commun à plusieurs modèles
+            // porte l'empreinte d'un seul d'entre eux).
+            if (PostBuild.Length > 0 && !string.IsNullOrEmpty(fingerprint) &&
+                (string.Equals(PostBuild, fingerprint, StringComparison.Ordinal) ||
+                 string.Equals(ShortBuild(PostBuild), ShortBuild(fingerprint), StringComparison.Ordinal)))
                 return (Fit.AlreadyThere, Loc.T("Déjà à cette version"));
-            if (IsIncremental && !string.IsNullOrEmpty(fingerprint) && !PreBuilds.Contains(fingerprint))
-                return (Fit.Blocked, Loc.F("Mise à jour différentielle prévue depuis {0}", string.Join(", ", PreBuilds.Select(ShortBuild))));
+            if (IsIncremental && !string.IsNullOrEmpty(fingerprint) &&
+                !PreBuilds.Any(b => b == fingerprint || ShortBuild(b) == ShortBuild(fingerprint)))
+                return (Fit.Blocked, Loc.F("Mise à jour différentielle prévue depuis {0}", string.Join(", ", PreBuilds.Select(ShortBuild).Distinct())));
             return (Fit.Ok, "");
         }
+
+        /// <summary>Raccourci pour un seul nom de terminal (tests).</summary>
+        public (Fit Result, string Message) Check(string device, string fingerprint) =>
+            Check(string.IsNullOrEmpty(device) ? new List<string>() : new List<string> { device }, fingerprint);
 
         // « serving: 'update.zip'  (~47%) » : progression affichée par adb pendant un sideload.
         public static readonly Regex SideloadProgress = new Regex(@"\(~\s*(\d{1,3})%\)", RegexOptions.Compiled);
