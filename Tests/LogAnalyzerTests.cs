@@ -257,7 +257,7 @@ namespace ADBToolsNew.Tests
 11-05 16:45:14.000  6000  6000 E MonAppli: Barcode scanner error: unable to open the scanner");
             var scan = a.Findings.Where(x => x.Category == LogAnalyzer.CatScanner).ToList();
             Assert.IsFalse(scan.Any(x => x.App == "ProcessStats" || x.App == "ndroid.settings"));
-            Assert.AreEqual(FindingSeverity.Warn, scan.Single(x => x.Detail.Contains("is invalid")).Severity);
+            Assert.IsFalse(scan.Any(x => x.Detail.Contains("is invalid")));   // transition vers le même état : routine Zebra
             Assert.AreEqual(FindingSeverity.Info, scan.Single(x => x.Detail.Contains("Idle")).Severity);
             Assert.AreEqual(FindingSeverity.Bad, scan.Single(x => x.App == "MonAppli").Severity);
         }
