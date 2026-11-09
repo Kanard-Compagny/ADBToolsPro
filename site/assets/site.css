@@ -1,0 +1,208 @@
+/* ADB Tools Pro — site de présentation.
+   Identité reprise du logo : bandeau vert sur fond anthracite, invite « >_ ».
+   Vert = marque ; orange = uniquement l'action principale (Télécharger). */
+
+@font-face { font-family: "Jost"; src: url("fonts/jost-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Jost"; src: url("fonts/jost-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Jost"; src: url("fonts/jost-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  /* Couleurs du logo et du programme */
+  --green: #1F7454;
+  --green-deep: #145C43;
+  --mint: #5FD3A1;
+  --charcoal: #1E1E1E;
+  --orange: #F07F13;
+  --orange-hover: #FF9A2E;
+  --alert: #E5484D;
+
+  /* Thème clair */
+  --bg: #F2F5F3;
+  --surface: #FFFFFF;
+  --ink: #18211D;
+  --ink-soft: #4A5852;
+  --rule: #D5DED9;
+  --link: var(--green-deep);
+  --tag-bg: #DDF2E8;
+  --tag-ink: #145C43;
+
+  --display: "Jost", "Century Gothic", "Segoe UI", sans-serif;
+  --text: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --measure: 68ch;
+  --wrap: 1120px;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161A18;
+    --surface: #1F2522;
+    --ink: #E6ECE9;
+    --ink-soft: #A6B4AD;
+    --rule: #2F3833;
+    --link: var(--mint);
+    --tag-bg: #1D3B2F;
+    --tag-ink: #8BE3BD;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161A18; --surface: #1F2522; --ink: #E6ECE9; --ink-soft: #A6B4AD; --rule: #2F3833;
+  --link: var(--mint); --tag-bg: #1D3B2F; --tag-ink: #8BE3BD; color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.0625rem/1.6 var(--text);
+  overflow-x: hidden;
+}
+img, svg { max-width: 100%; height: auto; display: block; }
+a { color: var(--link); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--mint); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 16px; top: 16px; z-index: 10; background: var(--surface); padding: 8px 12px; }
+
+h1, h2, h3 { font-family: var(--display); line-height: 1.12; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.75rem, 3.6vw, 2.5rem); font-weight: 600; }
+h3 { font-size: 1.25rem; font-weight: 600; }
+p { margin: 0 0 1em; }
+
+/* ---------- En-tête (sur le vert, comme le haut du logo) ---------- */
+.top { background: var(--green); color: #fff; }
+.top-bar { display: flex; align-items: center; gap: 24px; min-height: 68px; }
+.brand { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; font: 600 1.125rem var(--display); }
+.brand img { width: 36px; height: 36px; border-radius: 8px; }
+.top nav { margin-left: auto; display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.top nav a { color: #E3F5EC; text-decoration: none; font-size: 0.975rem; }
+.top nav a:hover { color: #fff; text-decoration: underline; }
+.lang { border: 1px solid rgba(255,255,255,.45); border-radius: 6px; padding: 3px 10px; }
+@media (max-width: 760px) { .top nav .opt { display: none; } }
+
+/* ---------- Héros : la jointure vert / anthracite du logo ---------- */
+.hero-head { background: var(--green); color: #fff; padding: clamp(40px, 7vw, 88px) 0 clamp(56px, 8vw, 104px); }
+.hero-head h1 {
+  font-size: clamp(2.4rem, 6.4vw, 4.6rem);
+  font-weight: 700;
+  max-width: 15ch;
+  color: #fff;
+}
+.hero-head .lede { margin-top: 22px; max-width: 54ch; font-size: clamp(1.075rem, 1.6vw, 1.25rem); color: #E3F5EC; }
+.actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 32px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 600 1.05rem var(--display); text-decoration: none;
+  padding: 14px 24px; border-radius: 10px; border: 2px solid transparent;
+}
+.btn-main { background: var(--orange); color: var(--charcoal); }
+.btn-main:hover { background: var(--orange-hover); }
+.btn-ghost { color: #fff; border-color: rgba(255,255,255,.55); }
+.btn-ghost:hover { border-color: #fff; background: rgba(255,255,255,.08); }
+.btn svg { width: 20px; height: 20px; }
+.dl-meta { margin-top: 14px; font-size: 0.925rem; color: #CFEBDD; }
+
+.hero-body { background: var(--charcoal); color: #E6ECE9; padding: 0 0 clamp(40px, 6vw, 72px); }
+.frise {
+  margin-top: calc(-1 * clamp(36px, 5vw, 64px));
+  background: #262A28;
+  border: 1px solid #343A37;
+  border-radius: 14px;
+  padding: clamp(14px, 2.4vw, 26px);
+  box-shadow: 0 24px 48px -24px rgba(0,0,0,.6);
+}
+.frise-title { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.frise-title strong { font: 600 1rem var(--display); color: #fff; }
+.frise-title span { font-size: 0.9rem; color: #A6B4AD; }
+.frise svg { width: 100%; }
+.frise-scroll { overflow-x: auto; }
+.frise-scroll svg { min-width: 640px; }
+.frise-caption { margin: 14px 0 0; font-size: 0.95rem; color: #BFCBC5; max-width: var(--measure); }
+.prompt { font-family: var(--display); color: var(--mint); }
+
+/* ---------- Sections ---------- */
+section { padding: clamp(56px, 8vw, 104px) 0; }
+.intro { max-width: var(--measure); margin-top: 14px; color: var(--ink-soft); font-size: 1.125rem; }
+
+/* Plaintes du terrain → réponse */
+.cases { margin-top: 40px; border-top: 2px solid var(--ink); }
+.case {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 12px 48px;
+  padding: 28px 0; border-bottom: 1px solid var(--rule);
+}
+.case q {
+  font: 500 clamp(1.35rem, 2.6vw, 1.75rem)/1.25 var(--display);
+  quotes: "« " " »" "“" "”";
+}
+:lang(en) .case q, .case q:lang(en) { quotes: "“" "”" "‘" "’"; }
+.case p { margin: 0; max-width: 60ch; }
+.case .where { display: block; margin-top: 8px; font-size: 0.95rem; color: var(--ink-soft); }
+@media (max-width: 760px) { .case { grid-template-columns: 1fr; } }
+
+/* Fonctions */
+.groups { margin-top: 44px; display: grid; grid-template-columns: 1fr; gap: 40px 36px; }
+@media (min-width: 640px) { .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .groups { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.group h3 { padding-bottom: 10px; border-bottom: 3px solid var(--green); margin-bottom: 14px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.group ul { margin: 0; padding-left: 1.1em; }
+.group li { margin: 0 0 0.45em; }
+.group li::marker { color: var(--green); }
+.new { font: 600 0.8rem var(--text); background: var(--tag-bg); color: var(--tag-ink); padding: 2px 8px; border-radius: 999px; letter-spacing: 0; }
+
+/* Captures */
+.shots { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+.shots figure { margin: 0; }
+.shots img { border-radius: 10px; border: 1px solid var(--rule); width: 100%; }
+.shots figcaption { margin-top: 10px; font-size: 0.95rem; color: var(--ink-soft); }
+
+/* Démarrer : vraie suite d'étapes */
+.alt { background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.steps { margin: 40px 0 0; padding: 0; list-style: none; counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px 40px; }
+.steps li { counter-increment: step; }
+.steps li::before {
+  content: counter(step);
+  display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 14px;
+  border-radius: 10px; background: var(--charcoal); color: var(--mint);
+  font: 700 1.25rem var(--display);
+}
+.steps h3 { margin-bottom: 8px; }
+.steps p { margin: 0; color: var(--ink-soft); }
+.req { margin-top: 36px; max-width: var(--measure); font-size: 0.975rem; color: var(--ink-soft); }
+code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; background: var(--tag-bg); color: var(--tag-ink); padding: 1px 6px; border-radius: 5px; }
+
+/* Confidentialité : bandeau anthracite */
+.privacy { background: var(--charcoal); color: #E6ECE9; }
+.privacy h2 { color: #fff; }
+.privacy .grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 32px 64px; align-items: start; }
+.privacy p { color: #C9D4CF; max-width: 60ch; }
+.privacy a { color: var(--mint); }
+.hosts { margin: 0; padding: 0; list-style: none; border-top: 1px solid #3A423E; }
+.hosts li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #3A423E; flex-wrap: wrap; }
+.hosts code { background: #2C3430; color: var(--mint); }
+.hosts span { color: #A6B4AD; font-size: 0.95rem; }
+@media (max-width: 860px) { .privacy .grid { grid-template-columns: 1fr; } }
+
+/* FAQ */
+.faq { margin-top: 32px; max-width: 820px; border-top: 1px solid var(--rule); }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary { cursor: pointer; list-style: none; padding: 18px 40px 18px 0; position: relative; font: 600 1.125rem var(--display); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 6px; top: 14px; font: 500 1.5rem var(--display); color: var(--green); transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details > div { padding: 0 0 18px; max-width: var(--measure); color: var(--ink-soft); }
+.faq details > div p:last-child { margin: 0; }
+
+/* Pied de page */
+footer { padding: 40px 0 56px; font-size: 0.95rem; color: var(--ink-soft); }
+footer .row { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; align-items: center; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }

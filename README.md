@@ -2,12 +2,17 @@
 
 # ADB Tools Pro
 
+[![Dernière version](https://img.shields.io/github/v/release/Kanard-Compagny/ADBToolsPro?label=version&color=1F7454)](https://github.com/Kanard-Compagny/ADBToolsPro/releases/latest)
+[![Compilation](https://github.com/Kanard-Compagny/ADBToolsPro/actions/workflows/build.yml/badge.svg)](https://github.com/Kanard-Compagny/ADBToolsPro/actions/workflows/build.yml)
+[![Licence GPL v3](https://img.shields.io/badge/licence-GPL%20v3-1F7454)](LICENSE)
+[![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%7C%2011-1F7454)](#démarrer)
+
 **La boîte à outils gratuite du technicien Android.**
 Diagnostiquer, contrôler et dépanner un terminal Android — smartphone, tablette ou terminal durci de logistique — depuis un PC Windows, sans taper une seule ligne de commande.
 
 *Free Windows toolbox for Android support technicians: device dashboard, screen mirroring, app and file management, guided hardware diagnostics, Wi-Fi analysis and Word reports — all on top of ADB, no command line needed.*
 
-Windows 10 / 11 · programme portable, rien à installer dans Windows
+Windows 10 / 11 · programme portable, rien à installer dans Windows · **[Site de présentation](https://kanard-compagny.github.io/ADBToolsPro/)** ([English](https://kanard-compagny.github.io/ADBToolsPro/en/))
 
 ---
 
@@ -36,12 +41,23 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Check-up automatique** : Wi-Fi, ping, batterie, stockage, capteurs, températures.
 - **Tests manuels guidés** : boutons physiques, dalle tactile (grille à remplir), scanner, écran (pixels morts, brûlure).
 - Laboratoire matériel en direct : chaque appui de bouton et chaque touche de l'écran s'affichent sur le PC.
+- **Tests du terminal** avec une petite appli de diagnostic installée le temps des tests : caméras, flash, haut-parleur, micro, vibreur, capteurs, NFC, GPS, Bluetooth, clavier, vitesse de la mémoire (Android 8 à 16).
+- **Test du lecteur code-barres** : chaque lecture en direct, symbologie, délai depuis la gâchette, lectures ratées, planche de codes attendus.
+- Chaque ligne du diagnostic en PASS, FAIL, **À surveiller** ou Non testé.
+- **Comparateur** : deux terminaux, ou un terminal et sa référence validée (`.adbref`) — seules les vraies différences ressortent (Android, correctif, applications, réglages).
 - **Rapport Word** à votre en-tête et votre logo, ou export JSON.
 
 ### 📡 Analyse Wi-Fi
 - Suivi en direct de la latence, des pertes de paquets et du signal (graphiques).
 - Détection des changements de point d'accès (roaming) et des déconnexions.
+- **Mesure sans câble** : le terminal mesure le Wi-Fi seul pendant le parcours du site, avec des repères (« Quai 3 ») et un bilan par zone.
 - Rapport Word avec les graphiques, pour montrer au client ce qui s'est passé.
+
+### 🔎 Journaux et analyse de fichiers
+- **Analyse automatique des logs** : plantages, ANR, mémoire, stockage, batterie, Wi-Fi, DNS, certificats et lecteur code-barres de toutes marques, regroupés du plus grave au moins grave avec un conseil.
+- **Analyse de fichiers** : archive RxLogger Zebra, bugreport ou logcat reçu du terrain, tous les journaux fusionnés ; frise par sujet, « Aller à l'incident », constats et tendances, ce qui change avant l'incident, redémarrages et leur cause, vie de l'appli métier, pannes connues de l'équipe, signets, comparaison de deux relevés.
+- **Enregistreur terrain** : le terminal débranché enregistre pendant des heures, l'utilisateur signale un incident d'un appui ; au retour, l'enregistrement s'ouvre sur l'incident.
+- Rapport client **Word** et rapport technique **PDF / HTML**.
 
 ### ⚡ Outils avancés
 - Simulation des boutons physiques, luminosité, densité d'affichage, résolution, volume.
@@ -81,7 +97,10 @@ Les seules connexions servent à télécharger et vérifier les **outils tiers**
 
 ## Une question, un souci ?
 
-Ouvrez un **ticket** (« issue ») sur ce dépôt : un problème, un terminal à prendre en charge ou une idée.
+- Une question d'utilisation : les **[Discussions](https://github.com/Kanard-Compagny/ADBToolsPro/discussions)**.
+- Un problème, un terminal à prendre en charge ou une idée : un **[ticket](https://github.com/Kanard-Compagny/ADBToolsPro/issues/new/choose)**.
+- Une faille de sécurité : jamais en public, voir [SECURITY.md](SECURITY.md).
+- Envie de contribuer : lisez le [guide de contribution](CONTRIBUTING.md).
 
 ## Soutenir
 

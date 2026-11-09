@@ -1,0 +1,38 @@
+# Analyse de sécurité du code (CodeQL) : à chaque envoi sur main, sur les demandes de fusion et chaque semaine.
+# Gratuite pour un dépôt public ; ne s'exécute pas tant que le dépôt est privé.
+name: Sécurité du code
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["site/**", "**/*.md", "Docs/**"]
+  pull_request:
+    paths-ignore: ["site/**", "**/*.md", "Docs/**"]
+  schedule:
+    - cron: "27 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyse:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+          - language: java-kotlin
+          - language: actions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

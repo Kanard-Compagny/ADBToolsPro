@@ -1,0 +1,19 @@
+# Mises à jour automatiques proposées par Dependabot (une demande de fusion par mise à jour, regroupées chaque mois).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: nuget
+    directories: ["/", "/Tests"]
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      nuget:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

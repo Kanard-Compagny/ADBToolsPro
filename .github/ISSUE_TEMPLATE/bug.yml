@@ -1,0 +1,74 @@
+name: 🐞 Signaler un problème / Report a bug
+description: Quelque chose ne fonctionne pas comme prévu. / Something does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce problème ! Avant d'envoyer, **retirez des captures et des journaux tout ce qui est confidentiel** (nom du réseau Wi-Fi, nom de la société, numéros de série, adresses IP internes).
+        Thanks for reporting! Please **remove anything confidential** from screenshots and logs (Wi-Fi network names, company names, serial numbers, internal IP addresses).
+        Une faille de sécurité ? Ne l'ouvrez pas ici : voir [SECURITY.md](../blob/main/SECURITY.md). / Security issue? Do not post it here, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version d'ADB Tools Pro / ADB Tools Pro version
+      description: Visible dans Paramètres → À propos. / Shown in Settings → About.
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows
+      placeholder: "Windows 11 23H2"
+  - type: input
+    id: device
+    attributes:
+      label: Terminal (marque, modèle) / Device (brand, model)
+      placeholder: "Zebra TC58"
+  - type: input
+    id: android
+    attributes:
+      label: Version d'Android / Android version
+      placeholder: "13"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Partie concernée / Area
+      options:
+        - Tableau de bord / Dashboard
+        - Mirroring (scrcpy)
+        - Applications et fichiers / Apps & files
+        - Diagnostics SAV / Diagnostics
+        - Tests du terminal, test du lecteur / Device tests, scanner test
+        - Analyse Wi-Fi / Wi-Fi analysis
+        - Logs, analyse de fichiers, enregistreur / Logs, file analysis, recorder
+        - Rapports Word / Word reports
+        - Outils avancés / Advanced tools
+        - Mises à jour, installation / Updates, setup
+        - Autre / Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Que se passe-t-il ? / What happens?
+      description: Ce que vous avez constaté, et ce que vous attendiez. / What you saw and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire / Steps to reproduce
+      placeholder: |
+        1. Brancher le terminal
+        2. Aller dans …
+        3. Cliquer sur …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Journaux ou captures (facultatif) / Logs or screenshots (optional)
+      description: En cas de plantage, joignez le fichier crash.log situé à côté de ADBToolsNew.exe. / After a crash, attach the crash.log file next to ADBToolsNew.exe.
+      render: text

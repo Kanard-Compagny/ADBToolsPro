@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions et entraide / Questions & help
+    url: https://github.com/Kanard-Compagny/ADBToolsPro/discussions
+    about: Une question sur l'utilisation ? Posez-la dans les Discussions. / Usage question? Ask in Discussions.
+  - name: 🔒 Faille de sécurité / Security vulnerability
+    url: https://github.com/Kanard-Compagny/ADBToolsPro/security/advisories/new
+    about: Signalement privé, jamais en ticket public. / Private report, never in a public issue.

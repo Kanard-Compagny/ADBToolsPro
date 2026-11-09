@@ -1,0 +1,23 @@
+name: 💡 Proposer une idée / Suggest an idea
+description: Une fonction qui vous ferait gagner du temps. / A feature that would save you time.
+labels: ["idée"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Le besoin / The need
+      description: Dans quelle situation de terrain en avez-vous besoin ? / In which field situation would you need it?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: L'idée / The idea
+      description: Comment l'imaginez-vous dans ADB Tools Pro ? / How do you picture it in ADB Tools Pro?
+    validations:
+      required: true
+  - type: input
+    id: devices
+    attributes:
+      label: Terminaux concernés (facultatif) / Devices involved (optional)
+      placeholder: "Zebra, Honeywell, Samsung…"
