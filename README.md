@@ -59,9 +59,15 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Enregistreur terrain** : le terminal débranché enregistre pendant des heures, l'utilisateur signale un incident d'un appui ; au retour, l'enregistrement s'ouvre sur l'incident.
 - Rapport client **Word** et rapport technique **PDF / HTML**.
 
+### 📦 Mise à jour OS
+- Un ou plusieurs terminaux mis à jour **en même temps**, chacun avec sa progression : **par câble** (ADB sideload), **copie dans la mémoire du terminal** ou **fastboot** (image d'usine, bootloader déverrouillé).
+- Vérifications avant l'envoi : modèle visé par le paquet, terminal déjà à jour, retour à une version antérieure, batterie.
+- **Bibliothèque de paquets** : ADB Tools choisit le bon paquet pour chaque modèle d'un parc mélangé.
+- Au retour : contrôle de la nouvelle version, installation d'applications et commandes ADB ; **bilan Excel**.
+
 ### ⚡ Outils avancés
 - Simulation des boutons physiques, luminosité, densité d'affichage, résolution, volume.
-- Mise à jour de l'OS par sideload (.zip), extraction de l'écran en XML (UI Automator).
+- Extraction de l'écran en XML (UI Automator).
 - Bibliothèque de commandes ADB prêtes à l'emploi, à compléter avec les vôtres.
 - Logs en direct (logcat) avec filtres, et génération du bugreport complet.
 

@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.4.0
+                              RELEASE NOTES V1.5.0
 ================================================================================
-Version        : 1.4.0 (file analysis, field recorder)
-Release date   : November 2026 (1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.5.0 (OS update of several devices)
+Release date   : November 2026 (1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,50 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.5.0 (November 2026)
+================================================================================
+OS UPDATE (new menu page)
+  - One or several USB-connected devices updated at the same time, each
+    with its own progress. Any brand that supports ADB.
+  - Three methods:
+    . Over the cable (ADB sideload): automatic switch to "update from ADB"
+      mode; if a model does not allow it, its row asks to choose "Apply
+      update from ADB" and sending starts by itself.
+    . Copy to device storage, then Recovery ("Apply update from SD card /
+      internal storage"): for models that refuse sideload. Checked copy,
+      deleted after the update.
+    . Fastboot (factory image): unlocked bootloaders only, with a detailed
+      warning. Nothing is flashed if the bootloader is locked, or if the
+      model or bootloader version does not match.
+  - Checks before sending: model targeted by the package (including the
+    Zebra platform and DeviceManifest.xml), device already up to date,
+    incremental update, battery below 30 %.
+  - Going back to an earlier version: refused by Android with a normal
+    package (reported before sending). With the manufacturer's "downgrade"
+    package, the device goes through "Downgrade from ADB"; it is wiped, as
+    the confirmation reminds.
+  - Single package, or library: a folder of packages (yours or the team's)
+    where ADB Tools picks the newest package meant for each model. A mixed
+    fleet is updated in one go.
+  - On return: restart and check of the new version, then optional app
+    installs (APKs picked one by one or a whole folder) and ADB commands.
+  - Simultaneous transfers can be limited from 5 devices (shared USB hub).
+  - A transfer already started is never interrupted; ADB Tools refuses to
+    close while a device is being updated.
+  - Excel summary (.xlsx): versions before / after, method, package,
+    colour-coded result, details, times.
+
+OTHER IMPROVEMENTS
+  - Windows taskbar icon: green progress while a task runs (live logs,
+    Wi-Fi, OS update…), flashes at the end of an OS update if ADB Tools is
+    in the background.
+  - The OS update menu button pulses during an update, like other tasks.
+  - Advanced tools reorganised (OS update has its own page).
+  - Orange buttons dimmed when unavailable.
+  - Guided tour completed: Logs, Comparator, File analysis, OS update.
+
+================================================================================
+2b. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
 ================================================================================
 FILE ANALYSIS (new menu page)
   - Opens a log set received from the field: Zebra RxLogger archive,
@@ -69,7 +112,7 @@ OTHER IMPROVEMENTS
   - 64-bit program for large log sets.
 
 ================================================================================
-2b. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
+2c. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
 ================================================================================
 AUTOMATIC LOG ANALYSIS (Logs page)
   - "Analyse displayed logs": the whole live capture is reviewed, even lines
@@ -147,7 +190,7 @@ OTHER IMPROVEMENTS
   - Wi-Fi check-up: correct SSID and access point (BSSID) on Android 11.
 
 ================================================================================
-2c. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+2d. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
 A fully redesigned Settings page, modelled on Scanalyse.
 
@@ -285,8 +328,7 @@ v3 license), published on GitHub by Mr.Kanard.
   mode.
 - XML extractor of the displayed interface (UI Automator dump), useful to set
   up scanning apps (Velocity, ProGlove...).
-- OS update by sideload (.zip) with a safeguard preventing the application
-  from being closed in the middle of a flash.
+- OS update has its own page since version 1.5.0 (see section 2).
 
 [🔧 Service diagnostics]
 - One-click automatic check-up covering 9 checkpoints: ADB authorization, root

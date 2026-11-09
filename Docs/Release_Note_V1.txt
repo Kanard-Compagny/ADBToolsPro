@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.4.0
+                              RELEASE NOTES V1.5.0
 ================================================================================
-Version        : 1.4.0 (analyse de fichiers, enregistreur terrain)
-Date de sortie : Novembre 2026 (1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
+Version        : 1.5.0 (mise à jour OS de plusieurs terminaux)
+Date de sortie : Novembre 2026 (1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -25,7 +25,54 @@ matériel réel ; les limitations connues sont listées en fin de document
 (section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.4.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.5.0 (Novembre 2026)
+================================================================================
+MISE À JOUR OS (nouvelle page du menu)
+  - Un ou plusieurs terminaux branchés en USB mis à jour en même temps,
+    chacun avec sa progression. Toutes marques compatibles ADB.
+  - Trois méthodes :
+    . Par câble (ADB sideload) : passage automatique en mode « mise à jour
+      par ADB » ; si un modèle ne le permet pas, la ligne du terminal
+      demande de choisir « Apply update from ADB » et l'envoi part seul.
+    . Copie dans la mémoire du terminal, puis Recovery (« Apply update from
+      SD card / internal storage ») : pour les modèles qui refusent le
+      sideload. Copie contrôlée, effacée après la mise à jour.
+    . Fastboot (image d'usine) : terminaux au bootloader déverrouillé
+      seulement, avec mise en garde détaillée. Rien n'est flashé si le
+      bootloader est verrouillé, si le modèle ou la version du bootloader ne
+      correspondent pas.
+  - Vérifications avant l'envoi : modèle visé par le paquet (y compris la
+    plateforme Zebra et le DeviceManifest.xml), terminal déjà à jour,
+    mise à jour différentielle, batterie sous 30 %.
+  - Retour à une version antérieure : refusé par Android avec un paquet
+    normal (signalé avant l'envoi). Avec un paquet de « downgrade » du
+    fabricant, le terminal passe par « Downgrade from ADB » ; il est effacé,
+    ce que la confirmation rappelle.
+  - Paquet unique, ou bibliothèque : un dossier de paquets (le vôtre ou
+    celui de l'équipe) où ADB Tools choisit le paquet le plus récent prévu
+    pour chaque modèle. Un parc mélangé se met à jour en une fois.
+  - Au retour : redémarrage et contrôle de la nouvelle version, puis
+    installation d'applications (APK choisis un par un ou tout un dossier)
+    et commandes ADB, au choix.
+  - Envois simultanés limitables à partir de 5 terminaux (hub USB partagé).
+  - Un envoi commencé n'est jamais interrompu ; ADB Tools refuse de se
+    fermer tant qu'un terminal est en cours.
+  - Bilan Excel (.xlsx) : versions avant / après, méthode, paquet, résultat
+    coloré, détail, heures.
+
+AUTRES AMÉLIORATIONS
+  - Icône de la barre des tâches Windows : progression verte tant qu'une
+    tâche tourne (logs en direct, Wi-Fi, mise à jour OS…), clignotement à la
+    fin d'une mise à jour OS si ADB Tools est au second plan.
+  - Le bouton du menu de la page Mise à jour OS pulse pendant une mise à
+    jour, comme pour les autres tâches.
+  - Outils avancés réorganisé (la mise à jour OS a sa page).
+  - Boutons orange estompés quand ils sont indisponibles.
+  - Visite guidée complétée : Logs, Comparateur, Analyse de fichiers,
+    Mise à jour OS.
+
+================================================================================
+2 bis. NOUVEAUTÉS DE LA VERSION 1.4.0 (Novembre 2026)
 ================================================================================
 ANALYSE DE FICHIERS (nouvelle page du menu)
   - Ouvre un relevé reçu du terrain : archive RxLogger Zebra, bugreport,
@@ -75,7 +122,7 @@ AUTRES AMÉLIORATIONS
   - Programme en 64 bits pour les gros relevés.
 
 ================================================================================
-2 bis. NOUVEAUTÉS DE LA VERSION 1.3.0 (Novembre 2026)
+2 ter. NOUVEAUTÉS DE LA VERSION 1.3.0 (Novembre 2026)
 ================================================================================
 ANALYSE AUTOMATIQUE DES LOGS (page Logs)
   - « Analyser les logs affichés » : toute la capture en direct est passée en
@@ -152,7 +199,7 @@ AUTRES AMÉLIORATIONS
   - Check-up Wi-Fi : SSID et point d'accès (BSSID) corrects sous Android 11.
 
 ================================================================================
-2 ter. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
+2 quater. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
 ================================================================================
 Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
 
@@ -426,8 +473,8 @@ blocages et rend l'application plus fluide sur les longues sessions.
   coupure rapide, mode sonnerie (Son/Vibreur/Silencieux).
 - Extracteur XML de l'interface affichée (UI Automator dump), utile pour le
   paramétrage des applications de scan (Velocity, ProGlove...).
-- Mode de mise à jour de l'OS par Sideload (.zip) avec garde-fou empêchant
-  toute fermeture accidentelle de l'application en plein flashage.
+- La mise à jour de l'OS a sa propre page depuis la version 1.5.0 (voir
+  section 2).
 - Chaque action affiche un message clair en cas d'échec (terminal débranché,
   commande refusée...) plutôt qu'un blocage silencieux de l'interface.
 
