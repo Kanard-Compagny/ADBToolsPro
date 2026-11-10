@@ -645,7 +645,7 @@ namespace ADBToolsNew
                 }
                 if (f.Length > 0)
                 {
-                    var adv = advanced.Where(st => Match(st.Key, st.Namespace)).ToList();
+                    var adv = advanced.Where(st => Match(Loc.T(MasterSettingsGlossary.Describe(st.Key).Label), st.Key)).ToList();
                     if (adv.Count > 0) FillTechnical(body, adv, f);
                     else if (shown == 0) body.Children.Add(MasterMutedText(Loc.T("Aucun réglage ne correspond à la recherche."), 12));
                 }
@@ -661,12 +661,17 @@ namespace ADBToolsNew
             Fill();
         }
 
-        /// <summary>Réglages techniques capturés hors catalogue : cases à cocher, non cochés par défaut.</summary>
+        private readonly HashSet<string> _masterTechOpen = new HashSet<string>();
+
+        /// <summary>
+        /// Réglages techniques capturés hors catalogue, expliqués : nom en français, valeur lisible, regroupés par catégorie
+        /// (son, écran, verrouillage…). Les informations internes à Android sont à part : aucune raison de les recopier.
+        /// </summary>
         private void FillTechnical(StackPanel body, List<MasterSetting> list, string filter)
         {
             var m = _master;
             body.Children.Add(MasterHeading(Loc.F("Réglages techniques ({0})", list.Count), 13.5, new Thickness(0, 12, 0, 2)));
-            body.Children.Add(MasterMutedText(Loc.T("Capturés tels quels sur le terminal de référence, sans nom compréhensible : non cochés par défaut, à n'envoyer qu'en connaissance de cause."), 11.5));
+            body.Children.Add(MasterMutedText(Loc.T("Autres réglages capturés sur le terminal de référence, expliqués et rangés par catégorie. Non cochés par défaut : cochez ceux à imposer, ✏️ pour changer la valeur. Survolez un nom pour voir sa clé Android."), 11.5));
             if (filter.Length == 0)
             {
                 var custom = new Button { Content = Loc.T("＋ Réglage technique (nom exact)…"), Style = (Style)FindResource("SettingsLinkStyle"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 6) };
@@ -679,25 +684,79 @@ namespace ADBToolsNew
                     m.Settings.RemoveAll(x => x.Namespace == st.Namespace && x.Key == st.Key);
                     m.Settings.Insert(0, st);
                     _masterSettingsTheme = MasterSettingsCatalog.Find(st.Namespace, st.Key)?.Theme ?? MasterTechnicalTheme;
+                    _masterTechOpen.Add(MasterSettingsGlossary.Describe(st.Key).Category);
                     RenderMasterView();
                 };
                 body.Children.Add(custom);
             }
-            foreach (var st in list.Take(200))
-                body.Children.Add(MasterRowElement(new MasterRow
+
+            var groups = list.Select(st => (St: st, D: MasterSettingsGlossary.Describe(st.Key)))
+                .GroupBy(x => x.D.Category)
+                .OrderBy(g => Array.IndexOf(MasterSettingsGlossary.Categories, g.Key));
+            foreach (var g in groups)
+            {
+                string cat = g.Key;
+                var items = g.OrderBy(x => Loc.T(x.D.Label), StringComparer.CurrentCultureIgnoreCase).ToList();
+                bool internalCat = cat == MasterSettingsGlossary.CatInternal;
+                bool open = filter.Length > 0 || _masterTechOpen.Contains(cat);
+                int checkedCount = items.Count(x => x.St.Include);
+
+                var head = new Grid { Margin = new Thickness(0, 10, 0, 2) };
+                head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var all = new CheckBox { Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Tout cocher / tout décocher"),
+                    IsChecked = checkedCount == items.Count ? true : checkedCount == 0 ? false : (bool?)null };
+                all.Click += (s, a) =>
                 {
-                    Label = st.Key + " = " + (st.Value.Length > 60 ? st.Value.Substring(0, 60) + "…" : st.Value), Sub = st.Namespace,
-                    Get = () => st.Include, Set = v => { st.Include = v; RefreshMasterPending(); },
-                    Edit = async () =>
+                    bool v = all.IsChecked == true;
+                    foreach (var x in items) x.St.Include = v;
+                    RenderMasterView();
+                };
+                head.Children.Add(all);
+                var toggle = new Button { Style = (Style)FindResource("SettingsLinkStyle"), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
+                    Content = (open ? "▾ " : "▸ ") + Loc.T(cat) + "  ·  " + (checkedCount > 0 ? Loc.F("{0} réglage(s), {1} coché(s)", items.Count, checkedCount) : Loc.F("{0} réglage(s)", items.Count)) };
+                toggle.Click += (s, a) =>
+                {
+                    if (!_masterTechOpen.Remove(cat)) _masterTechOpen.Add(cat);
+                    RenderMasterView();
+                };
+                Grid.SetColumn(toggle, 1); head.Children.Add(toggle);
+                body.Children.Add(head);
+                if (internalCat)
+                {
+                    var why = MasterMutedText(Loc.T("Informations tenues à jour par Android ou les services Google (journaux, compteurs, migrations…) : aucun effet visible, inutile de les recopier."), 11.5);
+                    why.Margin = new Thickness(30, 0, 0, 2);
+                    body.Children.Add(why);
+                }
+                if (!open) continue;
+
+                var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
+                foreach (var x in items.Take(200))
+                {
+                    var st = x.St;
+                    string label = x.D.Label == MasterSettingsGlossary.Humanize(st.Key) ? x.D.Label : Loc.T(x.D.Label);
+                    string shown = Loc.T(MasterSettingsGlossary.DisplayValue(st.Key, st.Value));
+                    var row = MasterRowElement(new MasterRow
                     {
-                        string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"), Loc.F("Nouvelle valeur de {0} ({1}) :", st.Key, st.Namespace), st.Value);
-                        if (v == null) return;
-                        st.Value = v; st.Include = true;
-                        RenderMasterView();
-                    },
-                    Remove = () => { m.Settings.Remove(st); RenderMasterView(); },
-                }, null));
-            if (list.Count > 200) body.Children.Add(MasterMutedText(Loc.F("… et {0} autre(s) : affinez la recherche.", list.Count - 200), 11.5));
+                        Label = label,
+                        Sub = Loc.F("valeur : {0}", shown) + "   ·   " + st.Namespace + " · " + st.Key,
+                        Get = () => st.Include, Set = v => { st.Include = v; RefreshMasterPending(); },
+                        Edit = async () =>
+                        {
+                            string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"),
+                                Loc.F("{0}\nValeur actuelle : {1}\n(clé Android : {2} · {3})\n\nNouvelle valeur :", label, shown, st.Namespace, st.Key), st.Value);
+                            if (v == null) return;
+                            st.Value = v; st.Include = true;
+                            RenderMasterView();
+                        },
+                        Remove = () => { m.Settings.Remove(st); RenderMasterView(); },
+                    }, null);
+                    row.Margin = new Thickness(18, 0, 0, 6);
+                    panel.Children.Add(row);
+                }
+                if (items.Count > 200) panel.Children.Add(MasterMutedText(Loc.F("… et {0} autre(s) : affinez la recherche.", items.Count - 200), 11.5));
+                body.Children.Add(panel);
+            }
         }
 
         private TextBlock MasterHeading(string text, double size, Thickness? margin = null)

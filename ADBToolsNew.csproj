@@ -134,6 +134,7 @@
     <Compile Include="Core\OsUpdatePackage.cs" />
     <Compile Include="Core\MasterProfile.cs" />
     <Compile Include="Core\MasterSettingsCatalog.cs" />
+    <Compile Include="Core\MasterSettingsGlossary.cs" />
     <Compile Include="Core\XlsxExport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />

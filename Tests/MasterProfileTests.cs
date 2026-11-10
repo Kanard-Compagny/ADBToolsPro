@@ -188,6 +188,28 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Glossary_ExplainsTechnicalSettings()
+        {
+            var d = MasterSettingsGlossary.Describe("volume_music_speaker");
+            Assert.AreEqual(MasterSettingsGlossary.CatSound, d.Category);
+            Assert.AreEqual("« Cesium »", MasterSettingsGlossary.DisplayValue("alarm_alert", "content://media/internal/audio/media/207?title=Cesium&canonical=1"));
+            Assert.AreEqual("6 s", MasterSettingsGlossary.DisplayValue("touchkeylight_off_timeout", "6000"));
+            Assert.AreEqual("activé", MasterSettingsGlossary.DisplayValue("ambient_enabled", "1"));
+            Assert.AreEqual("jamais / désactivé", MasterSettingsGlossary.DisplayValue("sleep_timeout", "-1"));
+            Assert.AreEqual("Google (android.googlequicksearchbox)", MasterSettingsGlossary.DisplayValue("assistant", "com.google.android.googlequicksearchbox/com.x.Y"));
+            Assert.IsTrue(MasterSettingsGlossary.IsInternal("activity_starts_logging_enabled"));
+            Assert.IsTrue(MasterSettingsGlossary.IsInternal("alarm_alert_set"));
+            Assert.IsFalse(MasterSettingsGlossary.IsInternal("ambient_enabled"));
+            // Clé inconnue : nom déduit des mots de la clé, catégorie devinée.
+            var u = MasterSettingsGlossary.Describe("foo_screen_brightness_enabled");
+            Assert.AreEqual("Foo écran luminosité activé", u.Label);
+            Assert.AreEqual(MasterSettingsGlossary.CatDisplay, u.Category);
+            Assert.AreEqual("désactivé", MasterSettingsGlossary.DisplayValue("foo_screen_brightness_enabled", "0"));
+            // Aucune explication ne concerne un réglage déjà écarté comme propre au terminal, ni un réglage du catalogue.
+            foreach (var cat in MasterSettingsGlossary.Categories) Assert.IsFalse(string.IsNullOrEmpty(cat));
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));
