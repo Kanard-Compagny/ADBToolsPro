@@ -163,6 +163,30 @@ namespace ADBToolsNew.Core
             return (Get(@"pkgFlags=\[([^\]]*)\]") + " " + Get(@"\bprivateFlags=\[([^\]]*)\]"), installer, Get(@"codePath=(\S+)"), Get(@"versionName=(\S+)"));
         }
 
+        /// <summary>
+        /// Message d'erreur d'Android (souvent une trace Java) → explication courte en français.
+        /// context : « owner » (propriétaire du terminal), « disable » (désactivation d'appli) ou vide.
+        /// </summary>
+        public static string ExplainAdbError(string output, string context = "")
+        {
+            string o = output ?? "";
+            if (Regex.IsMatch(o, @"already (some )?accounts|accounts on the device", RegexOptions.IgnoreCase))
+                return "refusé : des comptes existent sur le terminal (à faire juste après un wipe, avant d'ajouter un compte)";
+            if (Regex.IsMatch(o, @"already (provisioned|set)|device owner is already|already has a device owner|already been provisioned", RegexOptions.IgnoreCase))
+                return "un propriétaire est déjà défini sur ce terminal";
+            if (Regex.IsMatch(o, @"Unknown admin|Bad admin|not installed|No (active )?admin", RegexOptions.IgnoreCase))
+                return context == "owner" ? "agent MDM absent ou incomplet sur ce terminal" : "appli absente de ce terminal";
+            if (Regex.IsMatch(o, @"(multiple|several|more than one) users?", RegexOptions.IgnoreCase))
+                return "refusé : plusieurs utilisateurs existent sur le terminal";
+            if (context == "disable" && Regex.IsMatch(o, @"SecurityException|Cannot disable|not allowed|protected|Permission Denial", RegexOptions.IgnoreCase))
+                return "Android interdit de la désactiver par câble (appli protégée) : à faire par le MDM";
+            // Sinon : la ligne utile de la trace (« …Exception: message »), pas la dernière ligne de la pile.
+            var m = Regex.Match(o, @"(?:Exception|Error)\s*:\s*([^\r\n]+)");
+            string msg = m.Success ? m.Groups[1].Value.Trim() : o.Replace("\r", "").Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0 && !l.StartsWith("at ")) ?? "";
+            if (msg.Length == 0) msg = "refusé par Android";
+            return msg.Length > 160 ? msg.Substring(0, 160) + "…" : msg;
+        }
+
         /// <summary>Compare deux versionCode (nombres) : négatif si a &lt; b, 0 si égaux ou non comparables.</summary>
         public static int CompareVersionCodes(string a, string b) =>
             long.TryParse((a ?? "").Trim(), out var x) && long.TryParse((b ?? "").Trim(), out var y) ? x.CompareTo(y) : 0;

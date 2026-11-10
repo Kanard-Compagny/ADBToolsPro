@@ -266,6 +266,18 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void ExplainAdbError_ReadsJavaTraces()
+        {
+            const string owner = "Exception occurred while executing 'set-device-owner':\njava.lang.IllegalStateException: Not allowed to set the device owner because there are already some accounts on the device.\n\tat com.android.server.devicepolicy.X(X.java:1)\n\tat android.os.Binder.execTransact(Binder.java:1275)";
+            StringAssert.StartsWith(MasterProfile.ExplainAdbError(owner, "owner"), "refusé : des comptes");
+            Assert.AreEqual("agent MDM absent ou incomplet sur ce terminal",
+                MasterProfile.ExplainAdbError("java.lang.IllegalArgumentException: Unknown admin: ComponentInfo{net.soti/x}\n\tat a.b(c)", "owner"));
+            StringAssert.StartsWith(MasterProfile.ExplainAdbError("java.lang.SecurityException: Cannot disable a protected package: com.android.contacts", "disable"), "Android interdit");
+            Assert.AreEqual("Something odd", MasterProfile.ExplainAdbError("Exception occurred\njava.lang.RuntimeException: Something odd\n\tat x.y(z)"));
+            Assert.AreEqual("refusé par Android", MasterProfile.ExplainAdbError(""));
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));

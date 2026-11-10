@@ -1759,7 +1759,10 @@ namespace ADBToolsNew
                 MasterStatus(t, Loc.T("Applications désactivées, autorisations, réglages…"));
                 var script = new StringBuilder();
                 foreach (var d in m.DisabledApps.Where(x => x.Include))
-                    script.Append($"if pm path {d.Name} >/dev/null 2>&1; then if pm disable-user --user 0 {d.Name} >/dev/null 2>&1; then echo 'DIS|OK|{d.Name}'; else echo 'DIS|KO|{d.Name}'; fi; else echo 'DIS|ABS|{d.Name}'; fi\n");
+                    // Absente → ignorée ; déjà désactivée → rien à faire ; sinon on garde le message d'Android en cas de refus.
+                    script.Append($"if ! pm path {d.Name} >/dev/null 2>&1; then echo 'DIS|ABS|{d.Name}'; " +
+                                  $"elif pm list packages -d 2>/dev/null | grep -qx 'package:{d.Name}'; then echo 'DIS|SAME|{d.Name}'; " +
+                                  $"else o=$(pm disable-user --user 0 {d.Name} 2>&1 | tr '\\n' ' '); case \"$o\" in *disabled*) echo 'DIS|OK|{d.Name}';; *) echo \"DIS|KO|{d.Name}|$o\";; esac; fi\n");
                 foreach (var a in apps.Where(x => x.Permissions.Count > 0))
                     foreach (var p in a.Permissions)
                         script.Append($"if pm grant {a.Package} {p} >/dev/null 2>&1; then echo 'PERM|OK|{a.Package} {p}'; else echo 'PERM|KO|{a.Package} {p}'; fi\n");
@@ -1773,13 +1776,14 @@ namespace ADBToolsNew
                 int permOk = 0;
                 foreach (var l in lines)
                 {
-                    var parts = l.Split(new[] { '|' }, 3);
+                    var parts = l.Split(new[] { '|' }, 4);
                     if (parts.Length < 3) continue;
                     switch (parts[0])
                     {
                         case "DIS":
-                            MasterAdd(t, catDis, parts[2], parts[1] == "OK" ? "ok" : parts[1] == "ABS" ? "skip" : "ko",
-                                parts[1] == "ABS" ? Loc.T("absente de ce terminal") : parts[1] == "KO" ? Loc.T("refusé par Android") : "");
+                            MasterAdd(t, catDis, parts[2], parts[1] == "OK" ? "ok" : parts[1] == "SAME" ? "same" : parts[1] == "ABS" ? "skip" : "ko",
+                                parts[1] == "ABS" ? Loc.T("absente de ce terminal") : parts[1] == "SAME" ? Loc.T("déjà désactivée")
+                                : parts[1] == "KO" ? Loc.T(MasterProfile.ExplainAdbError(parts.Length > 3 ? parts[3] : "", "disable")) : "");
                             break;
                         case "PERM":
                             if (parts[1] == "OK") permOk++; else MasterAdd(t, catPerm, parts[2], "ko", Loc.T("refusée (autorisation système ou appli absente)"));
@@ -1826,11 +1830,18 @@ namespace ADBToolsNew
                 }
                 if (m.DeviceOwner?.Include == true)
                 {
-                    var res = await _adbManager.ExecuteAsync($"-s {t.Serial} shell dpm set-device-owner {m.DeviceOwner.Name}", TimeSpan.FromSeconds(30));
-                    string outp = (res.StandardOutput ?? "") + (res.StandardError ?? "");
-                    bool ok = outp.Contains("Success") || outp.Contains("already");
-                    MasterAdd(t, catHome, Loc.F("Propriétaire : {0}", m.DeviceOwner.Name), ok ? "ok" : "ko",
-                        ok ? "" : outp.Contains("account") ? Loc.T("refusé : des comptes existent sur le terminal (à faire juste après un wipe)") : LastLines(outp, 1));
+                    string ownerPkg = m.DeviceOwner.Name.Split('/')[0];
+                    string ownerName = MasterProfile.KnownAppName(ownerPkg) is string kn && kn.Length > 0 ? kn : ownerPkg;
+                    var has = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm path {ownerPkg}", TimeSpan.FromSeconds(15));
+                    if (!(has.StandardOutput ?? "").Contains("package:"))
+                        MasterAdd(t, catHome, Loc.F("Propriétaire : {0}", ownerName), "skip", Loc.T("agent MDM absent de ce terminal : propriétaire non défini (installez l'agent pour le définir)"));
+                    else
+                    {
+                        var res = await _adbManager.ExecuteAsync($"-s {t.Serial} shell dpm set-device-owner {m.DeviceOwner.Name}", TimeSpan.FromSeconds(30));
+                        string outp = (res.StandardOutput ?? "") + (res.StandardError ?? "");
+                        bool ok = outp.Contains("Success");
+                        MasterAdd(t, catHome, Loc.F("Propriétaire : {0}", ownerName), ok ? "ok" : "ko", ok ? "" : Loc.T(MasterProfile.ExplainAdbError(outp, "owner")));
+                    }
                 }
                 Advance();
 
