@@ -199,7 +199,7 @@ namespace ADBToolsNew.Tests
                 var m = new MasterProfile { Name = "Test", SourceModel = "TC58" };
                 m.Apps.Add(new MasterApp { Package = "com.a", Files = { "apks/com.a/base.apk" }, Permissions = { "android.permission.CAMERA" } });
                 m.Settings.Add(new MasterSetting { Namespace = "system", Key = "screen_off_timeout", Value = "600000", Include = false });
-                m.WifiNetworks.Add(new MasterWifi { Ssid = "Atelier", Security = "wpa2-psk", Password = "p'ss" });
+                m.WifiNetworks.Add(new MasterWifi { Ssid = "Atelier", Security = "wpa2-psk", Password = "p'ss", Hidden = true });
                 m.Launcher = new MasterItem { Name = "com.zebra.launcher/.Main" };
                 m.Commands.Add("shell echo ok");
                 m.Steps.Add(new MasterStep { Title = "Ajouter le compte Google", Screen = "google", Include = false });
@@ -212,6 +212,7 @@ namespace ADBToolsNew.Tests
                 Assert.AreEqual("android.permission.CAMERA", o.Apps.Single().Permissions.Single());
                 Assert.IsFalse(o.Settings.Single().Include);
                 Assert.AreEqual("p'ss", o.WifiNetworks.Single().Password);
+                Assert.IsTrue(o.WifiNetworks.Single().Hidden);
                 Assert.AreEqual("com.zebra.launcher/.Main", o.Launcher.Name);
                 Assert.IsNull(o.DeviceOwner);
                 Assert.AreEqual("shell echo ok", o.Commands.Single());

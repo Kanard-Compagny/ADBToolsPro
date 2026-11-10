@@ -186,6 +186,7 @@ namespace ADBToolsNew.Core
                     Security = string.Join("/", g.Select(w => (w.Security ?? "").TrimEnd('^')).Where(x => x.Length > 0).Distinct()),
                     Password = g.Select(w => w.Password).FirstOrDefault(p => !string.IsNullOrEmpty(p)) ?? "",
                     Include = g.Any(w => w.Include),
+                    Hidden = g.Any(w => w.Hidden),
                 };
             }).ToList();
 
@@ -316,6 +317,8 @@ namespace ADBToolsNew.Core
         public string Ssid { get; set; } = "";
         public string Security { get; set; } = "";
         public string Password { get; set; } = "";
+        /// <summary>Réseau masqué (SSID non diffusé).</summary>
+        public bool Hidden { get; set; }
         public bool Include { get; set; } = true;
     }
 

@@ -4395,8 +4395,10 @@
                                                 </WrapPanel>
                                             </Grid>
                                             <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Line}" Margin="16,0"/>
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                <StackPanel x:Name="MasterContent" Margin="16,6,16,12"/>
+                                            <!-- En-tête fixe : bandeau « à compléter » et onglets, toujours visibles quand on fait défiler. -->
+                                            <StackPanel x:Name="MasterHeader" DockPanel.Dock="Top" Margin="16,6,16,0"/>
+                                            <ScrollViewer x:Name="MasterScroll" VerticalScrollBarVisibility="Auto">
+                                                <StackPanel x:Name="MasterContent" Margin="16,0,16,12"/>
                                             </ScrollViewer>
                                         </DockPanel>
                                     </Border>
