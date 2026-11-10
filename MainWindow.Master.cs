@@ -2077,6 +2077,10 @@ namespace ADBToolsNew
             var grant = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm grant {MasterHelperApp.Package} android.permission.CHANGE_CONFIGURATION", TimeSpan.FromSeconds(15));
             string grantOut = ((grant.StandardOutput ?? "") + (grant.StandardError ?? "")).Trim();
             if (grantOut.Length > 0) AppendConsole("\n" + Loc.F("{0} : autorisation de changer la langue : {1}", t.Serial, LastLines(grantOut, 1)));
+            // Changer la langue demande aussi « modifier les paramètres système » (WRITE_SETTINGS), accordée par appops et non par pm grant.
+            var ops = await _adbManager.ExecuteAsync($"-s {t.Serial} shell appops set {MasterHelperApp.Package} WRITE_SETTINGS allow", TimeSpan.FromSeconds(15));
+            string opsOut = ((ops.StandardOutput ?? "") + (ops.StandardError ?? "")).Trim();
+            if (opsOut.Length > 0) AppendConsole("\n" + Loc.F("{0} : autorisation de modifier les paramètres système : {1}", t.Serial, LastLines(opsOut, 1)));
             t.HelperReady = true;
             return true;
         }

@@ -2702,6 +2702,7 @@
  "{0} / {1} exposées par le noyau": "{0} / {1} exposed by the kernel",
  "{0} : PID introuvable — l'app tourne-t-elle ?": "{0}: PID not found — is the app running?",
  "{0} : autorisation de changer la langue : {1}": "{0}: permission to change the language: {1}",
+ "{0} : autorisation de modifier les paramètres système : {1}": "{0}: permission to modify system settings: {1}",
  "{0} : extraction…": "{0}: extracting…",
  "{0} : installation de la mini appli ADB Tools Helper refusée : {1}": "{0}: installation of the ADB Tools Helper app refused: {1}",
  "{0} : installation…": "{0}: installing…",
