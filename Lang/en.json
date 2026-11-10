@@ -2035,6 +2035,7 @@
  "Remettre ce test à « non testé »": "Reset this test to “not tested”",
  "Remettre des terminaux en état après un wipe : un terminal de référence est capturé (applications, autorisations, réglages, Wi-Fi, fichiers…), puis le Master est réinjecté sur un ou plusieurs terminaux, avec le détail de ce qui a été remis en place ou non.": "Restore devices after a wipe: a reference device is captured (apps, permissions, settings, Wi-Fi, files…), then the Master is reinjected onto one or more devices, with details of what was restored or not.",
  "Remis en état : tout a été appliqué": "Restored: everything was applied",
+ "Remis en état : tout a été appliqué, {0} élément(s) ignoré(s) : voir le détail": "Restored: everything was applied, {0} item(s) skipped: see the details",
  "Remis en état, {0} élément(s) non appliqué(s) : voir le détail": "Restored, {0} item(s) not applied: see the details",
  "Remis en état, {0} élément(s) non appliqué(s) et {1} étape(s) à faire à la main : voir le détail": "Restored, {0} item(s) not applied and {1} step(s) to do by hand: see the details",
  "Remis en état, {0} étape(s) à faire à la main : voir le détail": "Restored, {0} step(s) to do by hand: see the details",

@@ -1967,7 +1967,7 @@ namespace ADBToolsNew
 
                 int ko = t.Results.Count(r => r.Status == "ko"), todo = steps.Count;
                 t.Outcome = ko == 0 && todo == 0 ? "ok" : "warn";
-                t.Message = ko == 0 && todo == 0 ? Loc.T("Remis en état : tout a été appliqué")
+                t.Message = ko == 0 && todo == 0 ? (t.Results.Count(r => r.Status == "skip") is int sk && sk > 0 ? Loc.F("Remis en état : tout a été appliqué, {0} élément(s) ignoré(s) : voir le détail", sk) : Loc.T("Remis en état : tout a été appliqué"))
                     : ko == 0 ? Loc.F("Remis en état, {0} étape(s) à faire à la main : voir le détail", todo)
                     : todo == 0 ? Loc.F("Remis en état, {0} élément(s) non appliqué(s) : voir le détail", ko)
                     : Loc.F("Remis en état, {0} élément(s) non appliqué(s) et {1} étape(s) à faire à la main : voir le détail", ko, todo);
