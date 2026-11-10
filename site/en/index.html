@@ -87,6 +87,10 @@
           <q>The whole fleet needs the latest version</q>
           <p>Plug the devices in, choose the manufacturer's package or your package folder: each one gets the right package, at the same time, after checking its model, version and battery. On return, the new version is checked and the customer's apps are reinstalled; the summary goes to Excel.<span class="where">OS update</span></p>
         </div>
+        <div class="case">
+          <q>The device is back from a wipe, everything must be set up again</q>
+          <p>Capture a reference device already set up for the customer: apps, permissions, settings, language, time, Wi-Fi, launcher, MDM. Complete what cannot be retrieved, then reinject it onto one or several devices. Each one is analyzed before sending, and the report shows what was restored or not.<span class="where">Master</span></p>
+        </div>
       </div>
     </div>
   </section>
@@ -140,12 +144,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>OS update <span class="new">New in 1.5</span></h3>
+          <h3>OS update</h3>
           <ul>
             <li>Several devices at once, each with its own progress.</li>
             <li>Over the cable, copy to device storage, or fastboot.</li>
             <li>Model, version and battery checked before sending; the right package picked per model.</li>
             <li>Version checked on return, apps installed, Excel summary.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Master <span class="new">New in 1.6</span></h3>
+          <ul>
+            <li>Restore after a wipe: capture a reference device, or create the Master by hand.</li>
+            <li>Apps, settings in plain words, language and time, Wi-Fi, launcher, MDM, DataWedge files.</li>
+            <li>Each device analyzed before sending, choice per app according to its version.</li>
+            <li>Report of what was restored or not, Excel export.</li>
           </ul>
         </div>
         <div class="group">
@@ -177,7 +190,8 @@
       <h2>Screenshots</h2>
       <p class="intro">Dark theme, on Zebra TC58 and TC53 devices (French interface, English available). Serial numbers and network details are masked. Click to enlarge.</p>
       <div class="shots">
-        <figure class="lead"><a href="../assets/captures/mise-a-jour-os.webp" title="Open full size" data-lightbox><img src="../assets/captures/mise-a-jour-os.webp" alt="OS update: two devices updated at the same time, version checked on return and apps reinstalled." width="1934" height="1038" decoding="async"></a><figcaption>OS update: two devices updated at the same time, version checked on return and apps reinstalled.</figcaption></figure>
+        <figure class="lead"><a href="../assets/captures/master.webp" title="Open full size" data-lightbox><img src="../assets/captures/master.webp" alt="Master: a captured reference device, content checked tab by tab, devices analyzed before sending." width="1919" height="1030" decoding="async"></a><figcaption>Master: a captured reference device, content checked tab by tab, devices analyzed before sending.</figcaption></figure>
+        <figure><a href="../assets/captures/mise-a-jour-os.webp" title="Open full size" data-lightbox><img src="../assets/captures/mise-a-jour-os.webp" alt="OS update: two devices updated at the same time, version checked on return and apps reinstalled." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>OS update: two devices updated at the same time, version checked on return and apps reinstalled.</figcaption></figure>
         <figure><a href="../assets/captures/analyse-fichiers.webp" title="Open full size" data-lightbox><img src="../assets/captures/analyse-fichiers.webp" alt="File analysis: a 2.2-million-line RxLogger archive, the per-topic timeline and the investigation tools." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>File analysis: a 2.2-million-line RxLogger archive, the per-topic timeline and the investigation tools.</figcaption></figure>
         <figure><a href="../assets/captures/dashboard.webp" title="Open full size" data-lightbox><img src="../assets/captures/dashboard.webp" alt="Device dashboard and ADB commands." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Device dashboard and ADB commands.</figcaption></figure>
         <figure><a href="../assets/captures/mirroring.webp" title="Open full size" data-lightbox><img src="../assets/captures/mirroring.webp" alt="Mirroring: the device screen on the PC, with screen recording and watermark." width="1905" height="999" loading="lazy" decoding="async"></a><figcaption>Mirroring: the device screen on the PC, with screen recording and watermark.</figcaption></figure>

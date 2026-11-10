@@ -87,6 +87,10 @@
           <q>Il faut passer tout le parc à la dernière version</q>
           <p>Branchez les terminaux, choisissez le paquet du fabricant ou votre dossier de paquets : chacun reçoit le bon, en même temps, après vérification du modèle, de la version et de la batterie. Au retour, la nouvelle version est contrôlée et les applications du client réinstallées ; le bilan part dans Excel.<span class="where">Mise à jour OS</span></p>
         </div>
+        <div class="case">
+          <q>Le terminal revient d'un wipe, il faut tout remettre comme avant</q>
+          <p>Capturez un terminal de référence déjà configuré pour le client : applis, autorisations, réglages, langue, heure, Wi-Fi, lanceur, MDM. Complétez ce qui ne se récupère pas, puis réinjectez-le sur un ou plusieurs terminaux. Chacun est analysé avant l'envoi, et le bilan dit ce qui a été remis en place ou non.<span class="where">Master</span></p>
+        </div>
       </div>
     </div>
   </section>
@@ -140,12 +144,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>Mise à jour OS <span class="new">Nouveau en 1.5</span></h3>
+          <h3>Mise à jour OS</h3>
           <ul>
             <li>Plusieurs terminaux en même temps, chacun avec sa progression.</li>
             <li>Par câble, copie dans la mémoire du terminal ou fastboot.</li>
             <li>Modèle, version et batterie vérifiés avant l'envoi ; bon paquet choisi pour chaque modèle.</li>
             <li>Contrôle de la version au retour, applis installées, bilan Excel.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Master <span class="new">Nouveau en 1.6</span></h3>
+          <ul>
+            <li>Remise en état après un wipe : capture d'un terminal de référence, ou Master créé à la main.</li>
+            <li>Applis, réglages en clair, langue et heure, Wi-Fi, lanceur, MDM, fichiers DataWedge.</li>
+            <li>Chaque terminal analysé avant l'envoi, choix par appli selon sa version.</li>
+            <li>Bilan de ce qui a été remis en place ou non, export Excel.</li>
           </ul>
         </div>
         <div class="group">
@@ -177,7 +190,8 @@
       <h2>En images</h2>
       <p class="intro">Captures en thème sombre, sur des Zebra TC58 et TC53. Numéros de série et réseau masqués. Cliquez pour agrandir.</p>
       <div class="shots">
-        <figure class="lead"><a href="assets/captures/mise-a-jour-os.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/mise-a-jour-os.webp" alt="Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées." width="1934" height="1038" decoding="async"></a><figcaption>Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées.</figcaption></figure>
+        <figure class="lead"><a href="assets/captures/master.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/master.webp" alt="Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi." width="1919" height="1030" decoding="async"></a><figcaption>Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi.</figcaption></figure>
+        <figure><a href="assets/captures/mise-a-jour-os.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/mise-a-jour-os.webp" alt="Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées.</figcaption></figure>
         <figure><a href="assets/captures/analyse-fichiers.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/analyse-fichiers.webp" alt="Analyse de fichiers : un relevé RxLogger de 2,2 millions de lignes, la frise par sujet et les outils d'enquête." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Analyse de fichiers : un relevé RxLogger de 2,2 millions de lignes, la frise par sujet et les outils d'enquête.</figcaption></figure>
         <figure><a href="assets/captures/dashboard.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/dashboard.webp" alt="Tableau de bord du terminal et commandes ADB." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Tableau de bord du terminal et commandes ADB.</figcaption></figure>
         <figure><a href="assets/captures/mirroring.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/mirroring.webp" alt="Mirroring : l'écran du terminal sur le PC, avec enregistrement vidéo et filigrane." width="1905" height="999" loading="lazy" decoding="async"></a><figcaption>Mirroring : l'écran du terminal sur le PC, avec enregistrement vidéo et filigrane.</figcaption></figure>
