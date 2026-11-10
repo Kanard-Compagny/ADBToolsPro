@@ -1242,6 +1242,12 @@
                                         <TextBlock Text="Mise à jour OS" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
                                     </StackPanel>
                                 </Button>
+                                <Button x:Name="BtnNavMaster" Click="NavMaster_Click" Style="{StaticResource MenuButtonStyle}" ToolTip="Master : remettre des terminaux en état après un wipe (applis, réglages, Wi-Fi, fichiers…)">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🧰" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Master" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
+                                    </StackPanel>
+                                </Button>
 
                             </StackPanel>
                         </ScrollViewer>
@@ -4305,6 +4311,111 @@
                                         <Button x:Name="BtnMassOsStop" Content="⏹ Arrêter les attentes" Click="BtnMassOsStop_Click" Style="{StaticResource OutlineButtonStyle}" Height="36" Padding="14,0" Margin="0,0,8,0" Visibility="Collapsed"
                                                 ToolTip="Arrête l'attente des terminaux qui ne sont pas encore en mode mise à jour. Un envoi déjà commencé n'est jamais interrompu."/>
                                         <Button x:Name="BtnMassOsRun" Content="Mettre à jour" Click="BtnMassOsRun_Click" Style="{StaticResource PrimaryButtonStyle}" Height="36" Padding="18,0" IsEnabled="False"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+                        <!-- Master (menu « Master ») : MainWindow.Master.cs. Capture d'un terminal de référence, puis remise en
+                             état d'un ou plusieurs terminaux après un wipe, avec le détail de ce qui a été remis en place. -->
+                        <TabItem>
+                            <Grid Margin="15,0,15,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid Margin="0,0,0,15">
+                                    <StackPanel Margin="0,0,260,0">
+                                        <TextBlock Text="Master" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                        <TextBlock Text="Remettre des terminaux en état après un wipe : un terminal de référence est capturé (applications, autorisations, réglages, Wi-Fi, fichiers…), puis le Master est réinjecté sur un ou plusieurs terminaux, avec le détail de ce qui a été remis en place ou non." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <Button x:Name="BtnMasterExport" Content="📊 Exporter le bilan (Excel)" Click="BtnMasterExport_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                </Grid>
+
+                                <Border Grid.Row="1" Style="{StaticResource SettingsCardStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="5*"/>
+                                            <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="6*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="CRÉER UN MASTER" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Branchez le terminal de référence, déjà configuré pour le client, puis capturez-le. Rien n'est modifié sur ce terminal." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="10"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox x:Name="CmbMasterSource" Height="32" ToolTip="Terminal de référence"/>
+                                                <Button x:Name="BtnMasterCapture" Grid.Column="2" Content="🧰 Capturer ce terminal" Click="BtnMasterCapture_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="14,0"/>
+                                            </Grid>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="MASTER" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
+                                            <Grid Margin="0,0,0,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="10"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="TxtMasterName" Height="32" VerticalContentAlignment="Center" Tag="Nom du Master (ex. Client Dupont — TC53 entrepôt)" Style="{StaticResource PlaceholderTextBoxStyle}"/>
+                                                <Button x:Name="BtnMasterOpen" Grid.Column="2" Content="📂 Ouvrir…" Click="BtnMasterOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvrir un Master (.adbmaster)"/>
+                                                <Button x:Name="BtnMasterSave" Grid.Column="4" Content="💾 Enregistrer…" Click="BtnMasterSave_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Enregistrer le Master (.adbmaster), par exemple dans le dossier partagé de l'équipe"/>
+                                            </Grid>
+                                            <TextBlock x:Name="TxtMasterInfo" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Text="Aucun Master : capturez un terminal de référence ou ouvrez un Master enregistré."/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="5*"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="6*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Contenu du Master : chaque élément se coche ou non avant d'appliquer. -->
+                                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
+                                        <DockPanel>
+                                            <Grid DockPanel.Dock="Top" Margin="16,12,16,8">
+                                                <TextBlock Text="CONTENU DU MASTER" Style="{StaticResource SettingsGroupLabelStyle}" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button x:Name="BtnMasterAddApk" Content="📦 APK…" Click="BtnMasterAddApk_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Ajouter des applications depuis le PC (ex. agent MDM)"/>
+                                                    <Button x:Name="BtnMasterAddFile" Content="📄 Fichier…" Click="BtnMasterAddFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Ajouter un fichier du PC à déposer sur le terminal (ex. configuration DataWedge .db)"/>
+                                                    <Button x:Name="BtnMasterAddFolder" Content="📁 Dossier du terminal…" Click="BtnMasterAddFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Récupérer un dossier du terminal de référence (ex. /sdcard/Documents/Client)"/>
+                                                    <Button x:Name="BtnMasterAddWifi" Content="📶 Wi-Fi…" Click="BtnMasterAddWifi_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" ToolTip="Ajouter un réseau Wi-Fi à la main"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Line}" Margin="16,0"/>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                <StackPanel x:Name="MasterContent" Margin="16,6,16,12"/>
+                                            </ScrollViewer>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- Terminaux à remettre en état. -->
+                                    <Border Grid.Column="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8">
+                                        <DockPanel>
+                                            <Grid DockPanel.Dock="Top" Margin="16,12,16,8">
+                                                <TextBlock Text="TERMINAUX À REMETTRE EN ÉTAT" Style="{StaticResource SettingsGroupLabelStyle}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Line}" Margin="16,0"/>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                <StackPanel x:Name="MasterTargets" Margin="16,6,16,12"/>
+                                            </ScrollViewer>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Grid Grid.Row="3" Margin="0,12,0,12">
+                                    <TextBlock x:Name="TxtMasterSummary" VerticalAlignment="Center" FontSize="12.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,420,0"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="BtnMasterRefresh" Content="↻ Actualiser" Click="BtnMasterRefresh_Click" Style="{StaticResource OutlineButtonStyle}" Height="36" Padding="14,0" Margin="0,0,8,0"/>
+                                        <Button x:Name="BtnMasterApply" Content="Appliquer le Master" Click="BtnMasterApply_Click" Style="{StaticResource PrimaryButtonStyle}" Height="36" Padding="18,0" IsEnabled="False"/>
                                     </StackPanel>
                                 </Grid>
                             </Grid>

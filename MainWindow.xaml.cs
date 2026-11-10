@@ -515,7 +515,7 @@ namespace ADBToolsNew
         private void UpdateNavButtonsUI(Button activeBtn)
         {
             // Liste complète de tous les boutons du menu latéral (BtnNavLibrary ajouté à la fin)
-            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavOsUpdate, BtnNavSettings };
+            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavOsUpdate, BtnNavMaster, BtnNavSettings };
 
             foreach (var btn in navBtns)
             {
@@ -554,6 +554,9 @@ namespace ADBToolsNew
 
             // 5. Mise à jour OS (un ou plusieurs terminaux)
             if (_massOsBusy) AnimateNavButton(BtnNavOsUpdate, true);
+
+            // 6. Master (capture ou remise en état)
+            if (_masterBusy) AnimateNavButton(BtnNavMaster, true);
         }
 
         private void NavDashboard_Click(object sender, RoutedEventArgs e)
