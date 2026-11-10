@@ -210,6 +210,47 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void AppOrigin_SystemVendorStoreMdmManual()
+        {
+            const string d = "Packages:\n  Package [net.soti.mobicontrol.androidwork] (abc):\n    versionCode=262201001 minSdk=26\n    versionName=2026.2.0\n" +
+                             "    codePath=/data/app/~~x/net.soti-1\n    pkgFlags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ]\n    installerPackageName=com.android.shell\n";
+            var info = MasterProfile.ParsePackageInfo(d);
+            Assert.AreEqual("com.android.shell", info.Installer);
+            Assert.AreEqual("2026.2.0", info.VersionName);
+            Assert.AreEqual("manual", MasterProfile.AppOrigin(info.Flags, info.Installer, "net.soti.mobicontrol.androidwork", info.CodePath));
+            Assert.AreEqual("mdm", MasterProfile.AppOrigin("", "net.soti.mobicontrol.androidwork", "hardis.com.wagonandroid", "/data/app/x"));
+            Assert.AreEqual("vendor", MasterProfile.AppOrigin("", "", "com.zebra.oemconfig.release", "/data/app/x"));
+            Assert.AreEqual("vendor", MasterProfile.AppOrigin("", "com.android.vending", "com.google.android.safetycore", "/data/app/x"));
+            Assert.AreEqual("store", MasterProfile.AppOrigin("", "com.android.vending", "com.whatsapp", "/data/app/x"));
+            Assert.AreEqual("system", MasterProfile.AppOrigin(" SYSTEM HAS_CODE UPDATED_SYSTEM_APP ", "", "com.x", "/data/app/x"));
+            Assert.AreEqual("system", MasterProfile.AppOrigin("", "", "com.x", "/product/app/X"));
+            Assert.AreEqual("", MasterProfile.ParsePackageInfo("installerPackageName=null").Installer);
+        }
+
+        [TestMethod]
+        public void CompareVersionCodes_Numeric()
+        {
+            Assert.IsTrue(MasterProfile.CompareVersionCodes("86", "262201001") < 0);
+            Assert.IsTrue(MasterProfile.CompareVersionCodes("262201002", "262201001") > 0);
+            Assert.AreEqual(0, MasterProfile.CompareVersionCodes("5", "5"));
+            Assert.AreEqual(0, MasterProfile.CompareVersionCodes("", "5"));
+        }
+
+        [TestMethod]
+        public void Normalize_Format2_UnchecksVendorApps()
+        {
+            var m = new MasterProfile { FormatVersion = 2 };
+            m.Apps.Add(new MasterApp { Package = "com.zebra.oemconfig.release", Files = { "a" } });
+            m.Apps.Add(new MasterApp { Package = "hardis.com.wagonandroid", Files = { "b" } });
+            m.Settings.Add(new MasterSetting { Namespace = "secure", Key = "qs_auto_tiles", Value = "x", Include = true });
+            m.Normalize();
+            Assert.IsFalse(m.Apps[0].Include);
+            Assert.IsTrue(m.Apps[1].Include);
+            Assert.IsTrue(m.Settings[0].Include);   // réglages déjà remis au propre au format 2 : intouchés
+            Assert.AreEqual(MasterProfile.CurrentFormat, m.FormatVersion);
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));

@@ -46,6 +46,13 @@ namespace ADBToolsNew
             public ProgressBar Bar;
             public TextBox TxtDetail;
             public Button BtnDetail;
+            // Analyse avant l'envoi : applis installées (paquet → versionCode) et choix du technicien (paquet → install / skip / downgrade).
+            public readonly Dictionary<string, string> Installed = new Dictionary<string, string>();
+            public readonly Dictionary<string, string> AppChoice = new Dictionary<string, string>();
+            public MasterProfile AnalyzedMaster;
+            public bool Analyzing;
+            public bool ShowingResults;
+            public StackPanel PlanPanel;
         }
 
         private const int MasterTabIndex = 13;
@@ -127,7 +134,12 @@ namespace ADBToolsNew
             foreach (var w in new[] { new GridLength(30), new GridLength(170), new GridLength(1, GridUnitType.Star), new GridLength(80) })
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = w });
             t.Check = new CheckBox { Style = (Style)FindResource("ModernCheckBoxStyle"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0), IsChecked = false };
-            t.Check.Checked += (s, a) => UpdateMasterApplyButton();
+            t.Check.Checked += (s, a) =>
+            {
+                UpdateMasterApplyButton();
+                // Terminal coché : on regarde tout de suite ce qu'il contient déjà, pour choisir avant l'envoi.
+                if (_master != null && !_masterBusy && t.AnalyzedMaster != _master) _ = AnalyzeMasterTargetAsync(t);
+            };
             t.Check.Unchecked += (s, a) => UpdateMasterApplyButton();
             g.Children.Add(t.Check);
 
@@ -148,15 +160,20 @@ namespace ADBToolsNew
 
             t.BtnDetail = new Button { Content = Loc.T("Détail ▾"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
             t.TxtDetail = new TextBox { IsReadOnly = true, FontFamily = new System.Windows.Media.FontFamily("Consolas"), FontSize = 11.5, MaxHeight = 260, Margin = new Thickness(30, 8, 0, 0), TextWrapping = TextWrapping.NoWrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, Visibility = Visibility.Collapsed };
+            t.PlanPanel = new StackPanel { Margin = new Thickness(30, 8, 0, 0), Visibility = Visibility.Collapsed };
             t.BtnDetail.Click += (s, a) =>
             {
-                bool show = t.TxtDetail.Visibility != Visibility.Visible;
-                t.TxtDetail.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-                t.BtnDetail.Content = show ? Loc.T("Détail ▴") : Loc.T("Détail ▾");
+                // Avant l'envoi : choix par appli ; après : bilan détaillé.
+                var panel = t.ShowingResults ? (FrameworkElement)t.TxtDetail : t.PlanPanel;
+                bool show = panel.Visibility != Visibility.Visible;
+                panel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                string word = t.ShowingResults ? Loc.T("Détail") : Loc.T("Applis");
+                t.BtnDetail.Content = word + (show ? " ▴" : " ▾");
             };
             Grid.SetColumn(t.BtnDetail, 3); g.Children.Add(t.BtnDetail);
 
             box.Children.Add(g);
+            box.Children.Add(t.PlanPanel);
             box.Children.Add(t.TxtDetail);
             MasterTargets.Children.Add(box);
         }
@@ -173,6 +190,141 @@ namespace ADBToolsNew
             BtnMasterAddFolder.IsEnabled = BtnMasterAddFolder.IsEnabled && CmbMasterSource.Items.Count > 0;
             BtnMasterOpen.IsEnabled = !_masterBusy;
             BtnMasterNew.IsEnabled = !_masterBusy;
+        }
+
+        // ------------------------------------------------------------------ Analyse des terminaux cibles (avant l'envoi)
+
+        /// <summary>Situation d'une appli du Master sur un terminal cible : absent, older, same, newer, present (version inconnue).</summary>
+        private static string MasterAppSituation(MasterTarget t, MasterApp a)
+        {
+            if (!t.Installed.TryGetValue(a.Package, out var have)) return "absent";
+            if (have.Length == 0 || a.VersionCode.Length == 0) return "present";
+            int c = MasterProfile.CompareVersionCodes(have, a.VersionCode);
+            return c < 0 ? "older" : c > 0 ? "newer" : "same";
+        }
+
+        /// <summary>Choix pour une appli : install, skip ou downgrade (choix du technicien, sinon choix par défaut selon la situation).</summary>
+        private static string MasterAppChoice(MasterTarget t, MasterApp a)
+        {
+            if (t.AppChoice.TryGetValue(a.Package, out var c)) return c;
+            switch (MasterAppSituation(t, a))
+            {
+                case "same":
+                case "newer": return "skip";
+                default: return "install";
+            }
+        }
+
+        /// <summary>Analyse un terminal coché : applis déjà installées et leurs versions, modèle et Android comparés au Master.</summary>
+        private async Task AnalyzeMasterTargetAsync(MasterTarget t)
+        {
+            var m = _master;
+            if (m == null || t.Analyzing) return;
+            t.Analyzing = true;
+            MasterStatus(t, Loc.T("Analyse du terminal…"), "Muted");
+            try
+            {
+                var res = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm list packages --show-versioncode", TimeSpan.FromSeconds(30));
+                var list = MasterProfile.ParsePackagesWithVersion(res.StandardOutput);
+                if (list.Count == 0) list = MasterProfile.ParsePackagesWithVersion((await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm list packages", TimeSpan.FromSeconds(30))).StandardOutput);
+                t.Installed.Clear();
+                foreach (var p in list) t.Installed[p.Key] = p.Value;
+                t.AnalyzedMaster = m;
+                ShowMasterTargetPlan(t);
+            }
+            catch (Exception ex)
+            {
+                MasterStatus(t, Loc.F("Analyse impossible : {0}", ex.Message), "BadFg");
+            }
+            finally { t.Analyzing = false; }
+        }
+
+        /// <summary>Résumé de l'analyse et liste des applis avec, pour chacune, le choix à faire.</summary>
+        private void ShowMasterTargetPlan(MasterTarget t)
+        {
+            var m = _master;
+            if (m == null || t.AnalyzedMaster != m) return;
+            var apps = m.Apps.Where(a => a.Include && a.Files.Count > 0).ToList();
+            int install = apps.Count(a => MasterAppSituation(t, a) == "absent"), update = apps.Count(a => MasterAppSituation(t, a) == "older"),
+                same = apps.Count(a => MasterAppSituation(t, a) == "same"), newer = apps.Count(a => MasterAppSituation(t, a) == "newer");
+            var notes = new List<string>();
+            if (m.SourceModel.Length > 0 && t.Model.Length > 0 && !string.Equals(m.SourceModel, t.Model, StringComparison.OrdinalIgnoreCase))
+                notes.Add(Loc.F("modèle différent du terminal de référence ({0})", m.SourceModel));
+            if (m.SourceAndroid.Length > 0 && t.Android.Length > 0 && m.SourceAndroid.Split('.')[0] != t.Android.Split('.')[0])
+                notes.Add(Loc.F("Android {0} ici, {1} sur le terminal de référence", t.Android, m.SourceAndroid));
+            string text = apps.Count == 0 ? Loc.T("Analysé : aucune appli à installer")
+                : Loc.F("Analysé : {0} à installer, {1} à mettre à jour, {2} déjà à jour", install, update, same)
+                  + (newer > 0 ? Loc.F(", {0} plus récente(s) sur ce terminal", newer) : "");
+            if (notes.Count > 0) text += " · ⚠ " + string.Join(" · ", notes);
+            MasterStatus(t, (newer > 0 || notes.Count > 0 ? "⚠ " : "✅ ") + text, newer > 0 || notes.Count > 0 ? "WarnFg" : "OkFg");
+
+            t.PlanPanel.Children.Clear();
+            if (newer > 0)
+                t.PlanPanel.Children.Add(MasterMutedText(Loc.T("Une version plus récente est déjà sur ce terminal : elle est gardée par défaut. Installer la version du Master (plus ancienne) peut être refusé par Android ou faire perdre les données de l'appli."), 11.5));
+            foreach (var a in apps)
+            {
+                string sit = MasterAppSituation(t, a);
+                t.Installed.TryGetValue(a.Package, out var have);
+                string known = MasterProfile.KnownAppName(a.Package);
+                var g = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
+                var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), ToolTip = a.Package };
+                var label = new TextBlock { Text = known.Length > 0 ? known : a.Package, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
+                label.SetResourceReference(TextBlock.ForegroundProperty, sit == "newer" ? "WarnFg" : "Ink");
+                names.Children.Add(label);
+                string master = a.VersionCode.Length > 0 ? "v" + a.VersionCode : "";
+                names.Children.Add(MasterSub(
+                    sit == "absent" ? Loc.T("absente de ce terminal")
+                    : sit == "older" ? Loc.F("v{0} sur ce terminal, {1} dans le Master", have, master)
+                    : sit == "same" ? Loc.F("déjà installée dans la même version ({0})", master)
+                    : sit == "newer" ? Loc.F("v{0} sur ce terminal, plus récente que le Master ({1})", have, master)
+                    : Loc.T("déjà installée (version non lue)")));
+                g.Children.Add(names);
+
+                var options = new List<(string Value, string Label)>();
+                switch (sit)
+                {
+                    case "absent": options.Add(("install", Loc.T("Installer"))); options.Add(("skip", Loc.T("Ne pas installer"))); break;
+                    case "older": options.Add(("install", Loc.T("Mettre à jour"))); options.Add(("skip", Loc.T("Garder la version du terminal"))); break;
+                    case "same": options.Add(("skip", Loc.T("Ignorer (déjà à jour)"))); options.Add(("install", Loc.T("Réinstaller quand même"))); break;
+                    case "newer": options.Add(("skip", Loc.T("Garder la version du terminal (conseillé)"))); options.Add(("downgrade", Loc.T("Installer la version du Master (plus ancienne)"))); break;
+                    default: options.Add(("install", Loc.T("Réinstaller"))); options.Add(("skip", Loc.T("Ne pas installer"))); break;
+                }
+                var cmb = new ComboBox { Height = 26, FontSize = 11.5, VerticalContentAlignment = VerticalAlignment.Center };
+                string current = MasterAppChoice(t, a);
+                foreach (var o in options)
+                {
+                    var it = new ComboBoxItem { Content = o.Label, Tag = o.Value };
+                    cmb.Items.Add(it);
+                    if (o.Value == current) cmb.SelectedItem = it;
+                }
+                if (cmb.SelectedItem == null) cmb.SelectedIndex = 0;
+                var app = a;
+                cmb.SelectionChanged += (s, e) => t.AppChoice[app.Package] = (cmb.SelectedItem as ComboBoxItem)?.Tag as string ?? "skip";
+                Grid.SetColumn(cmb, 1); g.Children.Add(cmb);
+                t.PlanPanel.Children.Add(g);
+            }
+            if (apps.Count == 0) t.PlanPanel.Children.Add(MasterMutedText(Loc.T("Aucune appli cochée dans le Master."), 11.5));
+            t.ShowingResults = false;
+            t.BtnDetail.Content = t.PlanPanel.Visibility == Visibility.Visible ? Loc.T("Applis ▴") : Loc.T("Applis ▾");
+            t.BtnDetail.Visibility = Visibility.Visible;
+            if (newer > 0 && t.PlanPanel.Visibility != Visibility.Visible)
+            {
+                t.PlanPanel.Visibility = Visibility.Visible;
+                t.TxtDetail.Visibility = Visibility.Collapsed;
+                t.BtnDetail.Content = Loc.T("Applis ▴");
+            }
+        }
+
+        /// <summary>Le Master a changé (capture, ouverture, applis cochées…) : les analyses des terminaux cochés sont refaites.</summary>
+        private void RefreshMasterTargetPlans()
+        {
+            foreach (var t in _masterTargets.Where(x => x.Check?.IsChecked == true && !_masterBusy))
+            {
+                if (t.AnalyzedMaster == _master && _master != null) ShowMasterTargetPlan(t);
+                else if (_master != null) _ = AnalyzeMasterTargetAsync(t);
+            }
         }
 
         // ------------------------------------------------------------------ Capture
@@ -231,7 +383,13 @@ namespace ADBToolsNew
                     }
                     var dump = await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys package {p.Key}", TimeSpan.FromSeconds(20));
                     app.Permissions = MasterProfile.ParseGrantedRuntimePermissions(dump.StandardOutput);
-                    app.Include = app.Files.Count > 0;
+                    var info = MasterProfile.ParsePackageInfo(dump.StandardOutput);
+                    app.Installer = info.Installer;
+                    app.VersionName = info.VersionName;
+                    app.Origin = MasterProfile.AppOrigin(info.Flags, info.Installer, p.Key, info.CodePath);
+                    // Applis installées par le MDM ou à la main : cochées. Celles du fabricant, de Google ou du Play Store
+                    // sont déjà sur les terminaux (ou y reviennent seules) : décochées, l'analyse des cibles dira le reste.
+                    app.Include = app.Files.Count > 0 && (app.Origin == "mdm" || app.Origin == "manual");
                     m.Apps.Add(app);
                 }
 
@@ -361,9 +519,19 @@ namespace ADBToolsNew
                 _masterPendingBanner.Text = pending.Count == 0 ? Loc.T("✅ Rien à compléter : le Master est prêt à être appliqué.")
                     : Loc.F("⚠️ À compléter ou à vérifier avant l'envoi : {0}.", string.Join(", ", pending));
                 _masterPendingBanner.SetResourceReference(TextBlock.ForegroundProperty, pending.Count == 0 ? "OkFg" : "WarnFg");
+                if (_masterPendingBanner.Parent is Border box)
+                {
+                    box.SetResourceReference(Border.BackgroundProperty, pending.Count == 0 ? "OkBg" : "WarnBg");
+                    box.SetResourceReference(Border.BorderBrushProperty, pending.Count == 0 ? "OkFg" : "Action");
+                }
             }
+            RefreshMasterTargetPlans();
             if (_masterTabs != null)
-                foreach (RadioButton rb in _masterTabs.Children) rb.Content = MasterTabLabel((string)rb.Tag);
+                foreach (RadioButton rb in _masterTabs.Children)
+                {
+                    rb.Content = MasterTabLabel((string)rb.Tag);
+                    rb.Style = (Style)FindResource(MasterTabAlert((string)rb.Tag) ? "AlertPillStyle" : "SettingsPillStyle");
+                }
         }
 
         /// <summary>Libellé d'un onglet, avec le nombre d'éléments cochés et ⚠ s'il reste quelque chose à compléter.</summary>
@@ -379,6 +547,33 @@ namespace ADBToolsNew
                 case "home": return Loc.T("🏠 Lanceur et MDM");
                 case "files": return Loc.F("📁 Fichiers · {0}", m.Files.Count(x => x.Include));
                 default: return Loc.F("⌨️ Commandes · {0}", m.Commands.Count);
+            }
+        }
+
+        /// <summary>Onglet à mettre en évidence (orange) : quelque chose y reste à compléter.</summary>
+        private bool MasterTabAlert(string view)
+        {
+            if (_master == null) return false;
+            switch (view)
+            {
+                case "wifi": return MasterMissingPasswords() > 0;
+                case "apps": return _master.Apps.Any(a => a.Files.Count == 0);
+                default: return false;
+            }
+        }
+
+        /// <summary>D'où vient l'appli sur le terminal de référence, en clair.</summary>
+        private static string MasterOriginText(MasterApp a)
+        {
+            if (a.FromPc) return Loc.T("ajoutée depuis le PC");
+            switch (a.Origin)
+            {
+                case "system": return Loc.T("appli système du terminal (mise à jour)");
+                case "vendor": return Loc.T("livrée avec le terminal (fabricant ou Google)");
+                case "store": return Loc.T("installée par le Play Store");
+                case "mdm": return Loc.F("installée par le MDM{0}", MasterProfile.KnownAppName(a.Installer) is string n && n.Length > 0 ? " (" + n + ")" : "");
+                case "manual": return Loc.T("installée à la main (APK, ADB)");
+                default: return "";
             }
         }
 
@@ -410,14 +605,14 @@ namespace ADBToolsNew
                 : Loc.T("Master créé à la main.");
 
             // En-tête fixe (hors défilement) : bandeau, onglets, puis sous-en-tête propre à l'onglet (thèmes des réglages…).
-            _masterPendingBanner = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 10) };
-            MasterHeader.Children.Add(_masterPendingBanner);
+            _masterPendingBanner = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 12.5, TextWrapping = TextWrapping.Wrap };
+            MasterHeader.Children.Add(new Border { Child = _masterPendingBanner, BorderThickness = new Thickness(4, 0, 0, 0), CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 4, 0, 10) });
             if (!MasterViews.Contains(_masterView))
                 _masterView = m.Steps.Any() ? "steps" : m.SourceModel.Length == 0 ? "settings" : "apps";
             _masterTabs = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
             foreach (var v in MasterViews)
             {
-                var rb = new RadioButton { GroupName = "MasterView", Tag = v, Content = MasterTabLabel(v), Style = (Style)FindResource("SettingsPillStyle"), IsChecked = v == _masterView };
+                var rb = new RadioButton { GroupName = "MasterView", Tag = v, Content = MasterTabLabel(v), Style = (Style)FindResource(MasterTabAlert(v) ? "AlertPillStyle" : "SettingsPillStyle"), IsChecked = v == _masterView };
                 rb.Checked += (s, a) =>
                 {
                     SyncMasterFromUi();
@@ -474,15 +669,16 @@ namespace ADBToolsNew
 
                 case "apps":
                     AddMasterSection(Loc.T("📦 Applications à réinstaller"),
-                        Loc.T("Réinstallées avec leurs autorisations. Les données internes des applis ne sont pas copiées (rôle du MDM)."),
+                        Loc.T("Seules les applis installées par le MDM ou à la main sont cochées : celles livrées avec le terminal y sont déjà. Avant l'envoi, chaque terminal coché est analysé : une appli déjà présente dans la même version est ignorée, et vous choisissez quoi faire quand sa version est différente. Les données internes des applis ne sont pas copiées (rôle du MDM)."),
                         m.Apps.Select(a =>
                         {
                             string known = MasterProfile.KnownAppName(a.Package);
                             return new MasterRow
                             {
                                 Label = known.Length > 0 ? known : a.Package,
-                                Sub = (known.Length > 0 ? a.Package : "") + (a.FromPc ? (known.Length > 0 ? " · " : "") + Loc.T("depuis le PC") : "")
-                                    + (a.VersionCode.Length > 0 ? " · v" + a.VersionCode : "") + (a.Permissions.Count > 0 ? Loc.F(" · {0} autorisation(s)", a.Permissions.Count) : ""),
+                                Sub = string.Join(" · ", new[] { MasterOriginText(a), known.Length > 0 ? a.Package : "",
+                                        a.VersionName.Length > 0 ? "v" + a.VersionName : a.VersionCode.Length > 0 ? "v" + a.VersionCode : "",
+                                        a.Permissions.Count > 0 ? Loc.F("{0} autorisation(s)", a.Permissions.Count) : "" }.Where(x => x.Length > 0)),
                                 Get = () => a.Include, Set = v => { a.Include = v; RefreshMasterPending(); },
                                 Locked = a.Files.Count == 0,
                                 Warn = () => a.Files.Count == 0 ? Loc.T("APK non récupéré : ajoutez-le depuis le PC") : "",
@@ -1112,8 +1308,16 @@ namespace ADBToolsNew
             extra.Children.Add(sec);
             if (type == "wpa2" || type == "wpa3")
             {
-                var pwd = new TextBox { Text = w.Password, Width = 170, Height = 28, Margin = new Thickness(6, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center, Tag = Loc.T("Mot de passe"), Style = (Style)FindResource("PlaceholderTextBoxStyle") };
-                pwd.TextChanged += (s, a) => { w.Password = pwd.Text; RefreshMasterPending(); };
+                var pwd = new TextBox { Text = w.Password, Width = 170, Height = 28, Margin = new Thickness(6, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center, Tag = Loc.T("Mot de passe à saisir"), Style = (Style)FindResource("PlaceholderTextBoxStyle") };
+                // Mot de passe manquant : champ encadré d'orange, pour qu'on le voie tout de suite.
+                void Mark()
+                {
+                    bool missing = w.Include && string.IsNullOrEmpty(pwd.Text);
+                    if (missing) { pwd.SetResourceReference(Control.BorderBrushProperty, "Action"); pwd.BorderThickness = new Thickness(2); }
+                    else { pwd.ClearValue(Control.BorderBrushProperty); pwd.ClearValue(Control.BorderThicknessProperty); }
+                }
+                pwd.TextChanged += (s, a) => { w.Password = pwd.Text; Mark(); RefreshMasterPending(); };
+                Mark();
                 extra.Children.Add(pwd);
             }
             else
@@ -1513,6 +1717,8 @@ namespace ADBToolsNew
             t.Bar.Value = 0;
             t.BtnDetail.Visibility = Visibility.Collapsed;
             t.TxtDetail.Visibility = Visibility.Collapsed;
+            t.PlanPanel.Visibility = Visibility.Collapsed;
+            if (t.AnalyzedMaster != m) await AnalyzeMasterTargetAsync(t);
             var apps = m.Apps.Where(a => a.Include && a.Files.Count > 0).ToList();
             int total = apps.Count + 6 + m.Files.Count(f => f.Include) + m.Commands.Count, step = 0;
             void Advance() => t.Bar.Value = Math.Min(100, ++step * 100.0 / Math.Max(1, total));
@@ -1523,9 +1729,22 @@ namespace ADBToolsNew
                 // 1. Applications (avant les autorisations, qui en dépendent).
                 foreach (var a in apps)
                 {
+                    // Choix fait à l'analyse : déjà à jour ou plus récente sur le terminal → gardée ; sinon installée.
+                    string choice = MasterAppChoice(t, a), sit = MasterAppSituation(t, a);
+                    t.Installed.TryGetValue(a.Package, out var have);
+                    if (choice == "skip")
+                    {
+                        MasterAdd(t, catApps, a.Package, sit == "same" || sit == "newer" ? "same" : "skip",
+                            sit == "same" ? Loc.T("déjà installée dans cette version")
+                            : sit == "newer" ? Loc.F("version plus récente gardée (v{0})", have)
+                            : sit == "older" ? Loc.F("version du terminal gardée (v{0}), au choix", have)
+                            : Loc.T("non installée, au choix"));
+                        Advance();
+                        continue;
+                    }
                     MasterStatus(t, Loc.F("Installation de {0}…", a.Package));
                     var files = a.Files.Select(f => AdbManager.QuoteLocalArg(Path.Combine(_masterDir, f.Replace('/', Path.DirectorySeparatorChar)))).ToList();
-                    var res = await _adbManager.ExecuteAsync($"-s {t.Serial} {(files.Count > 1 ? "install-multiple" : "install")} -r {string.Join(" ", files)}", TimeSpan.FromMinutes(5));
+                    var res = await _adbManager.ExecuteAsync($"-s {t.Serial} {(files.Count > 1 ? "install-multiple" : "install")} -r{(choice == "downgrade" ? " -d" : "")} {string.Join(" ", files)}", TimeSpan.FromMinutes(5));
                     string outp = (res.StandardOutput ?? "") + (res.StandardError ?? "");
                     if (outp.Contains("Success")) MasterAdd(t, catApps, a.Package, "ok", a.VersionCode.Length > 0 ? "v" + a.VersionCode : "");
                     else MasterAdd(t, catApps, a.Package, "ko", ExplainInstallFailure(outp));
@@ -1665,7 +1884,11 @@ namespace ADBToolsNew
             if (t.Outcome != "ok") t.Bar.Visibility = Visibility.Collapsed;
             MasterStatus(t, (t.Outcome == "ok" ? "✅ " : t.Outcome == "warn" ? "⚠️ " : "❌ ") + t.Message, t.Outcome == "ok" ? "OkFg" : t.Outcome == "warn" ? "WarnFg" : "BadFg");
             t.TxtDetail.Text = MasterDetailText(t);
+            t.ShowingResults = true;
+            t.PlanPanel.Visibility = Visibility.Collapsed;
+            t.BtnDetail.Content = Loc.T("Détail ▾");
             t.BtnDetail.Visibility = Visibility.Visible;
+            t.AnalyzedMaster = null;   // l'état du terminal a changé : nouvelle analyse au prochain coup
             t.Check.IsEnabled = true;
             AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🧰 {t.Serial}{(t.Model.Length > 0 ? " (" + t.Model + ")" : "")} : {t.Message}");
         }

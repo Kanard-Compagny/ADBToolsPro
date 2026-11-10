@@ -28,7 +28,7 @@ namespace ADBToolsNew.Core
         public string Notes { get; set; } = "";
         /// <summary>Version du format : les Masters plus anciens sont remis au propre à l'ouverture (voir Normalize).</summary>
         public int FormatVersion { get; set; }
-        public const int CurrentFormat = 2;
+        public const int CurrentFormat = 3;
 
         public List<MasterApp> Apps { get; set; } = new List<MasterApp>();
         public List<MasterItem> DisabledApps { get; set; } = new List<MasterItem>();
@@ -94,13 +94,60 @@ namespace ADBToolsNew.Core
         public void Normalize()
         {
             if (FormatVersion >= CurrentFormat) return;
-            Settings.RemoveAll(st => IsDeviceSpecificSetting(st.Key));
-            foreach (var st in Settings)
-                if (MasterSettingsCatalog.Find(st.Namespace, st.Key) == null) st.Include = false;
-            WifiNetworks = MergeWifi(WifiNetworks);
-            Steps.RemoveAll(st => st.Title.Contains("(com.google.work)") || st.Title.Contains("android-for-work"));
+            if (FormatVersion < 2)
+            {
+                Settings.RemoveAll(st => IsDeviceSpecificSetting(st.Key));
+                foreach (var st in Settings)
+                    if (MasterSettingsCatalog.Find(st.Namespace, st.Key) == null) st.Include = false;
+                WifiNetworks = MergeWifi(WifiNetworks);
+                Steps.RemoveAll(st => st.Title.Contains("(com.google.work)") || st.Title.Contains("android-for-work"));
+            }
+            if (FormatVersion < 3)
+            {
+                // Origine des applis inconnue avant le format 3 : celles du fabricant ou de Google, déjà présentes sur les terminaux, sont décochées.
+                foreach (var a in Apps.Where(x => !x.FromPc && x.Origin.Length == 0))
+                {
+                    a.Origin = AppOrigin("", "", a.Package, "/data/app/");
+                    if (a.Origin == "vendor") a.Include = false;
+                }
+            }
             FormatVersion = CurrentFormat;
         }
+
+        // Applis livrées avec les terminaux (fabricant, Google) : déjà présentes, à ne réinstaller qu'en connaissance de cause.
+        private static readonly Regex VendorPackage = new Regex(
+            @"^(com\.zebra\.|com\.symbol\.|com\.motorolasolutions\.|com\.honeywell\.|com\.intermec\.|com\.datalogic\.|com\.cipherlab\.|com\.urovo\.|com\.newland\.|" +
+            @"com\.sec\.|com\.samsung\.|com\.google\.android\.(safetycore|verifier|apps\.|gms|gsf|webview|trichromelibrary|tts|inputmethod|googlequicksearchbox|marvin|projection)|com\.google\.ar\.core$|com\.android\.)",
+            RegexOptions.Compiled);
+        private static readonly Regex MdmInstaller = new Regex(@"soti|airwatch|intune|companyportal|mobileiron|ivanti|jamf|miradore|hexnode|stagenow|mdna|clyd|42gears|scalefusion|knox|managedprovisioning|esper", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Origine d'une appli : system (appli système mise à jour), vendor (livrée par le fabricant ou Google), store (Play Store),
+        /// mdm (installée par le MDM), manual (installée à la main : ADB, fichier APK).
+        /// </summary>
+        public static string AppOrigin(string pkgFlags, string installer, string package, string codePath)
+        {
+            installer = installer ?? "";
+            if (Regex.IsMatch(pkgFlags ?? "", @"\bSYSTEM\b|UPDATED_SYSTEM_APP") || ((codePath ?? "").Length > 0 && !(codePath ?? "").StartsWith("/data/"))) return "system";
+            if (MdmInstaller.IsMatch(installer)) return "mdm";
+            if (VendorPackage.IsMatch(package ?? "")) return "vendor";
+            if (installer == "com.android.vending" || installer == "com.google.android.feedback") return "store";
+            return "manual";
+        }
+
+        /// <summary>« dumpsys package &lt;paquet&gt; » → indicateurs, installeur, chemin et nom de version.</summary>
+        public static (string Flags, string Installer, string CodePath, string VersionName) ParsePackageInfo(string dumpsys)
+        {
+            string d = dumpsys ?? "";
+            string Get(string rx) { var m = Regex.Match(d, rx); return m.Success ? m.Groups[1].Value.Trim() : ""; }
+            string installer = Get(@"installerPackageName=(\S+)");
+            if (installer == "null") installer = "";
+            return (Get(@"pkgFlags=\[([^\]]*)\]") + " " + Get(@"\bprivateFlags=\[([^\]]*)\]"), installer, Get(@"codePath=(\S+)"), Get(@"versionName=(\S+)"));
+        }
+
+        /// <summary>Compare deux versionCode (nombres) : négatif si a &lt; b, 0 si égaux ou non comparables.</summary>
+        public static int CompareVersionCodes(string a, string b) =>
+            long.TryParse((a ?? "").Trim(), out var x) && long.TryParse((b ?? "").Trim(), out var y) ? x.CompareTo(y) : 0;
 
         /// <summary>Compte créé automatiquement par le MDM (Google Play d'entreprise…) : rien à refaire à la main.</summary>
         public static bool IsMdmManagedAccount(string name, string type) =>
@@ -301,6 +348,10 @@ namespace ADBToolsNew.Core
         public List<string> Permissions { get; set; } = new List<string>();
         /// <summary>Ajoutée depuis le PC (pas capturée sur le terminal de référence).</summary>
         public bool FromPc { get; set; }
+        /// <summary>Origine sur le terminal de référence : system, vendor, store, mdm, manual (voir MasterProfile.AppOrigin).</summary>
+        public string Origin { get; set; } = "";
+        public string Installer { get; set; } = "";
+        public string VersionName { get; set; } = "";
         public bool Include { get; set; } = true;
     }
 

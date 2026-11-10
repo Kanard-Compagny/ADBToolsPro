@@ -767,6 +767,28 @@
             </Setter>
         </Style>
 
+        <!-- Pastille d'onglet « à compléter » : bordure orange, pleine quand elle est choisie -->
+        <Style x:Key="AlertPillStyle" TargetType="RadioButton" BasedOn="{StaticResource SettingsPillStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Action}" BorderThickness="2" CornerRadius="15" Padding="12,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WarnBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Action}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnAction}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Lien texte (« Ouvrir le dossier des données ») -->
         <Style x:Key="SettingsLinkStyle" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource BrandText}"/>
