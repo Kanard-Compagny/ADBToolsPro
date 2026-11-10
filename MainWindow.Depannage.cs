@@ -141,11 +141,6 @@ namespace ADBToolsNew
             if (!busy && MainTabControl.SelectedIndex == DepannageTabIndex) UpdateNavButtonsUI(BtnNavDepannage);
         }
 
-        private static void OpenUrl(string url)
-        {
-            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
-        }
-
         private void RenderDepannage()
         {
             DepContent.Children.Clear();
@@ -605,7 +600,7 @@ namespace ADBToolsNew
             DepContent.Children.Add(DepHeading(Loc.T("Réinitialiser un terminal sans débogage USB")));
             DepContent.Children.Add(DepSteps(new[]
             {
-                Loc.T("Téléchargez le paquet de réinitialisation du fabricant pour ce modèle (site de support : ex. Factory Reset ou Enterprise Reset chez Zebra)."),
+                Loc.T("Munissez-vous du paquet de réinitialisation fourni par le fabricant pour ce modèle (ex. Factory Reset ou Enterprise Reset chez Zebra)."),
                 Loc.T("Entrez en recovery avec la combinaison de touches du modèle."),
                 Loc.T("Choisissez « Apply update from ADB » (ou « Apply upgrade from ADB »), branchez le câble, actualisez cette page."),
                 Loc.T("« Envoyer un paquet… » : le terminal applique le paquet puis revient au menu ; choisissez « Reboot system now »."),
@@ -643,7 +638,7 @@ namespace ADBToolsNew
         private async Task RenderDepKeysAsync()
         {
             DepContent.Children.Add(DepTitle(Loc.T("⌨️ Combinaisons de touches")));
-            DepContent.Children.Add(DepText(Loc.T("Pour entrer en recovery ou en bootloader (fastboot) sans débogage USB. Elles varient d'un modèle à l'autre : la liste indique la source, et vous pouvez ajouter les vôtres.")));
+            DepContent.Children.Add(DepText(Loc.T("Pour entrer en recovery ou en bootloader (fastboot) sans débogage USB. Tout est enregistré dans le programme : la page fonctionne sans connexion. Chaque procédure indique d'où elle vient, et vous pouvez ajouter les vôtres.")));
             var all = RecoveryKeyGuide.LoadUser(DepUserKeysPath).Concat(RecoveryKeyGuide.BuiltIn).ToList();
 
             // Marque et modèle : ceux du terminal branché si possible.
@@ -662,13 +657,17 @@ namespace ADBToolsNew
             if (_depView != "keys") return;
 
             var row = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
-            var cmbBrand = new ComboBox { Width = 200, Height = 30, IsEditable = true, Margin = new Thickness(0, 0, 8, 6), ToolTip = Loc.T("Marque") };
-            foreach (var b in all.Select(e => e.Brand).Concat(new[] { "Honeywell", "Datalogic", "Zebra", "Samsung", "Google" }).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x)) cmbBrand.Items.Add(b);
-            cmbBrand.Text = brand.Length > 0 ? brand : "Zebra";
-            var txtModel = new TextBox { Width = 200, Height = 30, VerticalContentAlignment = VerticalAlignment.Center, Text = model, Tag = Loc.T("Modèle (ex. TC53)"), Style = (Style)FindResource("PlaceholderTextBoxStyle"), Margin = new Thickness(0, 0, 8, 6) };
+            var cmbBrand = new ComboBox { Width = 220, Height = 30, Margin = new Thickness(0, 0, 8, 6), ToolTip = Loc.T("Marque") };
+            cmbBrand.Items.Add(new ComboBoxItem { Content = Loc.T("Toutes les marques"), Tag = "" });
+            foreach (var b in RecoveryKeyGuide.Brands(all))
+            {
+                var it = new ComboBoxItem { Content = Loc.T(b), Tag = b };
+                cmbBrand.Items.Add(it);
+                if (brand.Length > 0 && (b.Equals(brand, StringComparison.OrdinalIgnoreCase) || b.StartsWith(brand + " ", StringComparison.OrdinalIgnoreCase))) cmbBrand.SelectedItem = it;
+            }
+            if (cmbBrand.SelectedItem == null) cmbBrand.SelectedIndex = 0;
+            var txtModel = new TextBox { Width = 220, Height = 30, VerticalContentAlignment = VerticalAlignment.Center, Text = model, Tag = Loc.T("Modèle (ex. TC53, MC3300, CT45)"), Style = (Style)FindResource("PlaceholderTextBoxStyle"), Margin = new Thickness(0, 0, 8, 6) };
             row.Children.Add(cmbBrand); row.Children.Add(txtModel);
-            row.Children.Add(DepButton(Loc.T("🔎 Chercher sur le web"), () =>
-                OpenUrl("https://www.google.com/search?q=" + Uri.EscapeDataString($"{cmbBrand.Text} {txtModel.Text} recovery mode"))));
             row.Children.Add(DepButton(Loc.T("✏️ Ajouter mes combinaisons"), () =>
             {
                 try
@@ -680,31 +679,35 @@ namespace ADBToolsNew
             }, Loc.F("Fichier {0}, à côté du programme : jamais remplacé par les mises à jour. Rouvrez cette page après l'avoir enregistré.", RecoveryKeyGuide.UserFileName)));
             DepContent.Children.Add(row);
             if (brand.Length > 0) DepContent.Children.Add(DepText(Loc.F("Terminal branché : {0} {1}.", brand, model)));
+            var count = DepText("");
+            DepContent.Children.Add(count);
 
             var list = new StackPanel();
             DepContent.Children.Add(list);
             void Fill()
             {
                 list.Children.Clear();
-                var found = RecoveryKeyGuide.Find(all, cmbBrand.Text, txtModel.Text);
+                string b = (cmbBrand.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                var found = RecoveryKeyGuide.Find(all, b, txtModel.Text);
+                count.Text = txtModel.Text.Trim().Length > 0 && !found.Any(e => e.Models.Trim() != "*")
+                    ? Loc.T("Pas de procédure enregistrée pour ce modèle précis : voici celles de la marque et les plus courantes.")
+                    : Loc.F("{0} procédure(s).", found.Count);
                 foreach (var e in found)
                 {
-                    string where = (e.Brand + (e.Models.Trim() == "*" ? "" : " · " + e.Models)).Trim();
+                    string where = (Loc.T(e.Brand) + (e.Models.Trim() == "*" ? "" : " · " + e.Models.Replace("*", "…"))).Trim();
                     string mode = e.Mode == "fastboot" ? Loc.T("Bootloader (fastboot)") : Loc.T("Recovery");
-                    var card = DepCard(e.Verified ? "ok" : "info", $"{mode} — {where}", "");
+                    var card = DepCard(e.Verified || e.Custom ? "ok" : "info", $"{mode} — {where}", "");
                     var p = (StackPanel)card.Child;
                     p.Children.Add(DepSteps(e.Steps.Select(Loc.T)));
-                    p.Children.Add(DepText(e.Custom ? Loc.T("Ajoutée par vous.") : e.Verified ? Loc.T("Vérifiée dans la documentation du fabricant pour ces modèles.") : Loc.T("Générale ou non vérifiée pour ce modèle : à confirmer.")));
-                    if (e.Source.StartsWith("http"))
-                    {
-                        string src = e.Source;
-                        p.Children.Add(DepButtons(DepButton(Loc.T("Voir la source"), () => OpenUrl(src), src)));
-                    }
+                    p.Children.Add(DepText(
+                        e.Custom ? Loc.T("Ajoutée par vous.") + (e.Source.Length > 0 ? " " + Loc.F("Origine : {0}.", e.Source) : "")
+                        : e.Verified ? Loc.F("Documentation du fabricant : {0}.", Loc.T(e.Source))
+                        : e.Source.Length > 0 ? Loc.F("Source tierce, à confirmer sur votre modèle : {0}.", Loc.T(e.Source))
+                        : Loc.T("Procédure usuelle pour cette marque, non vérifiée modèle par modèle."), true, 11.5));
                     list.Children.Add(card);
                 }
             }
-            cmbBrand.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, a) => Fill()));
-            cmbBrand.SelectionChanged += (s, a) => Dispatcher.BeginInvoke(new Action(Fill));
+            cmbBrand.SelectionChanged += (s, a) => Fill();
             txtModel.TextChanged += (s, a) => Fill();
             Fill();
         }

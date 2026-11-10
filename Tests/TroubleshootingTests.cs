@@ -59,12 +59,44 @@ namespace ADBToolsNew.Tests
         {
             var r = RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "Zebra Technologies", "WS50");
             Assert.AreEqual("WS50*", r[0].Models);
+            Assert.AreEqual("recovery", r[0].Mode);
             Assert.IsTrue(r.Last().Brand.StartsWith("Android"));
             Assert.IsFalse(r.Any(e => e.Models.StartsWith("ET4")));
             Assert.AreEqual("Zebra", RecoveryKeyGuide.NormalizeBrand("Symbol Technologies"));
+            Assert.AreEqual("Zebra", RecoveryKeyGuide.NormalizeBrand("Motorola Solutions"));
+            Assert.AreEqual("Motorola", RecoveryKeyGuide.NormalizeBrand("motorola"));
             Assert.AreEqual("Honeywell", RecoveryKeyGuide.NormalizeBrand("Intermec"));
             var h = RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "Honeywell", "CT45");
-            Assert.IsTrue(h.All(e => e.Brand.StartsWith("Android")));   // rien de vérifié : génériques seulement
+            Assert.AreEqual("CT45*, CT60*", h[0].Models);
+            Assert.IsFalse(h[0].Verified);   // source tierce, signalée comme telle
+        }
+
+        [TestMethod]
+        public void Find_ModelAlone_FindsItsBrand_WithoutOtherBrandsFallbacks()
+        {
+            // Sans marque (aucun terminal branché) : « MC3300 » suffit à trouver la procédure Zebra.
+            var r = RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "", "MC3300");
+            Assert.AreEqual("MC33*", r[0].Models);
+            Assert.IsFalse(r.Any(e => e.Brand == "Honeywell" || e.Brand == "Samsung"));
+            Assert.IsTrue(r.Any(e => e.Brand == "Zebra" && e.Models == "*"));
+            // TC53, TC58, TC21, TC72 : touche PTT.
+            foreach (var m in new[] { "TC53", "TC58", "TC21", "TC72", "TC57x", "EC50" })
+                StringAssert.Contains(string.Join(" ", RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "Zebra", m)[0].Steps), "PTT", m);
+            // Ni marque ni modèle : tout le catalogue.
+            Assert.AreEqual(RecoveryKeyGuide.BuiltIn.Count, RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "", "").Count);
+            Assert.IsTrue(RecoveryKeyGuide.Find(RecoveryKeyGuide.BuiltIn, "Honor", "").Any(e => e.Brand.StartsWith("Huawei")));
+            CollectionAssert.Contains(RecoveryKeyGuide.Brands(RecoveryKeyGuide.BuiltIn), "Datalogic");
+        }
+
+        [TestMethod]
+        public void Catalog_WorksOffline_NoWebLink()
+        {
+            foreach (var e in RecoveryKeyGuide.BuiltIn)
+            {
+                Assert.IsFalse(e.Source.Contains("http") || e.Source.Contains("www."), e.Brand + " " + e.Models);
+                Assert.IsTrue(e.Steps.Count > 0 && e.Steps.All(s => !s.Contains("http") && s.IndexOf("sur le web", System.StringComparison.OrdinalIgnoreCase) < 0), e.Brand + " " + e.Models);
+                if (e.Verified) Assert.IsTrue(e.Source.Length > 0, e.Brand + " " + e.Models);
+            }
         }
 
         [TestMethod]

@@ -127,6 +127,7 @@ namespace ADBToolsNew.Core
         /// <summary>recovery, fastboot.</summary>
         public string Mode { get; set; } = "recovery";
         public List<string> Steps { get; set; } = new List<string>();
+        /// <summary>Origine de la procédure, en clair (nom du document), jamais un lien : la page fonctionne hors connexion.</summary>
         public string Source { get; set; } = "";
         /// <summary>Vrai si la procédure vient de la documentation du fabricant pour ces modèles.</summary>
         public bool Verified { get; set; }
@@ -143,32 +144,132 @@ namespace ADBToolsNew.Core
     {
         public const string UserFileName = "combinaisons-touches.json";
 
+        // Origine des procédures (affichée telle quelle, sans lien : la page fonctionne hors connexion).
+        private const string SrcZebra = "Zebra, article d'assistance « Performing a factory reset » et guides de référence des modèles";
+        private const string SrcZebraMc33 = "Zebra, article d'assistance « Enter Android Recovery for Pistol Grip and Brick MC33 devices »";
+        private const string SrcHoneywell = "BIAS Technology (réparateur), d'après les guides utilisateur Honeywell";
+        private const string SrcDatalogicKb = "Datalogic, base de connaissances (Memor 10)";
+        private const string SrcDatalogicManual = "Datalogic, manuel utilisateur du Memor 20";
+        private const string SrcDatalogicForum = "Datalogic, forum d'assistance";
+        private const string SrcGoogle = "Google, aide Pixel";
+        private const string SrcSamsung = "Opérateur AT&T (assistance XCover) et presse spécialisée Samsung";
+
+        private const string NavVolume = "Dans le menu : Volume + / − pour se déplacer, Marche pour valider.";
+
+        /// <summary>Zebra : « Redémarrer » puis maintenir une touche (tableau de l'article d'assistance Zebra).</summary>
+        private static RecoveryKeyEntry Zebra(string models, string key, string offVariant = null, string note = null)
+        {
+            var e = new RecoveryKeyEntry { Brand = "Zebra", Models = models, Mode = "recovery", Verified = true, Source = SrcZebra };
+            e.Steps.Add("Maintenir Marche jusqu'au menu, puis toucher « Redémarrer ».");
+            e.Steps.Add("Pendant le redémarrage, maintenir " + key + " jusqu'à la vibration ou au logo Zebra : l'écran Android Recovery s'affiche.");
+            if (offVariant != null) e.Steps.Add(offVariant);
+            e.Steps.Add(note ?? NavVolume);
+            return e;
+        }
+
+        private static RecoveryKeyEntry Usual(string brand, string mode, params string[] steps) =>
+            new RecoveryKeyEntry { Brand = brand, Models = "*", Mode = mode, Verified = false, Steps = steps.ToList() };
+
         public static readonly List<RecoveryKeyEntry> BuiltIn = new List<RecoveryKeyEntry>
         {
-            new RecoveryKeyEntry { Brand = "Zebra", Models = "ET40*, ET45*", Mode = "recovery", Verified = true,
-                Source = "https://docs.zebra.com/us/en/tablets/et4-series/bm-et401-product-reference-guide-ditamap/c-application-deployment/c-android-development-tools/c-adb-usb-setup/t-et40-45-entering-android-recovery-manually.html",
-                Steps = { "Maintenir Marche jusqu'au menu, puis toucher « Redémarrer ».", "Au redémarrage, maintenir Volume + et Marche jusqu'au logo Zebra.", "Relâcher Marche en gardant Volume + jusqu'à l'écran System Recovery." } },
-            new RecoveryKeyEntry { Brand = "Zebra", Models = "WS50*", Mode = "recovery", Verified = true,
-                Source = "https://docs.zebra.com/us/en/mobile-computers/wearable/ws50/ws50-ws50rfid-prg/application-deployment/adb-usb-setup/entering-android-recovery-manually.html",
-                Steps = { "Brancher le câble USB avant de commencer.", "Maintenir Marche jusqu'au menu, puis toucher « Redémarrer ».", "Maintenir la touche Retour jusqu'au logo Zebra, puis la relâcher : l'écran System Recovery s'affiche." } },
-            new RecoveryKeyEntry { Brand = "Zebra", Models = "WS50*", Mode = "fastboot", Verified = true,
-                Source = "https://docs.zebra.com/us/en/mobile-computers/wearable/ws50/ws50-ws50rfid-prg/application-deployment/adb-usb-setup/entering-android-recovery-manually.html",
+            // ---------------------------------------------------------------- Zebra (documentation Zebra)
+            Zebra("TC20*, TC21*, TC22*, TC25*, TC26*, TC27*, TC5*, TC7*, EC50*", "la touche PTT (bouton latéral)",
+                "Terminal éteint : maintenir PTT et Marche jusqu'au logo Zebra."),
+            new RecoveryKeyEntry { Brand = "Zebra", Models = "MC33*", Mode = "recovery", Verified = true, Source = SrcZebraMc33,
+                Steps = { "Modèle pistolet : redémarrer en maintenant la gâchette ; la relâcher au logo Zebra.",
+                          "Modèle droit (brique) : redémarrer en maintenant la touche de lecture droite ; la relâcher au logo Zebra.",
+                          "Terminal éteint : maintenir la gâchette (ou la touche de lecture droite), puis Marche ; relâcher les deux au logo Zebra.",
+                          NavVolume } },
+            Zebra("MC22*, MC27*", "la touche P1"),
+            Zebra("MC93*, MC94*", "la gâchette"),
+            Zebra("ET40*, ET45*, ET51*, ET56*, KC50*", "Volume +", "Sur ET40 / ET45 : maintenir Volume + et Marche jusqu'au logo, puis relâcher Marche en gardant Volume +."),
+            Zebra("ET60*, ET65*", "la touche PTT (ou P3 selon la version du guide Zebra)"),
+            Zebra("L10*", "la touche Rotation d'écran (Android 8) ou Volume + (Android 10)"),
+            Zebra("CC600*, CC6000*", "la touche 1"),
+            Zebra("WT6000*, WT63*, WT64*", "la touche P1"),
+            Zebra("VC80*", "la touche +"),
+            Zebra("VC83*", "la touche bleue (modèle 10 pouces : touche bleue et Luminosité +)"),
+            new RecoveryKeyEntry { Brand = "Zebra", Models = "WS50*", Mode = "recovery", Verified = true, Source = SrcZebra,
+                Steps = { "Brancher le câble USB avant de commencer.", "Maintenir Marche jusqu'au menu, puis toucher « Redémarrer ».",
+                          "Maintenir la touche Retour (bouton gauche) jusqu'au logo Zebra, puis la relâcher : l'écran System Recovery s'affiche." } },
+            new RecoveryKeyEntry { Brand = "Zebra", Models = "WS50*", Mode = "fastboot", Verified = true, Source = SrcZebra,
                 Steps = { "Brancher le câble USB, puis redémarrer le terminal.", "Au redémarrage, appuyer sur la gâchette de lecture : mode Fastboot." } },
-            new RecoveryKeyEntry { Brand = "Zebra", Models = "*", Mode = "recovery", Verified = false,
-                Source = "https://docs.zebra.com",
-                Steps = { "Avec le débogage USB : bouton « Redémarrer en recovery » ci-dessus (adb reboot recovery), c'est la méthode de la documentation Zebra.", "Sans débogage USB : chaque modèle a sa procédure, dans son guide de référence (Product Reference Guide), chapitre « Entering Android Recovery Manually » : en général redémarrer puis maintenir une touche (Volume +, PTT ou Retour selon le modèle) jusqu'au logo Zebra." } },
-            new RecoveryKeyEntry { Brand = "Datalogic", Models = "Joya Touch A6*", Mode = "recovery", Verified = true,
-                Source = "https://discussion.datalogic.com/t/recovery-mode-on-joya-touch-a6/1250",
-                Steps = { "Éteindre le terminal.", "Appuyer sur la touche Marche (au dos) avec un trombone métallique, puis aussitôt sur la touche de lecture (dans les 0,2 à 0,3 s).", "Dans le menu Recovery : faire défiler au toucher, valider avec la touche de lecture." } },
-            new RecoveryKeyEntry { Brand = "Samsung", Models = "*", Mode = "recovery", Verified = true,
-                Source = "https://www.att.com/device-support/article/145684/samsung/xcover7-pro/",
-                Steps = { "Éteindre le terminal (Marche + Volume −, puis « Éteindre »).", "Maintenir Volume + et Marche jusqu'à l'allumage de l'écran." } },
-            new RecoveryKeyEntry { Brand = "Google", Models = "Pixel*", Mode = "fastboot", Verified = false,
-                Steps = { "Terminal éteint : maintenir Marche et Volume − : écran du bootloader (fastboot).", "Pour la recovery : choisir « Recovery mode » avec les touches de volume, valider avec Marche." } },
-            new RecoveryKeyEntry { Brand = "Android (générique)", Models = "*", Mode = "recovery", Verified = false,
-                Steps = { "Combinaison la plus courante : terminal éteint, maintenir Volume + et Marche jusqu'au logo.", "À confirmer pour chaque modèle : cherchez « marque modèle recovery mode » sur le web." } },
-            new RecoveryKeyEntry { Brand = "Android (générique)", Models = "*", Mode = "fastboot", Verified = false,
-                Steps = { "Combinaison la plus courante : terminal éteint, maintenir Volume − et Marche.", "Beaucoup de terminaux professionnels n'ouvrent pas le fastboot (bootloader verrouillé) : passez alors par la recovery." } },
+            new RecoveryKeyEntry { Brand = "Zebra", Models = "PS20*", Mode = "recovery", Verified = true, Source = SrcZebra,
+                Steps = { "Insérer l'outil de redémarrage Zebra (KT-MC18-REBOOT-05) dans le connecteur d'alimentation.",
+                          "Maintenir la touche de lecture jusqu'à l'extinction de l'écran et au redémarrage : l'écran Android Recovery s'affiche." } },
+            Usual("Zebra", "recovery",
+                "Autres modèles Zebra : toucher « Redémarrer », puis maintenir la touche du modèle jusqu'au logo : PTT sur les terminaux tactiles, la gâchette sur les pistolets, Volume + sur les tablettes.",
+                "Avec le débogage USB actif : « Redémarrer en recovery » (page Recovery) fait la même chose sans touche.",
+                NavVolume),
+
+            // ---------------------------------------------------------------- Honeywell (source tierce)
+            new RecoveryKeyEntry { Brand = "Honeywell", Models = "CT45*, CT60*", Mode = "recovery", Source = SrcHoneywell,
+                Steps = { "Maintenir Marche, puis choisir « Éteindre ».", "Terminal éteint : maintenir Volume −, puis appuyer sur Marche en gardant Volume −.",
+                          "Relâcher Marche quand l'écran s'allume : le menu Recovery Mode s'affiche.",
+                          "Volume + / − pour choisir (ex. « Full Factory Reset »), Marche pour valider." } },
+            new RecoveryKeyEntry { Brand = "Honeywell", Models = "CN80*, EDA52*", Mode = "recovery", Source = SrcHoneywell,
+                Steps = { "Maintenir Marche, puis choisir « Éteindre ».", "Terminal éteint : maintenir Volume −, puis appuyer sur Marche en gardant Volume − : le bootloader s'affiche.",
+                          "Choisir « Recovery ».", "Dans la recovery, maintenir Volume − environ 10 secondes pour afficher toutes les options.", NavVolume } },
+            new RecoveryKeyEntry { Brand = "Honeywell", Models = "CK65*", Mode = "recovery", Source = SrcHoneywell,
+                Steps = { "Maintenir Marche, puis choisir « Éteindre ».", "Rallumer avec Marche.",
+                          "À l'écran de démarrage Honeywell, appuyer en même temps sur Marche et la touche Shift verte ; relâcher quand le menu Recovery Mode s'affiche.",
+                          "Touches Shift verte et orange pour choisir, Marche pour valider." } },
+            Usual("Honeywell", "recovery",
+                "Autres modèles Honeywell (famille Mobility Edge : CT40, CT47, EDA…) : terminal éteint, maintenir Volume −, puis appuyer sur Marche en gardant Volume −.",
+                "Selon le modèle, le menu Recovery Mode s'affiche directement, ou un bootloader où choisir « Recovery ».",
+                NavVolume),
+
+            // ---------------------------------------------------------------- Datalogic
+            new RecoveryKeyEntry { Brand = "Datalogic", Models = "Memor 10*", Mode = "recovery", Verified = true, Source = SrcDatalogicKb,
+                Steps = { "Éteindre le terminal (maintenir Marche).", "Maintenir Marche et Volume + jusqu'au menu de démarrage.",
+                          "Avec Volume + / −, choisir « Recovery Mode », valider avec Marche.", NavVolume } },
+            new RecoveryKeyEntry { Brand = "Datalogic", Models = "Memor 20*", Mode = "recovery", Verified = true, Source = SrcDatalogicManual,
+                Steps = { "Éteindre le terminal.", "Maintenir Marche et Volume + ; relâcher quand l'écran Recovery Mode s'affiche.", NavVolume } },
+            new RecoveryKeyEntry { Brand = "Datalogic", Models = "Joya Touch A6*", Mode = "recovery", Verified = true, Source = SrcDatalogicForum,
+                Steps = { "Éteindre le terminal.", "Appuyer sur la touche Marche (au dos) avec un trombone métallique, puis aussitôt sur la touche de lecture (dans les 0,2 à 0,3 s).",
+                          "Dans le menu Recovery : faire défiler au toucher, valider avec la touche de lecture." } },
+            Usual("Datalogic", "recovery",
+                "Autres modèles Datalogic (Memor 11, Skorpio X5…) : terminal éteint, maintenir Marche et Volume + jusqu'au menu de démarrage ou à la recovery.",
+                NavVolume),
+
+            // ---------------------------------------------------------------- Google Pixel
+            new RecoveryKeyEntry { Brand = "Google", Models = "*", Mode = "recovery", Verified = true, Source = SrcGoogle,
+                Steps = { "Éteindre l'appareil.", "Maintenir Volume − et Marche 10 à 15 secondes, jusqu'au menu (trop longtemps : il redémarre, recommencer).",
+                          "Avec Volume, choisir « Recovery mode », valider avec Marche.",
+                          "Si « No command » s'affiche : maintenir Marche, appuyer une fois sur Volume +, puis relâcher les deux.", NavVolume } },
+            new RecoveryKeyEntry { Brand = "Google", Models = "*", Mode = "fastboot", Verified = true, Source = SrcGoogle,
+                Steps = { "Éteindre l'appareil.", "Maintenir Volume − et Marche : le premier menu affiché est le bootloader (fastboot)." } },
+
+            // ---------------------------------------------------------------- Samsung (source tierce)
+            new RecoveryKeyEntry { Brand = "Samsung", Models = "*", Mode = "recovery", Source = SrcSamsung,
+                Steps = { "Éteindre l'appareil (Marche + Volume −, puis « Éteindre »).",
+                          "Modèles récents (Android 11 et plus) : brancher d'abord le câble USB relié au PC.",
+                          "Maintenir Volume + et Marche (touche latérale) jusqu'à l'allumage de l'écran.",
+                          "Anciens modèles avec touche Accueil ou Bixby : Volume + et Accueil (ou Bixby) et Marche.", NavVolume } },
+
+            // ---------------------------------------------------------------- Autres marques : procédures usuelles
+            Usual("Motorola", "recovery", "Appareil éteint : maintenir Volume − et Marche : le bootloader s'affiche.", "Avec Volume, choisir « Recovery mode », valider avec Marche.",
+                "Si « No command » s'affiche : maintenir Marche et appuyer une fois sur Volume +."),
+            Usual("Xiaomi", "recovery", "Appareil éteint : maintenir Volume + et Marche jusqu'au logo.", NavVolume),
+            Usual("Xiaomi", "fastboot", "Appareil éteint : maintenir Volume − et Marche jusqu'à l'écran Fastboot."),
+            Usual("OnePlus", "recovery", "Appareil éteint : maintenir Volume − et Marche jusqu'au logo.", NavVolume),
+            Usual("OnePlus", "fastboot", "Appareil éteint : maintenir Volume + et Marche."),
+            Usual("Oppo / Realme", "recovery", "Appareil éteint : maintenir Volume − et Marche jusqu'au logo.", NavVolume),
+            Usual("Huawei / Honor", "recovery", "Appareil éteint, câble USB débranché : maintenir Volume + et Marche jusqu'au logo.", NavVolume),
+            Usual("Sony", "recovery", "Appareil éteint : maintenir Volume − et Marche jusqu'à la vibration.", NavVolume),
+            Usual("Nokia", "recovery", "Appareil éteint, chargeur branché : maintenir Volume + et Marche jusqu'au logo.",
+                "Si « No command » s'affiche : maintenir Marche et appuyer une fois sur Volume +."),
+            Usual("Lenovo", "recovery", "Appareil éteint : maintenir Volume + et Marche jusqu'au logo.", NavVolume),
+
+            // ---------------------------------------------------------------- Toutes marques
+            Usual("Android (toutes marques)", "recovery",
+                "Combinaison la plus courante : appareil éteint, maintenir Volume + et Marche jusqu'au logo.",
+                "Si elle ne donne rien : Volume − et Marche (ouvre souvent un bootloader où choisir « Recovery »).",
+                "Si « No command » s'affiche : maintenir Marche et appuyer une fois sur Volume +.",
+                NavVolume),
+            Usual("Android (toutes marques)", "fastboot",
+                "Combinaison la plus courante : appareil éteint, maintenir Volume − et Marche.",
+                "Beaucoup de terminaux professionnels n'ouvrent pas le fastboot (bootloader verrouillé) : passez alors par la recovery."),
         };
 
         /// <summary>« ET4* » correspond à « ET45 » ; « * » à tout ; comparaison sans casse ni espaces superflus.</summary>
@@ -188,28 +289,50 @@ namespace ADBToolsNew.Core
         public static string NormalizeBrand(string manufacturer)
         {
             string m = (manufacturer ?? "").Trim();
-            foreach (var b in new[] { "Zebra", "Honeywell", "Datalogic", "Samsung", "Google", "Motorola", "Sony", "Lenovo", "Xiaomi", "Huawei", "Nokia", "CipherLab", "Urovo", "Newland", "Unitech", "Point Mobile", "Bluebird", "M3" })
-                if (m.StartsWith(b, StringComparison.OrdinalIgnoreCase)) return b;
             if (m.StartsWith("Symbol", StringComparison.OrdinalIgnoreCase) || m.StartsWith("Motorola Solutions", StringComparison.OrdinalIgnoreCase)) return "Zebra";
             if (m.StartsWith("Intermec", StringComparison.OrdinalIgnoreCase)) return "Honeywell";
+            if (m.StartsWith("Honor", StringComparison.OrdinalIgnoreCase)) return "Huawei";
+            if (m.StartsWith("Realme", StringComparison.OrdinalIgnoreCase)) return "Oppo";
+            if (m.StartsWith("HMD", StringComparison.OrdinalIgnoreCase)) return "Nokia";
+            foreach (var b in new[] { "Zebra", "Honeywell", "Datalogic", "Samsung", "Google", "Motorola", "Sony", "Lenovo", "Xiaomi", "Huawei", "Nokia", "OnePlus", "Oppo", "CipherLab", "Urovo", "Newland", "Unitech", "Point Mobile", "Bluebird", "M3" })
+                if (m.StartsWith(b, StringComparison.OrdinalIgnoreCase)) return b;
             return m;
         }
 
+        private static bool IsGeneric(RecoveryKeyEntry e) => e.Brand.StartsWith("Android", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>
-        /// Combinaisons pour une marque et un modèle : celles de l'utilisateur d'abord, puis les plus précises (modèle nommé),
-        /// puis celles de la marque, puis les génériques.
+        /// Combinaisons pour une marque et un modèle (l'un et l'autre facultatifs). Sans marque ni modèle : tout le catalogue.
+        /// Avec un modèle : seules les procédures de ce modèle, celles « tous modèles » de sa marque et les génériques.
+        /// Ordre : celles de l'utilisateur, puis les plus précises (modèle nommé), puis la marque, puis les génériques.
         /// </summary>
         public static List<RecoveryKeyEntry> Find(IEnumerable<RecoveryKeyEntry> all, string brand, string model)
         {
             brand = NormalizeBrand(brand);
-            return all.Where(e => (brand.Length == 0 || e.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase) || e.Brand.StartsWith("Android", StringComparison.OrdinalIgnoreCase))
-                                  && (e.Models.Trim() == "*" || ModelMatches(e.Models, model)))
-                      .OrderBy(e => e.Brand.StartsWith("Android", StringComparison.OrdinalIgnoreCase) ? 2 : 0)
-                      .ThenBy(e => e.Custom ? 0 : 1)
-                      .ThenBy(e => e.Models.Trim() == "*" ? 1 : 0)
-                      .ThenBy(e => e.Mode)
-                      .ToList();
+            model = (model ?? "").Trim();
+            var list = all.ToList();
+            bool BrandOk(RecoveryKeyEntry e) => brand.Length == 0 || e.Brand.Equals(brand, StringComparison.OrdinalIgnoreCase)
+                                                || e.Brand.StartsWith(brand + " ", StringComparison.OrdinalIgnoreCase) || IsGeneric(e);
+            IEnumerable<RecoveryKeyEntry> r;
+            if (model.Length == 0) r = list.Where(BrandOk);
+            else
+            {
+                // Modèle nommé trouvé : on n'affiche pas les « tous modèles » des autres marques.
+                var precise = list.Where(e => e.Models.Trim() != "*" && BrandOk(e) && ModelMatches(e.Models, model)).ToList();
+                var brands = new HashSet<string>(precise.Select(e => e.Brand), StringComparer.OrdinalIgnoreCase);
+                r = precise.Concat(list.Where(e => e.Models.Trim() == "*" && BrandOk(e) && (IsGeneric(e) || brand.Length > 0 || brands.Contains(e.Brand))));
+            }
+            return r.OrderBy(e => IsGeneric(e) ? 2 : 0)
+                    .ThenBy(e => e.Brand, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(e => e.Custom ? 0 : 1)
+                    .ThenBy(e => e.Models.Trim() == "*" ? 1 : 0)
+                    .ThenBy(e => e.Mode == "recovery" ? 0 : 1)
+                    .ToList();
         }
+
+        /// <summary>Marques du catalogue, dans l'ordre alphabétique (génériques exclues).</summary>
+        public static List<string> Brands(IEnumerable<RecoveryKeyEntry> all) =>
+            all.Where(e => !IsGeneric(e)).Select(e => e.Brand).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
 
         /// <summary>Fichier de l'utilisateur (liste JSON de RecoveryKeyEntry), à côté du programme.</summary>
         public static List<RecoveryKeyEntry> LoadUser(string path)
@@ -227,7 +350,7 @@ namespace ADBToolsNew.Core
         /// <summary>Modèle de fichier pour que l'utilisateur ajoute ses combinaisons.</summary>
         public static string UserTemplate() => JsonSerializer.Serialize(new List<RecoveryKeyEntry>
         {
-            new RecoveryKeyEntry { Brand = "Honeywell", Models = "CT45*, CT47*", Mode = "recovery", Source = "https://…",
+            new RecoveryKeyEntry { Brand = "Honeywell", Models = "CT45*, CT47*", Mode = "recovery", Source = "Guide utilisateur du modèle",
                 Steps = { "Exemple : première étape", "Exemple : deuxième étape" } },
         }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
