@@ -26,6 +26,9 @@ namespace ADBToolsNew.Core
         public string SourceAndroid { get; set; } = "";
         public string SourceBuild { get; set; } = "";
         public string Notes { get; set; } = "";
+        /// <summary>Version du format : les Masters plus anciens sont remis au propre à l'ouverture (voir Normalize).</summary>
+        public int FormatVersion { get; set; }
+        public const int CurrentFormat = 2;
 
         public List<MasterApp> Apps { get; set; } = new List<MasterApp>();
         public List<MasterItem> DisabledApps { get; set; } = new List<MasterItem>();
@@ -77,9 +80,31 @@ namespace ADBToolsNew.Core
             }
             string manifest = Path.Combine(workDir, ManifestName);
             if (!File.Exists(manifest)) throw new InvalidDataException(Loc.T("Ce fichier n'est pas un Master ADB Tools (master.xml absent)."));
+            MasterProfile m;
             using (var fs = File.OpenRead(manifest))
-                return (MasterProfile)new XmlSerializer(typeof(MasterProfile)).Deserialize(fs);
+                m = (MasterProfile)new XmlSerializer(typeof(MasterProfile)).Deserialize(fs);
+            m.Normalize();
+            return m;
         }
+
+        /// <summary>
+        /// Remet au propre un Master d'un format antérieur : réglages techniques propres au terminal retirés, réglages hors
+        /// catalogue décochés, réseaux Wi-Fi en double fusionnés, comptes créés par le MDM retirés des étapes manuelles.
+        /// </summary>
+        public void Normalize()
+        {
+            if (FormatVersion >= CurrentFormat) return;
+            Settings.RemoveAll(st => IsDeviceSpecificSetting(st.Key));
+            foreach (var st in Settings)
+                if (MasterSettingsCatalog.Find(st.Namespace, st.Key) == null) st.Include = false;
+            WifiNetworks = MergeWifi(WifiNetworks);
+            Steps.RemoveAll(st => st.Title.Contains("(com.google.work)") || st.Title.Contains("android-for-work"));
+            FormatVersion = CurrentFormat;
+        }
+
+        /// <summary>Compte créé automatiquement par le MDM (Google Play d'entreprise…) : rien à refaire à la main.</summary>
+        public static bool IsMdmManagedAccount(string name, string type) =>
+            (type ?? "") == "com.google.work" || (name ?? "").Contains("android-for-work");
 
         // ------------------------------------------------------------------ Lecture du terminal (fonctions pures, testables)
 
@@ -96,7 +121,13 @@ namespace ADBToolsNew.Core
             @"adb_enabled|adb_wifi_enabled|development_settings_enabled|install_non_market_apps|" +
             @"lock_screen_owner_info.*|.*_timestamp.*|.*last_.*|.*_uuid|.*_serial.*|.*_mac_address.*|" +
             @"wifi_networks_available_notification_on_.*|bugreport_in_power_menu|enabled_input_methods_for_.*|" +
-            @"ble_scan_.*|.*_count|.*_counter|setup_wizard_.*|.*dropbox.*|.*_version)$",
+            @"ble_scan_.*|.*_count|.*_counter|setup_wizard_.*|.*dropbox.*|.*_version|" +
+            // Données techniques du système ou de Google, propres au terminal ou recalculées par Android :
+            @"database_creation_buildid|.*_url|.*_uri|config_update_certificate|pubkey_blacklist|serial_blacklist|.*phenotype.*|" +
+            @"rfid_.*|display_default_.*|smart_docking_.*|smart_default_density_values|xternal_display_.*|.*_state_flag|.*_tracker_flag|" +
+            @"managed_provisioning_.*|.*trust_agents_initialized|pai_selection_page_complete|user_setup_personalization_state|migrated_.*|" +
+            @"nas_settings_updated|zen_mode_config_etag|theft_.*|device_owner_type|setup_skipped|setup_type|init_.*|.*_constants|" +
+            @"wear_.*|clockwork_.*|.*_package|paired_device_.*|play_determined_.*|.*_cache|.*_sound|android_wear_.*|tethered_config_state)$",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public static bool IsDeviceSpecificSetting(string key) => DeviceSpecificSetting.IsMatch(key ?? "");
@@ -139,18 +170,34 @@ namespace ADBToolsNew.Core
             {
                 var m = Regex.Match(raw, @"^\s*(\d+)\s+(.+?)\s{2,}(\S+)\s*$");
                 if (!m.Success) continue;
-                list.Add(new MasterWifi { Ssid = m.Groups[2].Value.Trim(), Security = m.Groups[3].Value.Trim(), Include = true });
+                list.Add(new MasterWifi { Ssid = m.Groups[2].Value.Trim(), Security = m.Groups[3].Value.Trim().TrimEnd('^'), Include = true });
             }
-            return list;
+            return MergeWifi(list);
         }
+
+        /// <summary>Un même réseau listé plusieurs fois (WPA2 et WPA3 en mode transition) → une seule ligne, un seul mot de passe.</summary>
+        public static List<MasterWifi> MergeWifi(List<MasterWifi> networks) =>
+            (networks ?? new List<MasterWifi>()).GroupBy(w => w.Ssid).Select(g =>
+            {
+                var first = g.First();
+                return new MasterWifi
+                {
+                    Ssid = g.Key,
+                    Security = string.Join("/", g.Select(w => (w.Security ?? "").TrimEnd('^')).Where(x => x.Length > 0).Distinct()),
+                    Password = g.Select(w => w.Password).FirstOrDefault(p => !string.IsNullOrEmpty(p)) ?? "",
+                    Include = g.Any(w => w.Include),
+                };
+            }).ToList();
 
         /// <summary>Type attendu par « cmd wifi connect-network » (open, wpa2, wpa3), ou vide si non réinjectable (WEP, entreprise).</summary>
         public static string WifiConnectType(string security)
         {
             string s = (security ?? "").ToLowerInvariant();
             if (s.Contains("eap") || s.Contains("802") || s.Contains("wep") || s.Contains("enterprise")) return "";
+            // WPA2 d'abord : un réseau en mode transition (wpa2-psk/wpa3-sae) accepte la connexion WPA2.
+            if (s.Contains("psk") || s.Contains("wpa2")) return "wpa2";
             if (s.Contains("sae") || s.Contains("wpa3")) return "wpa3";
-            if (s.Contains("psk") || s.Contains("wpa")) return "wpa2";
+            if (s.Contains("wpa")) return "wpa2";
             if (s.Contains("open") || s.Contains("none") || s.Length == 0) return "open";
             return "";
         }
@@ -209,6 +256,29 @@ namespace ADBToolsNew.Core
                 case "settings": return "am start -a android.settings.SETTINGS";
                 default: return "";
             }
+        }
+
+        private static readonly Dictionary<string, string> KnownApps = new Dictionary<string, string>
+        {
+            { "net.soti.mobicontrol.androidwork", "SOTI MobiControl" }, { "net.soti.settingsmanager", "SOTI Settings Manager" },
+            { "net.soti.mobicontrol.elm", "SOTI MobiControl" }, { "net.soti.surf", "SOTI Surf" }, { "net.soti.hub", "SOTI Hub" },
+            { "com.zebra.oemconfig.release", "Zebra OEMConfig" }, { "com.zebra.oemconfig.common", "Zebra OEMConfig" },
+            { "com.symbol.datawedge", "DataWedge" }, { "com.symbol.mxmf.csp.enterprisekeyboard", "Zebra Enterprise Keyboard" },
+            { "com.zebra.mdna.enterprisebrowser", "Zebra Enterprise Browser" }, { "com.zebra.devicediagnostics", "Zebra Device Diagnostics" },
+            { "com.honeywell.oemconfig", "Honeywell OEMConfig" }, { "com.datalogic.settings", "Datalogic Settings" },
+            { "com.google.android.safetycore", "Android System SafetyCore" }, { "com.google.android.verifier", "Google Play Protect (vérification)" },
+            { "com.google.ar.core", "Services Google Play pour la RA" }, { "com.android.chrome", "Chrome" },
+            { "com.microsoft.teams", "Microsoft Teams" }, { "com.microsoft.emmx", "Microsoft Edge" }, { "com.microsoft.windowsintune.companyportal", "Portail d'entreprise Intune" },
+            { "com.android.launcher3", "Lanceur Android standard" }, { "com.zebra.mdna.els", "Zebra Enterprise Home Screen" },
+            { "com.airwatch.androidagent", "Workspace ONE Intelligent Hub" }, { "com.google.android.inputmethod.latin", "Gboard" },
+            { "com.android.inputmethod.latin", "Clavier Android (AOSP)" }, { "com.android.contacts", "Contacts" },
+        };
+
+        /// <summary>Nom lisible d'une appli connue (« net.soti… » → « SOTI MobiControl »), ou vide.</summary>
+        public static string KnownAppName(string packageOrComponent)
+        {
+            string pkg = (packageOrComponent ?? "").Split('/')[0];
+            return KnownApps.TryGetValue(pkg, out var n) ? Loc.T(n) : "";
         }
 
         /// <summary>Valeur entre apostrophes pour le shell du terminal (« l'écran » → 'l'\''écran').</summary>

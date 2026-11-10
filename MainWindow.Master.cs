@@ -196,7 +196,7 @@ namespace ADBToolsNew
             UpdateMasterApplyButton();
             AnimateNavButton(BtnNavMaster, true);
             string dir = NewMasterWorkDir();
-            var m = new MasterProfile();
+            var m = new MasterProfile { FormatVersion = MasterProfile.CurrentFormat };
             void Step(string text) => TxtMasterSummary.Text = text;
             try
             {
@@ -244,7 +244,8 @@ namespace ADBToolsNew
                     var r = await _adbManager.ExecuteAsync($"-s {serial} shell settings list {ns}", TimeSpan.FromSeconds(20));
                     foreach (var kv in MasterProfile.ParseSettingsList(r.StandardOutput))
                         if (!MasterProfile.IsDeviceSpecificSetting(kv.Key) && kv.Value != "null")
-                            m.Settings.Add(new MasterSetting { Namespace = ns, Key = kv.Key, Value = kv.Value });
+                            // Réglages courants (catalogue) cochés ; réglages techniques gardés mais décochés.
+                            m.Settings.Add(new MasterSetting { Namespace = ns, Key = kv.Key, Value = kv.Value, Include = MasterSettingsCatalog.Find(ns, kv.Key) != null });
                 }
 
                 if (sdk >= 30)
@@ -259,7 +260,7 @@ namespace ADBToolsNew
 
                 // Comptes (Google ou autres) : ils ne se recopient pas par ADB, ils deviennent des étapes à faire à la main.
                 var accounts = MasterProfile.ParseAccounts((await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys account", TimeSpan.FromSeconds(20))).StandardOutput);
-                foreach (var acc in accounts)
+                foreach (var acc in accounts.Where(x => !MasterProfile.IsMdmManagedAccount(x.Key, x.Value)))
                 {
                     bool google = acc.Value == "com.google";
                     m.Steps.Add(new MasterStep
@@ -279,6 +280,7 @@ namespace ADBToolsNew
 
                 _master = m;
                 _masterCmdBox = null;
+                _masterView = "";
                 TxtMasterName.Text = m.Name;
                 RenderMasterContent();
                 Step(Loc.F("Capture terminée : {0} application(s), {1} réglage(s), {2} réseau(x) Wi-Fi, {3} étape(s) à faire à la main. Vérifiez le contenu, complétez-le (mots de passe, éléments non récupérés) puis enregistrez le Master.",
@@ -304,6 +306,7 @@ namespace ADBToolsNew
         private sealed class MasterRow
         {
             public string Label = "";
+            public string Sub = "";            // deuxième ligne discrète (nom technique, version…)
             public Func<bool> Get;
             public Action<bool> Set;
             public Func<string> Warn;          // texte orange « à compléter » (vide = rien)
@@ -313,16 +316,24 @@ namespace ADBToolsNew
             public bool Locked;                // case non cochable (élément non défini)
         }
 
-        private readonly HashSet<string> _masterExpanded = new HashSet<string> { "apps", "home", "files", "steps", "wifi" };
+        private string _masterView = "";
+        private string _masterSettingsFilter = "";
+        private bool _masterPickerOpen;
+        private bool _masterAdvancedOpen;
         private readonly List<(TextBlock Label, Func<string> Warn)> _masterWarns = new List<(TextBlock, Func<string>)>();
         private TextBlock _masterPendingBanner;
+        private WrapPanel _masterTabs;
+        private StackPanel _masterViewHost;
+
+        // Catégories du contenu, dans l'ordre des onglets.
+        private static readonly string[] MasterViews = { "steps", "apps", "settings", "wifi", "home", "files", "commands" };
 
         /// <summary>Ce qui reste à compléter avant l'envoi (mots de passe Wi-Fi, APK non récupérés…), pour le bandeau et la confirmation.</summary>
         private List<string> MasterPendingItems()
         {
             var list = new List<string>();
             if (_master == null) return list;
-            int pwd = _master.WifiNetworks.Count(w => w.Include && MasterProfile.WifiConnectType(w.Security) is string ty && (ty == "wpa2" || ty == "wpa3") && string.IsNullOrEmpty(w.Password));
+            int pwd = MasterMissingPasswords();
             if (pwd > 0) list.Add(Loc.F("{0} mot(s) de passe Wi-Fi", pwd));
             int apk = _master.Apps.Count(a => a.Files.Count == 0);
             if (apk > 0) list.Add(Loc.F("{0} appli(s) non récupérée(s) (APK à ajouter depuis le PC)", apk));
@@ -330,6 +341,9 @@ namespace ADBToolsNew
             if (steps > 0) list.Add(Loc.F("{0} étape(s) à faire à la main sur chaque terminal", steps));
             return list;
         }
+
+        private int MasterMissingPasswords() => _master == null ? 0 : _master.WifiNetworks.Count(w =>
+            w.Include && MasterProfile.WifiConnectType(w.Security) is string ty && (ty == "wpa2" || ty == "wpa3") && string.IsNullOrEmpty(w.Password));
 
         private void RefreshMasterPending()
         {
@@ -339,11 +353,31 @@ namespace ADBToolsNew
                 w.Label.Text = text;
                 w.Label.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
-            if (_masterPendingBanner == null) return;
-            var pending = MasterPendingItems();
-            _masterPendingBanner.Text = pending.Count == 0 ? Loc.T("✅ Rien à compléter : le Master est prêt à être appliqué.")
-                : Loc.F("⚠️ À compléter ou à vérifier avant l'envoi : {0}.", string.Join(", ", pending));
-            _masterPendingBanner.SetResourceReference(TextBlock.ForegroundProperty, pending.Count == 0 ? "OkFg" : "WarnFg");
+            if (_masterPendingBanner != null)
+            {
+                var pending = MasterPendingItems();
+                _masterPendingBanner.Text = pending.Count == 0 ? Loc.T("✅ Rien à compléter : le Master est prêt à être appliqué.")
+                    : Loc.F("⚠️ À compléter ou à vérifier avant l'envoi : {0}.", string.Join(", ", pending));
+                _masterPendingBanner.SetResourceReference(TextBlock.ForegroundProperty, pending.Count == 0 ? "OkFg" : "WarnFg");
+            }
+            if (_masterTabs != null)
+                foreach (RadioButton rb in _masterTabs.Children) rb.Content = MasterTabLabel((string)rb.Tag);
+        }
+
+        /// <summary>Libellé d'un onglet, avec le nombre d'éléments cochés et ⚠ s'il reste quelque chose à compléter.</summary>
+        private string MasterTabLabel(string view)
+        {
+            var m = _master;
+            switch (view)
+            {
+                case "steps": return Loc.F("✋ À faire à la main · {0}", m.Steps.Count(x => x.Include));
+                case "apps": return Loc.F("📦 Applications · {0}", m.Apps.Count(x => x.Include)) + (m.Apps.Any(a => a.Files.Count == 0) ? " ⚠" : "");
+                case "settings": return Loc.F("⚙️ Réglages · {0}", m.Settings.Count(x => x.Include));
+                case "wifi": return Loc.F("📶 Wi-Fi · {0}", m.WifiNetworks.Count(x => x.Include)) + (MasterMissingPasswords() > 0 ? " ⚠" : "");
+                case "home": return Loc.T("🏠 Lanceur et MDM");
+                case "files": return Loc.F("📁 Fichiers · {0}", m.Files.Count(x => x.Include));
+                default: return Loc.F("⌨️ Commandes · {0}", m.Commands.Count);
+            }
         }
 
         /// <summary>Saisie d'une valeur (null si annulé).</summary>
@@ -353,7 +387,7 @@ namespace ADBToolsNew
             return TxtDialogInput.Text;
         }
 
-        /// <summary>Redessine le contenu après une modification (le texte des commandes est conservé).</summary>
+        /// <summary>Redessine le contenu après une modification.</summary>
         private void RerenderMaster()
         {
             SyncMasterFromUi();
@@ -365,140 +399,379 @@ namespace ADBToolsNew
             MasterContent.Children.Clear();
             _masterWarns.Clear();
             _masterPendingBanner = null;
+            _masterTabs = null;
             if (_master == null) return;
             var m = _master;
             TxtMasterInfo.Text = m.SourceModel.Length > 0
                 ? Loc.F("Capturé sur {0} {1} (Android {2}, {3}) le {4:dd/MM/yyyy HH:mm}.", m.SourceManufacturer, m.SourceModel, m.SourceAndroid, m.SourceBuild, m.CreatedAt)
                 : Loc.T("Master créé à la main.");
 
-            _masterPendingBanner = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
+            _masterPendingBanner = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 10) };
             MasterContent.Children.Add(_masterPendingBanner);
-            MasterContent.Children.Add(MasterMutedText(Loc.T("Tout se vérifie et se modifie ici avant l'envoi : décochez ce qui ne doit pas partir, ✏️ pour corriger une valeur, ✕ pour retirer, « ＋ Ajouter » pour compléter ce qui n'a pas pu être récupéré."), 11.5));
 
-            // Étapes à faire à la main (en tête : c'est ce qu'il faut compléter).
-            AddMasterSection("steps", Loc.F("✋ À faire à la main ({0})", m.Steps.Count),
-                Loc.T("Ce qu'ADB ne peut pas réinjecter : compte Google (le mot de passe ne se transmet pas), Wi-Fi d'entreprise, certificat, enrôlement MDM avec identifiant… À la fin de la remise en état, l'écran choisi s'ouvre sur le terminal et l'étape est rappelée dans le bilan."),
-                m.Steps.Select(st => new MasterRow
+            // Onglets : une catégorie à la fois, plutôt qu'une longue liste.
+            if (!MasterViews.Contains(_masterView))
+                _masterView = m.Steps.Any() ? "steps" : m.SourceModel.Length == 0 ? "settings" : "apps";
+            _masterTabs = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            foreach (var v in MasterViews)
+            {
+                var rb = new RadioButton { GroupName = "MasterView", Tag = v, Content = MasterTabLabel(v), Style = (Style)FindResource("SettingsPillStyle"), IsChecked = v == _masterView };
+                rb.Checked += (s, a) =>
                 {
-                    Label = st.Title + (st.Detail.Length > 0 ? " — " + st.Detail : ""),
-                    Get = () => st.Include, Set = v => { st.Include = v; RefreshMasterPending(); },
-                    Edit = async () =>
+                    SyncMasterFromUi();
+                    _masterView = (string)((RadioButton)s).Tag;
+                    RenderMasterView();
+                };
+                _masterTabs.Children.Add(rb);
+            }
+            MasterContent.Children.Add(_masterTabs);
+            var line = new Border { Height = 1, Margin = new Thickness(0, 0, 0, 4) };
+            line.SetResourceReference(Border.BackgroundProperty, "Line");
+            MasterContent.Children.Add(line);
+            _masterViewHost = new StackPanel();
+            MasterContent.Children.Add(_masterViewHost);
+            RenderMasterView();
+        }
+
+        /// <summary>Contenu de l'onglet choisi.</summary>
+        private void RenderMasterView()
+        {
+            if (_master == null || _masterViewHost == null) return;
+            var m = _master;
+            _masterViewHost.Children.Clear();
+            _masterWarns.Clear();
+            switch (_masterView)
+            {
+                case "steps":
+                    AddMasterSection(Loc.T("✋ À faire à la main"),
+                        Loc.T("Ce qu'ADB ne peut pas réinjecter : compte Google (le mot de passe ne se transmet pas), Wi-Fi d'entreprise, certificat, enrôlement MDM avec identifiant… À la fin de la remise en état, l'écran choisi s'ouvre sur le terminal et l'étape est rappelée dans le bilan."),
+                        m.Steps.Select(st => new MasterRow
+                        {
+                            Label = st.Title, Sub = st.Detail,
+                            Get = () => st.Include, Set = v => { st.Include = v; RefreshMasterPending(); },
+                            Edit = async () =>
+                            {
+                                string t = await MasterPromptAsync(Loc.T("✋ Étape à faire à la main"), Loc.T("Ce qu'il faut faire (ex. Ajouter le compte Google atelier@exemple.fr) :"), st.Title);
+                                if (t == null || t.Trim().Length == 0) return;
+                                string d = await MasterPromptAsync(Loc.T("✋ Étape à faire à la main"), Loc.T("Précision pour le technicien (facultatif) :"), st.Detail);
+                                st.Title = t.Trim(); if (d != null) st.Detail = d.Trim();
+                                RerenderMaster();
+                            },
+                            Remove = () => { m.Steps.Remove(st); RerenderMaster(); },
+                            Extra = MasterScreenPicker(st),
+                        }).ToList(),
+                        () => { BtnMasterAddStep_Click(null, null); return Task.CompletedTask; }, Loc.T("＋ Ajouter une étape"));
+                    break;
+
+                case "apps":
+                    AddMasterSection(Loc.T("📦 Applications à réinstaller"),
+                        Loc.T("Réinstallées avec leurs autorisations. Les données internes des applis ne sont pas copiées (rôle du MDM)."),
+                        m.Apps.Select(a =>
+                        {
+                            string known = MasterProfile.KnownAppName(a.Package);
+                            return new MasterRow
+                            {
+                                Label = known.Length > 0 ? known : a.Package,
+                                Sub = (known.Length > 0 ? a.Package : "") + (a.FromPc ? (known.Length > 0 ? " · " : "") + Loc.T("depuis le PC") : "")
+                                    + (a.VersionCode.Length > 0 ? " · v" + a.VersionCode : "") + (a.Permissions.Count > 0 ? Loc.F(" · {0} autorisation(s)", a.Permissions.Count) : ""),
+                                Get = () => a.Include, Set = v => { a.Include = v; RefreshMasterPending(); },
+                                Locked = a.Files.Count == 0,
+                                Warn = () => a.Files.Count == 0 ? Loc.T("APK non récupéré : ajoutez-le depuis le PC") : "",
+                                Remove = () => { m.Apps.Remove(a); RerenderMaster(); },
+                            };
+                        }).ToList(),
+                        () => { BtnMasterAddApk_Click(null, null); return Task.CompletedTask; }, Loc.T("＋ APK du PC"));
+                    AddMasterSection(Loc.T("🚫 Applications à désactiver"),
+                        Loc.T("Applications (souvent système) désactivées sur le terminal de référence : elles seront désactivées aussi."),
+                        m.DisabledApps.Select(d =>
+                        {
+                            string known = MasterProfile.KnownAppName(d.Name);
+                            return new MasterRow
+                            {
+                                Label = known.Length > 0 ? known : d.Name, Sub = known.Length > 0 ? d.Name : "",
+                                Get = () => d.Include, Set = v => { d.Include = v; RefreshMasterPending(); },
+                                Remove = () => { m.DisabledApps.Remove(d); RerenderMaster(); },
+                            };
+                        }).ToList(),
+                        async () =>
+                        {
+                            string p = await MasterPromptAsync(Loc.T("🚫 Application à désactiver"), Loc.T("Nom du paquet (ex. com.android.chrome) :"), "", Loc.T("Ajouter"));
+                            if (p == null || !System.Text.RegularExpressions.Regex.IsMatch(p.Trim(), @"^[A-Za-z0-9_.]+$")) return;
+                            m.DisabledApps.RemoveAll(x => x.Name == p.Trim());
+                            m.DisabledApps.Add(new MasterItem { Name = p.Trim() });
+                            RerenderMaster();
+                        }, Loc.T("＋ Ajouter"));
+                    break;
+
+                case "settings":
+                    RenderMasterSettingsView();
+                    break;
+
+                case "wifi":
+                    AddMasterSection(Loc.T("📶 Réseaux Wi-Fi"),
+                        Loc.T("Android ne donne pas les mots de passe : saisissez-les ici (ils sont enregistrés dans le Master, gardez le fichier en lieu sûr). Réinjection sur Android 11 et plus ; un réseau d'entreprise (802.1X) passe en étape à faire à la main."),
+                        m.WifiNetworks.Select(w => MasterWifiRow(m, w)).ToList(),
+                        () => { BtnMasterAddWifi_Click(null, null); return Task.CompletedTask; }, Loc.T("＋ Ajouter un réseau"));
+                    break;
+
+                case "home":
+                    AddMasterSection(Loc.T("🏠 Lanceur et propriétaire du terminal"),
+                        Loc.T("Le propriétaire du terminal (kiosque / MDM) ne peut être défini que sur un terminal sans compte, juste après un wipe. ✏️ pour le définir ou le corriger."),
+                        new List<MasterRow>
+                        {
+                            MasterSingleRow(Loc.T("Lanceur par défaut"), () => m.Launcher, v => m.Launcher = v, Loc.T("Lanceur par défaut (paquet/activité, ex. com.zebra.launcher/.Main) :")),
+                            MasterSingleRow(Loc.T("Propriétaire du terminal (kiosque / MDM)"), () => m.DeviceOwner, v => m.DeviceOwner = v, Loc.T("Composant administrateur (paquet/classe, ex. net.soti.mobicontrol.androidwork/net.soti.mobicontrol.admin.DeviceAdminAdapter) :")),
+                        }, null, null);
+                    break;
+
+                case "files":
+                    AddMasterSection(Loc.T("📁 Fichiers à déposer"),
+                        Loc.T("Dossiers récupérés sur le terminal de référence et fichiers ajoutés depuis le PC (ex. configuration DataWedge). ✏️ pour changer la destination."),
+                        m.Files.Select(f => new MasterRow
+                        {
+                            Label = $"{(f.IsFolder ? "📁" : "📄")} {Path.GetFileName(f.Local.TrimEnd('/'))}", Sub = "→ " + f.DevicePath,
+                            Get = () => f.Include, Set = v => { f.Include = v; RefreshMasterPending(); },
+                            Edit = async () =>
+                            {
+                                string d = await MasterPromptAsync(Loc.T("📄 Destination sur le terminal"), Loc.T("Dossier du terminal où déposer ce fichier. Pour une configuration DataWedge (Zebra) : /enterprise/device/settings/datawedge/autoimport/"), f.DevicePath);
+                                if (d == null || d.Trim().Length == 0) return;
+                                f.DevicePath = d.Trim().EndsWith("/") ? d.Trim() : d.Trim() + "/";
+                                RerenderMaster();
+                            },
+                            Remove = () => { m.Files.Remove(f); RerenderMaster(); },
+                        }).ToList(),
+                        () => { BtnMasterAddFile_Click(null, null); return Task.CompletedTask; }, Loc.T("＋ Fichier du PC"),
+                        CmbMasterSource.Items.Count > 0 ? (Func<Task>)(() => { BtnMasterAddFolder_Click(null, null); return Task.CompletedTask; }) : null, Loc.T("＋ Dossier du terminal"));
+                    break;
+
+                default:
+                    AddMasterSection(Loc.T("⌨️ Commandes ADB"), Loc.T("Passées en dernier, une par ligne, sans « adb » ni « -s ». Ex. : shell settings put global stay_on_while_plugged_in 3"), new List<MasterRow>(), null, null);
+                    var box = new TextBox { AcceptsReturn = true, MinHeight = 120, FontFamily = new System.Windows.Media.FontFamily("Consolas"), FontSize = 12, Padding = new Thickness(6, 4, 6, 4), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Text = string.Join(Environment.NewLine, m.Commands), Margin = new Thickness(0, 4, 0, 0) };
+                    box.TextChanged += (s, a) =>
                     {
-                        string t = await MasterPromptAsync(Loc.T("✋ Étape à faire à la main"), Loc.T("Ce qu'il faut faire (ex. Ajouter le compte Google atelier@exemple.fr) :"), st.Title);
-                        if (t == null || t.Trim().Length == 0) return;
-                        string d = await MasterPromptAsync(Loc.T("✋ Étape à faire à la main"), Loc.T("Précision pour le technicien (facultatif) :"), st.Detail);
-                        st.Title = t.Trim(); if (d != null) st.Detail = d.Trim();
-                        RerenderMaster();
-                    },
-                    Remove = () => { m.Steps.Remove(st); RerenderMaster(); },
-                    Extra = MasterScreenPicker(st),
-                }).ToList(),
-                async () =>
-                {
-                    string t = await MasterPromptAsync(Loc.T("✋ Étape à faire à la main"), Loc.T("Ce qu'il faut faire (ex. Ajouter le compte Google atelier@exemple.fr) :"), "", Loc.T("Ajouter"));
-                    if (t == null || t.Trim().Length == 0) return;
-                    bool google = t.IndexOf("google", StringComparison.OrdinalIgnoreCase) >= 0;
-                    m.Steps.Add(new MasterStep { Title = t.Trim(), Screen = google ? "google" : t.IndexOf("wi", StringComparison.OrdinalIgnoreCase) >= 0 && t.IndexOf("fi", StringComparison.OrdinalIgnoreCase) >= 0 ? "wifi" : "" });
-                    _masterExpanded.Add("steps");
-                    RerenderMaster();
-                });
-
-            AddMasterSection("apps", Loc.F("📦 Applications ({0})", m.Apps.Count),
-                Loc.T("Réinstallées avec leurs autorisations. Les données internes des applis ne sont pas copiées (rôle du MDM). « ＋ Ajouter » : APK depuis le PC."),
-                m.Apps.Select(a => new MasterRow
-                {
-                    Label = a.FromPc ? Loc.F("{0} (depuis le PC)", a.Package) : a.Package + (a.VersionCode.Length > 0 ? "  v" + a.VersionCode : "") + (a.Files.Count > 1 ? Loc.F("  · {0} fichiers", a.Files.Count) : "") + (a.Permissions.Count > 0 ? Loc.F("  · {0} autorisation(s)", a.Permissions.Count) : ""),
-                    Get = () => a.Include, Set = v => a.Include = v,
-                    Locked = a.Files.Count == 0,
-                    Warn = () => a.Files.Count == 0 ? Loc.T("APK non récupéré : ajoutez-le depuis le PC") : "",
-                    Remove = () => { m.Apps.Remove(a); RerenderMaster(); },
-                }).ToList(),
-                () => { BtnMasterAddApk_Click(null, null); return Task.CompletedTask; });
-
-            AddMasterSection("disabled", Loc.F("🚫 Applications désactivées ({0})", m.DisabledApps.Count),
-                Loc.T("Applications (souvent système) désactivées sur le terminal de référence."),
-                m.DisabledApps.Select(d => new MasterRow
-                {
-                    Label = d.Name, Get = () => d.Include, Set = v => d.Include = v,
-                    Remove = () => { m.DisabledApps.Remove(d); RerenderMaster(); },
-                }).ToList(),
-                async () =>
-                {
-                    string p = await MasterPromptAsync(Loc.T("🚫 Application à désactiver"), Loc.T("Nom du paquet (ex. com.android.chrome) :"), "", Loc.T("Ajouter"));
-                    if (p == null || !System.Text.RegularExpressions.Regex.IsMatch(p.Trim(), @"^[A-Za-z0-9_.]+$")) return;
-                    m.DisabledApps.RemoveAll(x => x.Name == p.Trim());
-                    m.DisabledApps.Add(new MasterItem { Name = p.Trim() });
-                    _masterExpanded.Add("disabled");
-                    RerenderMaster();
-                });
-
-            AddMasterSection("settings", Loc.F("⚙️ Réglages Android ({0})", m.Settings.Count),
-                Loc.T("Écran, veille, son, langue, clavier, options… Seules les valeurs différentes sont modifiées ; les réglages propres à chaque terminal sont exclus. Android en protège certains : ils seront signalés. ✏️ pour changer une valeur."),
-                m.Settings.Select(st => new MasterRow
-                {
-                    Label = $"{st.Namespace} · {st.Key} = {(st.Value.Length > 60 ? st.Value.Substring(0, 60) + "…" : st.Value)}",
-                    Get = () => st.Include, Set = v => st.Include = v,
-                    Edit = async () =>
-                    {
-                        string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"), Loc.F("Nouvelle valeur de {0} ({1}) :", st.Key, st.Namespace), st.Value);
-                        if (v == null) return;
-                        st.Value = v; st.Include = true;
-                        RerenderMaster();
-                    },
-                    Remove = () => { m.Settings.Remove(st); RerenderMaster(); },
-                }).ToList(),
-                async () =>
-                {
-                    string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"), Loc.T("Espace, nom et valeur. Ex. : system screen_off_timeout=600000 ou global stay_on_while_plugged_in=3"), "system ", Loc.T("Ajouter"));
-                    if (v == null) return;
-                    var st = MasterProfile.ParseSettingInput(v);
-                    if (st == null) { TxtMasterSummary.Text = Loc.T("Réglage non reconnu : écrivez par exemple « system screen_off_timeout=600000 »."); return; }
-                    m.Settings.RemoveAll(x => x.Namespace == st.Namespace && x.Key == st.Key);
-                    m.Settings.Insert(0, st);
-                    _masterExpanded.Add("settings");
-                    RerenderMaster();
-                });
-
-            AddMasterSection("wifi", Loc.F("📶 Réseaux Wi-Fi ({0})", m.WifiNetworks.Count),
-                Loc.T("Android ne donne pas les mots de passe : saisissez-les ici (ils sont enregistrés dans le Master, gardez le fichier en lieu sûr). Réinjection sur Android 11 et plus ; un réseau d'entreprise (802.1X) passe en étape à faire à la main."),
-                m.WifiNetworks.Select(w => MasterWifiRow(m, w)).ToList(),
-                () => { BtnMasterAddWifi_Click(null, null); return Task.CompletedTask; });
-
-            AddMasterSection("home", Loc.T("🏠 Lanceur et propriétaire du terminal"),
-                Loc.T("Le propriétaire du terminal (kiosque / MDM) ne peut être défini que sur un terminal sans compte, juste après un wipe. ✏️ pour le définir ou le corriger."),
-                new List<MasterRow>
-                {
-                    MasterSingleRow(Loc.T("Lanceur par défaut"), () => m.Launcher, v => m.Launcher = v, Loc.T("Lanceur par défaut (paquet/activité, ex. com.zebra.launcher/.Main) :")),
-                    MasterSingleRow(Loc.T("Propriétaire du terminal (kiosque / MDM)"), () => m.DeviceOwner, v => m.DeviceOwner = v, Loc.T("Composant administrateur (paquet/classe, ex. net.soti.mobicontrol.androidwork/net.soti.mobicontrol.admin.DeviceAdminAdapter) :")),
-                }, null);
-
-            AddMasterSection("files", Loc.F("📁 Fichiers ({0})", m.Files.Count),
-                Loc.T("Dossiers récupérés sur le terminal de référence et fichiers ajoutés depuis le PC (ex. configuration DataWedge). ✏️ pour changer la destination."),
-                m.Files.Select(f => new MasterRow
-                {
-                    Label = $"{(f.IsFolder ? "📁" : "📄")} {Path.GetFileName(f.Local.TrimEnd('/'))} → {f.DevicePath}",
-                    Get = () => f.Include, Set = v => f.Include = v,
-                    Edit = async () =>
-                    {
-                        string d = await MasterPromptAsync(Loc.T("📄 Destination sur le terminal"), Loc.T("Dossier du terminal où déposer ce fichier. Pour une configuration DataWedge (Zebra) : /enterprise/device/settings/datawedge/autoimport/"), f.DevicePath);
-                        if (d == null || d.Trim().Length == 0) return;
-                        f.DevicePath = d.Trim().EndsWith("/") ? d.Trim() : d.Trim() + "/";
-                        RerenderMaster();
-                    },
-                    Remove = () => { m.Files.Remove(f); RerenderMaster(); },
-                }).ToList(),
-                () => { BtnMasterAddFile_Click(null, null); return Task.CompletedTask; });
-
-            // Commandes ADB libres, en fin de remise en état.
-            var head = new TextBlock { Text = Loc.T("⌨️ Commandes ADB (en dernier)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 2) };
-            head.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
-            MasterContent.Children.Add(head);
-            MasterContent.Children.Add(MasterMutedText(Loc.T("Une commande par ligne, sans « adb » ni « -s ». Ex. : shell settings put global stay_on_while_plugged_in 3"), 11.5));
-            _masterCmdBox = new TextBox { AcceptsReturn = true, Height = 70, FontFamily = new System.Windows.Media.FontFamily("Consolas"), FontSize = 12, Padding = new Thickness(6, 4, 6, 4), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Text = string.Join(Environment.NewLine, m.Commands) };
-            MasterContent.Children.Add(_masterCmdBox);
+                        m.Commands = (box.Text ?? "").Replace("\r", "").Split('\n').Select(NormalizeMassOsCommand).Where(c => c.Length > 0).ToList();
+                        RefreshMasterPending();
+                    };
+                    _masterViewHost.Children.Add(box);
+                    break;
+            }
             RefreshMasterPending();
             UpdateMasterApplyButton();
         }
+
+        // ------------------------------------------------------------------ Réglages : par thème, valeurs en clair
+
+        private void RenderMasterSettingsView()
+        {
+            var m = _master;
+            var host = _masterViewHost;
+            var known = m.Settings.Select(st => (St: st, Def: MasterSettingsCatalog.Find(st.Namespace, st.Key))).Where(x => x.Def != null).ToList();
+            var advanced = m.Settings.Where(st => MasterSettingsCatalog.Find(st.Namespace, st.Key) == null).ToList();
+
+            // En-tête : recherche + ajout.
+            var head = new Grid { Margin = new Thickness(0, 10, 0, 4) };
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var search = new TextBox { Height = 30, VerticalContentAlignment = VerticalAlignment.Center, Tag = Loc.T("Rechercher un réglage (veille, volume, Wi-Fi, langue…)"), Style = (Style)FindResource("PlaceholderTextBoxStyle"), Text = _masterSettingsFilter };
+            head.Children.Add(search);
+            var addBtn = new Button { Content = _masterPickerOpen ? Loc.T("Fermer la liste") : Loc.T("＋ Ajouter un réglage"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 30, Padding = new Thickness(12, 0, 12, 0), Margin = new Thickness(8, 0, 0, 0) };
+            addBtn.Click += (s, a) => { _masterPickerOpen = !_masterPickerOpen; RenderMasterView(); };
+            Grid.SetColumn(addBtn, 1); head.Children.Add(addBtn);
+            host.Children.Add(head);
+            host.Children.Add(MasterMutedText(Loc.T("Seules les valeurs différentes sont modifiées sur le terminal. Les réglages propres à chaque terminal (identifiants, compteurs, état du matériel) ne sont jamais recopiés."), 11.5));
+
+            var body = new StackPanel();
+            host.Children.Add(body);
+            void Fill()
+            {
+                body.Children.Clear();
+                string f = _masterSettingsFilter.Trim();
+                bool Match(string label, string key) => f.Length == 0 || label.IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0 || key.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                // Catalogue des réglages qu'on peut ajouter (ceux absents du Master).
+                if (_masterPickerOpen)
+                {
+                    var pick = new Border { CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Padding = new Thickness(12, 8, 12, 10), Margin = new Thickness(0, 6, 0, 6) };
+                    pick.SetResourceReference(Border.BackgroundProperty, "Surface2");
+                    pick.SetResourceReference(Border.BorderBrushProperty, "Line");
+                    var pl = new StackPanel();
+                    pl.Children.Add(MasterHeading(Loc.T("Réglages disponibles"), 13));
+                    pl.Children.Add(MasterMutedText(Loc.T("Choisissez un réglage : il est ajouté au Master avec une valeur courante, à ajuster ensuite."), 11.5));
+                    int shown = 0;
+                    foreach (var theme in MasterSettingsCatalog.Themes)
+                    {
+                        var defs = MasterSettingsCatalog.All.Where(d => d.Theme == theme && Match(Loc.T(d.Label), d.Key)
+                            && !m.Settings.Any(st => st.Namespace == d.Namespace && st.Key == d.Key)).ToList();
+                        if (defs.Count == 0) continue;
+                        pl.Children.Add(MasterHeading(Loc.T(theme), 12, new Thickness(0, 8, 0, 2)));
+                        var wrap = new WrapPanel();
+                        foreach (var d in defs)
+                        {
+                            var b = new Button { Content = "＋ " + Loc.T(d.Label), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), ToolTip = $"{d.Namespace} · {d.Key}" + (d.Hint.Length > 0 ? "\n" + Loc.T(d.Hint) : "") };
+                            var def = d;
+                            b.Click += (s, a) =>
+                            {
+                                m.Settings.Insert(0, new MasterSetting { Namespace = def.Namespace, Key = def.Key, Value = def.Default, Include = true });
+                                RenderMasterView();
+                            };
+                            wrap.Children.Add(b);
+                            shown++;
+                        }
+                        pl.Children.Add(wrap);
+                    }
+                    if (shown == 0) pl.Children.Add(MasterMutedText(Loc.T("Aucun autre réglage du catalogue ne correspond."), 11.5));
+                    var custom = new Button { Content = Loc.T("Réglage technique (nom exact)…"), Style = (Style)FindResource("SettingsLinkStyle"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    custom.Click += async (s, a) =>
+                    {
+                        string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"), Loc.T("Espace, nom et valeur. Ex. : system screen_off_timeout=600000 ou global stay_on_while_plugged_in=3"), "system ", Loc.T("Ajouter"));
+                        if (v == null) return;
+                        var st = MasterProfile.ParseSettingInput(v);
+                        if (st == null) { TxtMasterSummary.Text = Loc.T("Réglage non reconnu : écrivez par exemple « system screen_off_timeout=600000 »."); return; }
+                        m.Settings.RemoveAll(x => x.Namespace == st.Namespace && x.Key == st.Key);
+                        m.Settings.Insert(0, st);
+                        if (MasterSettingsCatalog.Find(st.Namespace, st.Key) == null) _masterAdvancedOpen = true;
+                        RenderMasterView();
+                    };
+                    pl.Children.Add(custom);
+                    pick.Child = pl;
+                    body.Children.Add(pick);
+                }
+
+                // Réglages du Master présents dans le catalogue, par thème, avec un éditeur adapté.
+                int listed = 0;
+                foreach (var theme in MasterSettingsCatalog.Themes)
+                {
+                    var rows = known.Where(x => x.Def.Theme == theme && Match(Loc.T(x.Def.Label), x.St.Key)).ToList();
+                    if (rows.Count == 0) continue;
+                    body.Children.Add(MasterHeading(Loc.T(theme), 13, new Thickness(0, 12, 0, 4)));
+                    foreach (var x in rows) { body.Children.Add(MasterSettingRow(x.St, x.Def)); listed++; }
+                }
+                if (known.Count == 0 && !_masterPickerOpen)
+                    body.Children.Add(MasterMutedText(Loc.T("Aucun réglage courant dans ce Master : « ＋ Ajouter un réglage » pour choisir parmi la liste (veille, volume, Wi-Fi, langue…)."), 12));
+                else if (listed == 0 && f.Length > 0)
+                    body.Children.Add(MasterMutedText(Loc.T("Aucun réglage courant ne correspond à la recherche."), 12));
+
+                // Réglages techniques capturés hors catalogue : repliés, non cochés par défaut.
+                if (advanced.Count > 0)
+                {
+                    var adv = advanced.Where(st => Match(st.Key, st.Namespace)).ToList();
+                    var toggle = new Button { Style = (Style)FindResource("SettingsLinkStyle"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 2),
+                        Content = (_masterAdvancedOpen ? "▾ " : "▸ ") + Loc.F("Réglages techniques ({0}, dont {1} coché(s))", advanced.Count, advanced.Count(st => st.Include)) };
+                    toggle.Click += (s, a) => { _masterAdvancedOpen = !_masterAdvancedOpen; Fill(); };
+                    body.Children.Add(toggle);
+                    body.Children.Add(MasterMutedText(Loc.T("Capturés tels quels sur le terminal de référence, sans nom compréhensible : non cochés par défaut, à n'envoyer qu'en connaissance de cause."), 11.5));
+                    if (_masterAdvancedOpen)
+                    {
+                        var list = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+                        foreach (var st in adv.Take(150))
+                            list.Children.Add(MasterRowElement(new MasterRow
+                            {
+                                Label = st.Key + " = " + (st.Value.Length > 60 ? st.Value.Substring(0, 60) + "…" : st.Value), Sub = st.Namespace,
+                                Get = () => st.Include, Set = v => { st.Include = v; RefreshMasterPending(); },
+                                Edit = async () =>
+                                {
+                                    string v = await MasterPromptAsync(Loc.T("⚙️ Réglage Android"), Loc.F("Nouvelle valeur de {0} ({1}) :", st.Key, st.Namespace), st.Value);
+                                    if (v == null) return;
+                                    st.Value = v; st.Include = true;
+                                    RenderMasterView();
+                                },
+                                Remove = () => { m.Settings.Remove(st); RenderMasterView(); },
+                            }, null));
+                        if (adv.Count > 150) list.Children.Add(MasterMutedText(Loc.F("… et {0} autre(s) : affinez la recherche.", adv.Count - 150), 11.5));
+                        body.Children.Add(list);
+                    }
+                }
+            }
+            search.TextChanged += (s, a) => { _masterSettingsFilter = search.Text; Fill(); };
+            Fill();
+        }
+
+        private TextBlock MasterHeading(string text, double size, Thickness? margin = null)
+        {
+            var t = new TextBlock { Text = text, FontSize = size, FontWeight = FontWeights.SemiBold, Margin = margin ?? new Thickness(0) };
+            t.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            return t;
+        }
+
+        /// <summary>Un réglage connu : case « envoyer », nom en clair, éditeur adapté (liste, nombre, texte), retirer.</summary>
+        private FrameworkElement MasterSettingRow(MasterSetting st, MasterSettingDef def)
+        {
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var cb = new CheckBox { IsChecked = st.Include, Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Envoyer ce réglage") };
+            cb.Checked += (s, a) => { st.Include = true; RefreshMasterPending(); };
+            cb.Unchecked += (s, a) => { st.Include = false; RefreshMasterPending(); };
+            g.Children.Add(cb);
+
+            var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), ToolTip = $"{st.Namespace} · {st.Key}" };
+            var label = new TextBlock { Text = Loc.T(def.Label), FontSize = 12.5, TextWrapping = TextWrapping.Wrap };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            names.Children.Add(label);
+            if (def.Hint.Length > 0) names.Children.Add(MasterSub(Loc.T(def.Hint)));
+            Grid.SetColumn(names, 1); g.Children.Add(names);
+
+            FrameworkElement editor;
+            void Changed(string v) { st.Value = v; if (cb.IsChecked != true) cb.IsChecked = true; }
+            switch (def.Kind)
+            {
+                case MasterSettingKind.Toggle:
+                case MasterSettingKind.Choice:
+                    var cmb = new ComboBox { Width = 200, Height = 28, FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center };
+                    foreach (var o in def.Options)
+                    {
+                        var it = new ComboBoxItem { Content = Loc.T(o.Label), Tag = o.Value };
+                        cmb.Items.Add(it);
+                        if (cmb.SelectedItem == null && MasterSettingsCatalog.SameValue(o.Value, st.Value)) cmb.SelectedItem = it;
+                    }
+                    if (cmb.SelectedItem == null)
+                    {
+                        var cur = new ComboBoxItem { Content = Loc.F("Autre valeur : {0}", st.Value), Tag = st.Value };
+                        cmb.Items.Add(cur);
+                        cmb.SelectedItem = cur;
+                    }
+                    cmb.SelectionChanged += (s, a) => Changed((cmb.SelectedItem as ComboBoxItem)?.Tag as string ?? st.Value);
+                    editor = cmb;
+                    break;
+                case MasterSettingKind.Number:
+                    var num = new TextBox { Width = 70, Height = 28, VerticalContentAlignment = VerticalAlignment.Center, HorizontalContentAlignment = HorizontalAlignment.Right, Text = st.Value, ToolTip = Loc.F("Valeur de {0} à {1}", def.Min, def.Max) };
+                    num.TextChanged += (s, a) =>
+                    {
+                        bool ok = MasterSettingsCatalog.IsValid(def, num.Text);
+                        num.SetResourceReference(TextBox.ForegroundProperty, ok ? "Ink" : "BadFg");
+                        if (ok) Changed(num.Text.Trim());
+                    };
+                    var np = new StackPanel { Orientation = Orientation.Horizontal, Width = 200 };
+                    np.Children.Add(num);
+                    var range = MasterSub(Loc.F("  de {0} à {1}", def.Min, def.Max)); range.VerticalAlignment = VerticalAlignment.Center;
+                    np.Children.Add(range);
+                    editor = np;
+                    break;
+                default:
+                    var txt = new TextBox { Width = 200, Height = 28, VerticalContentAlignment = VerticalAlignment.Center, Text = st.Value, ToolTip = st.Value };
+                    txt.TextChanged += (s, a) => Changed(txt.Text);
+                    editor = txt;
+                    break;
+            }
+            editor.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(editor, 2); g.Children.Add(editor);
+
+            var rm = new Button { Content = "✕", ToolTip = Loc.T("Retirer du Master"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Width = 30, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            rm.Click += (s, a) => { _master.Settings.Remove(st); RenderMasterView(); };
+            Grid.SetColumn(rm, 3); g.Children.Add(rm);
+            return g;
+        }
+
+        private TextBlock MasterSub(string text)
+        {
+            var t = new TextBlock { Text = text, FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
+            t.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            return t;
+        }
+
+        // ------------------------------------------------------------------ Lignes génériques
 
         private MasterRow MasterWifiRow(MasterProfile m, MasterWifi w)
         {
@@ -506,19 +779,19 @@ namespace ADBToolsNew
             FrameworkElement extra;
             if (type == "wpa2" || type == "wpa3")
             {
-                var pwd = new TextBox { Text = w.Password, Width = 200, Height = 26, VerticalContentAlignment = VerticalAlignment.Center, Tag = Loc.T("Mot de passe"), Style = (Style)FindResource("PlaceholderTextBoxStyle") };
+                var pwd = new TextBox { Text = w.Password, Width = 200, Height = 28, VerticalContentAlignment = VerticalAlignment.Center, Tag = Loc.T("Mot de passe"), Style = (Style)FindResource("PlaceholderTextBoxStyle") };
                 pwd.TextChanged += (s, a) => { w.Password = pwd.Text; RefreshMasterPending(); };
                 extra = pwd;
             }
             else
             {
-                var note = MasterMutedText(type == "open" ? Loc.T("Réseau ouvert") : Loc.T("Non réinjectable (entreprise / WEP)"), 11.5);
-                note.Margin = new Thickness(0); note.VerticalAlignment = VerticalAlignment.Center;
+                var note = MasterSub(type == "open" ? Loc.T("Réseau ouvert") : Loc.T("Non réinjectable (entreprise / WEP)"));
+                note.Width = 200;
                 extra = note;
             }
             return new MasterRow
             {
-                Label = $"{w.Ssid}  ({w.Security})",
+                Label = w.Ssid, Sub = w.Security,
                 Get = () => w.Include, Set = v => { w.Include = v; RefreshMasterPending(); },
                 Locked = type.Length == 0,
                 Warn = () => w.Include && (type == "wpa2" || type == "wpa3") && string.IsNullOrEmpty(w.Password) ? Loc.T("mot de passe à saisir") : "",
@@ -538,11 +811,14 @@ namespace ADBToolsNew
         private MasterRow MasterSingleRow(string label, Func<MasterItem> get, Action<MasterItem> set, string prompt)
         {
             var item = get();
+            bool defined = item != null && item.Name.Length > 0;
+            string known = defined ? MasterProfile.KnownAppName(item.Name) : "";
             return new MasterRow
             {
-                Label = item != null && item.Name.Length > 0 ? $"{label} : {item.Name}" : Loc.F("{0} : non défini", label),
+                Label = defined ? label + " : " + (known.Length > 0 ? known : item.Name) : Loc.F("{0} : non défini", label),
+                Sub = defined && known.Length > 0 ? item.Name : defined ? "" : Loc.T("✏️ pour le définir"),
                 Get = () => get()?.Include == true, Set = v => { if (get() != null) get().Include = v; },
-                Locked = item == null || item.Name.Length == 0,
+                Locked = !defined,
                 Edit = async () =>
                 {
                     string v = await MasterPromptAsync("🏠 " + label, prompt, get()?.Name ?? "");
@@ -557,7 +833,7 @@ namespace ADBToolsNew
         /// <summary>Liste « écran à ouvrir » d'une étape à faire à la main.</summary>
         private ComboBox MasterScreenPicker(MasterStep st)
         {
-            var cmb = new ComboBox { Width = 190, Height = 26, FontSize = 12, ToolTip = Loc.T("Écran ouvert sur le terminal à la fin de la remise en état") };
+            var cmb = new ComboBox { Width = 200, Height = 28, FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Écran ouvert sur le terminal à la fin de la remise en état") };
             foreach (var sc in MasterProfile.StepScreens)
             {
                 var it = new ComboBoxItem { Content = Loc.T(sc[1]), Tag = sc[0] };
@@ -569,92 +845,115 @@ namespace ADBToolsNew
             return cmb;
         }
 
-        /// <summary>Une catégorie : case générale (tout cocher / décocher), « ＋ Ajouter », explication, puis ses lignes (repliables).</summary>
-        private void AddMasterSection(string key, string title, string help, List<MasterRow> items, Func<Task> add)
+        /// <summary>Une catégorie : case générale (tout cocher / décocher), boutons d'ajout, explication, puis ses lignes.</summary>
+        private void AddMasterSection(string title, string help, List<MasterRow> items, Func<Task> add, string addLabel, Func<Task> add2 = null, string add2Label = null)
         {
-            bool expanded = _masterExpanded.Contains(key);
-            var header = new Grid { Margin = new Thickness(0, 16, 0, 2) };
+            var header = new Grid { Margin = new Thickness(0, 12, 0, 2) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var usable = items.Where(i => !i.Locked).ToList();
-            var all = new CheckBox { Content = title, Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0), FontWeight = FontWeights.SemiBold, IsEnabled = usable.Count > 0 };
-            all.IsChecked = usable.Count > 0 && usable.All(i => i.Get()) ? true : usable.Any(i => i.Get()) ? (bool?)null : false;
-            header.Children.Add(all);
-            if (add != null)
-            {
-                var plus = new Button { Content = Loc.T("＋ Ajouter"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 6, 0), IsEnabled = !_masterBusy };
-                plus.Click += async (s, a) => await add();
-                Grid.SetColumn(plus, 1);
-                header.Children.Add(plus);
-            }
-            var toggle = new Button { Content = expanded ? Loc.T("Masquer ▴") : Loc.T("Voir ▾"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 24, Padding = new Thickness(8, 0, 8, 0), Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Hidden };
-            Grid.SetColumn(toggle, 2);
-            header.Children.Add(toggle);
-            MasterContent.Children.Add(header);
-            MasterContent.Children.Add(MasterMutedText(items.Count == 0 ? Loc.T("Rien pour l'instant.") + " " + help : help, 11.5));
-
-            var list = new StackPanel { Margin = new Thickness(30, 0, 0, 0), Visibility = expanded ? Visibility.Visible : Visibility.Collapsed };
             var boxes = new List<CheckBox>();
+            CheckBox all = null;
+            if (items.Count > 0)
+            {
+                all = new CheckBox { Content = title, Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0), FontWeight = FontWeights.SemiBold, FontSize = 13, IsEnabled = usable.Count > 0, VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("Tout cocher / tout décocher") };
+                all.IsChecked = usable.Count > 0 && usable.All(i => i.Get()) ? true : usable.Any(i => i.Get()) ? (bool?)null : false;
+                header.Children.Add(all);
+            }
+            else header.Children.Add(MasterHeading(title, 13));
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            foreach (var (fn, text) in new[] { (add, addLabel), (add2, add2Label) })
+            {
+                if (fn == null) continue;
+                var b = new Button { Content = text, Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), IsEnabled = !_masterBusy };
+                var f = fn;
+                b.Click += async (s, a) => await f();
+                buttons.Children.Add(b);
+            }
+            Grid.SetColumn(buttons, 1); header.Children.Add(buttons);
+            _masterViewHost.Children.Add(header);
+            _masterViewHost.Children.Add(MasterMutedText(help, 11.5));
+            if (items.Count == 0 && add != null)
+                _masterViewHost.Children.Add(MasterMutedText(Loc.T("Rien pour l'instant."), 12));
+
+            var list = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
             bool syncing = false;
             foreach (var it in items)
             {
-                var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                for (int c = 0; c < 4; c++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var cb = new CheckBox { Content = new TextBlock { Text = it.Label, TextTrimming = TextTrimming.CharacterEllipsis }, ToolTip = it.Label, IsChecked = !it.Locked && it.Get(), IsEnabled = !it.Locked, Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
                 var item = it;
-                if (!it.Locked)
+                list.Children.Add(MasterRowElement(it, cb =>
                 {
-                    cb.Checked += (s, a) => { item.Set(true); if (!syncing) all.IsChecked = boxes.All(b => b.IsChecked == true) ? true : (bool?)null; };
-                    cb.Unchecked += (s, a) => { item.Set(false); if (!syncing) all.IsChecked = boxes.Any(b => b.IsChecked == true) ? (bool?)null : false; };
+                    if (item.Locked) return;
+                    cb.Checked += (s, a) => { if (!syncing && all != null) all.IsChecked = boxes.All(b => b.IsChecked == true) ? true : (bool?)null; };
+                    cb.Unchecked += (s, a) => { if (!syncing && all != null) all.IsChecked = boxes.Any(b => b.IsChecked == true) ? (bool?)null : false; };
                     boxes.Add(cb);
-                }
-                row.Children.Add(cb);
-                if (it.Warn != null)
-                {
-                    var warn = new TextBlock { FontSize = 11.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-                    warn.SetResourceReference(TextBlock.ForegroundProperty, "WarnFg");
-                    Grid.SetColumn(warn, 1); row.Children.Add(warn);
-                    _masterWarns.Add((warn, it.Warn));
-                }
-                if (it.Extra != null)
-                {
-                    it.Extra.Margin = new Thickness(8, 0, 0, 0);
-                    it.Extra.VerticalAlignment = VerticalAlignment.Center;
-                    Grid.SetColumn(it.Extra, 2); row.Children.Add(it.Extra);
-                }
-                if (it.Edit != null)
-                {
-                    var edit = new Button { Content = "✏️", ToolTip = Loc.T("Modifier"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 24, Width = 30, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0) };
-                    edit.Click += async (s, a) => await item.Edit();
-                    Grid.SetColumn(edit, 3); row.Children.Add(edit);
-                }
-                if (it.Remove != null)
-                {
-                    var rm = new Button { Content = "✕", ToolTip = Loc.T("Retirer du Master"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 24, Width = 30, Padding = new Thickness(0), Margin = new Thickness(4, 0, 0, 0) };
-                    rm.Click += (s, a) => item.Remove();
-                    Grid.SetColumn(rm, 4); row.Children.Add(rm);
-                }
-                list.Children.Add(row);
+                }));
             }
-            all.Click += (s, a) =>
+            if (all != null)
+                all.Click += (s, a) =>
+                {
+                    bool v = all.IsChecked == true;
+                    syncing = true;
+                    foreach (var b in boxes) b.IsChecked = v;
+                    syncing = false;
+                    all.IsChecked = v;
+                    RefreshMasterPending();
+                };
+            _masterViewHost.Children.Add(list);
+        }
+
+        /// <summary>Une ligne : case, nom (et sous-titre), alerte, zone de saisie, ✏️, ✕.</summary>
+        private FrameworkElement MasterRowElement(MasterRow it, Action<CheckBox> hook)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int c = 0; c < 4; c++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var cb = new CheckBox { IsChecked = !it.Locked && it.Get(), IsEnabled = !it.Locked, Style = (Style)FindResource("ModernCheckBoxStyle"), Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+            if (!it.Locked)
             {
-                bool v = all.IsChecked == true;
-                syncing = true;
-                foreach (var b in boxes) b.IsChecked = v;
-                syncing = false;
-                all.IsChecked = v;
-                RefreshMasterPending();
-            };
-            toggle.Click += (s, a) =>
+                cb.Checked += (s, a) => it.Set(true);
+                cb.Unchecked += (s, a) => it.Set(false);
+            }
+            hook?.Invoke(cb);
+            row.Children.Add(cb);
+
+            var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), ToolTip = it.Label + (it.Sub.Length > 0 ? "\n" + it.Sub : "") };
+            var label = new TextBlock { Text = it.Label, FontSize = 12.5, TextTrimming = TextTrimming.CharacterEllipsis };
+            label.SetResourceReference(TextBlock.ForegroundProperty, it.Locked ? "Muted" : "Ink");
+            names.Children.Add(label);
+            if (it.Sub.Length > 0) names.Children.Add(MasterSub(it.Sub));
+            Grid.SetColumn(names, 1); row.Children.Add(names);
+
+            if (it.Warn != null)
             {
-                bool show = list.Visibility != Visibility.Visible;
-                list.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-                toggle.Content = show ? Loc.T("Masquer ▴") : Loc.T("Voir ▾");
-                if (show) _masterExpanded.Add(key); else _masterExpanded.Remove(key);
-            };
-            MasterContent.Children.Add(list);
+                var warn = new TextBlock { FontSize = 11.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+                warn.SetResourceReference(TextBlock.ForegroundProperty, "WarnFg");
+                Grid.SetColumn(warn, 2); row.Children.Add(warn);
+                _masterWarns.Add((warn, it.Warn));
+                string w = it.Warn();
+                warn.Text = w; warn.Visibility = w.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (it.Extra != null)
+            {
+                it.Extra.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(it.Extra, 3); row.Children.Add(it.Extra);
+            }
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            if (it.Edit != null)
+            {
+                var edit = new Button { Content = "✏️", ToolTip = Loc.T("Modifier"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Width = 30, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0) };
+                edit.Click += async (s, a) => await it.Edit();
+                actions.Children.Add(edit);
+            }
+            if (it.Remove != null)
+            {
+                var rm = new Button { Content = "✕", ToolTip = Loc.T("Retirer du Master"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Width = 30, Padding = new Thickness(0), Margin = new Thickness(4, 0, 0, 0) };
+                rm.Click += (s, a) => it.Remove();
+                actions.Children.Add(rm);
+            }
+            Grid.SetColumn(actions, 4); row.Children.Add(actions);
+            return row;
         }
 
         private void SyncMasterFromUi()
@@ -755,21 +1054,23 @@ namespace ADBToolsNew
             if (t == null || t.Trim().Length == 0) return;
             SyncMasterFromUi();
             _master.Steps.Add(new MasterStep { Title = t.Trim(), Screen = t.IndexOf("google", StringComparison.OrdinalIgnoreCase) >= 0 ? "google" : "" });
-            _masterExpanded.Add("steps");
+            _masterView = "steps";
             RenderMasterContent();
         }
 
-        /// <summary>Master vide, rempli à la main (APK, fichiers, réglages, Wi-Fi, étapes…), sans terminal de référence.</summary>
+        /// <summary>Nouveau Master rempli à la main (APK, fichiers, réglages, Wi-Fi, étapes…), sans terminal de référence.</summary>
         private async void BtnMasterNew_Click(object sender, RoutedEventArgs e)
         {
-            if (_master != null && !await ShowCustomDialogAsync(Loc.T("Nouveau Master"), Loc.T("Le Master affiché sera remplacé par un Master vide (pensez à l'enregistrer d'abord s'il vous sert encore). Continuer ?"), Loc.T("Continuer"), Loc.T("Annuler"), false))
+            if (_master != null && !await ShowCustomDialogAsync(Loc.T("Nouveau Master"), Loc.T("Le Master affiché sera remplacé par un nouveau Master à remplir à la main (pensez à l'enregistrer d'abord s'il vous sert encore). Continuer ?"), Loc.T("Continuer"), Loc.T("Annuler"), false))
                 return;
             NewMasterWorkDir();
-            _master = new MasterProfile { Name = TxtMasterName.Text.Trim().Length > 0 ? TxtMasterName.Text.Trim() : Loc.F("Master — {0:dd/MM/yyyy}", DateTime.Now) };
+            _master = new MasterProfile { Name = TxtMasterName.Text.Trim().Length > 0 ? TxtMasterName.Text.Trim() : Loc.F("Master — {0:dd/MM/yyyy}", DateTime.Now), FormatVersion = MasterProfile.CurrentFormat };
             _masterCmdBox = null;
+            _masterView = "settings";
+            _masterPickerOpen = true;
             TxtMasterName.Text = _master.Name;
             RenderMasterContent();
-            TxtMasterSummary.Text = Loc.T("Master vide : ajoutez applis, fichiers, réglages, Wi-Fi et étapes, puis enregistrez-le.");
+            TxtMasterSummary.Text = Loc.T("Nouveau Master : choisissez les réglages, puis ajoutez applis, Wi-Fi, fichiers et étapes à l'aide des onglets, et enregistrez-le.");
         }
 
         // ------------------------------------------------------------------ Ouvrir / enregistrer
@@ -783,6 +1084,7 @@ namespace ADBToolsNew
                 string dir = NewMasterWorkDir();
                 _master = MasterProfile.Open(dlg.FileName, dir);
                 _masterCmdBox = null;
+                _masterView = "";
                 TxtMasterName.Text = _master.Name;
                 RenderMasterContent();
                 TxtMasterSummary.Text = Loc.F("Master ouvert : {0}", Path.GetFileName(dlg.FileName));

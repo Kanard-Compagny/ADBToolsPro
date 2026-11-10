@@ -124,6 +124,70 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void Catalog_KeysUnique_DefaultsValid_NeverFilteredOut()
+        {
+            Assert.AreEqual(MasterSettingsCatalog.All.Count, MasterSettingsCatalog.All.Select(d => d.Namespace + "|" + d.Key).Distinct().Count());
+            foreach (var d in MasterSettingsCatalog.All)
+            {
+                Assert.IsFalse(MasterProfile.IsDeviceSpecificSetting(d.Key), d.Key);
+                Assert.IsTrue(MasterSettingsCatalog.Themes.Contains(d.Theme), d.Key);
+                if (d.Kind != MasterSettingKind.Text) Assert.IsTrue(MasterSettingsCatalog.IsValid(d, d.Default), d.Key);
+                if (d.Kind == MasterSettingKind.Choice) Assert.IsTrue(d.Options.Any(o => o.Value == d.Default), d.Key);
+            }
+            Assert.AreEqual("Jamais", MasterSettingsCatalog.DisplayValue(MasterSettingsCatalog.Find("system", "screen_off_timeout"), "2147483647"));
+            Assert.IsTrue(MasterSettingsCatalog.SameValue("1", "1.0"));
+            Assert.IsFalse(MasterSettingsCatalog.IsValid(MasterSettingsCatalog.Find("system", "screen_brightness"), "300"));
+        }
+
+        [DataTestMethod]
+        [DataRow("database_creation_buildid")]
+        [DataRow("Phenotype_flags")]
+        [DataRow("cert_pin_content_url")]
+        [DataRow("rfid_reader_state")]
+        [DataRow("display_default_density_value")]
+        [DataRow("wifi_state_flag")]
+        [DataRow("config_update_certificate")]
+        [DataRow("job_scheduler_constants")]
+        [DataRow("low_battery_sound")]
+        public void TechnicalNoise_IsFilteredOut(string key) => Assert.IsTrue(MasterProfile.IsDeviceSpecificSetting(key));
+
+        [TestMethod]
+        public void Wifi_TransitionModeDuplicates_AreMerged()
+        {
+            const string o = "Network Id      SSID                         Security type\n" +
+                             "0            Atelier                    wpa2-psk\n" +
+                             "1            Atelier                    wpa3-sae^\n";
+            var r = MasterProfile.ParseWifiNetworks(o);
+            Assert.AreEqual(1, r.Count);
+            Assert.AreEqual("wpa2-psk/wpa3-sae", r[0].Security);
+            Assert.AreEqual("wpa2", MasterProfile.WifiConnectType(r[0].Security));
+        }
+
+        [TestMethod]
+        public void Normalize_OldMaster_IsCleanedOnce()
+        {
+            var m = new MasterProfile();
+            m.Settings.Add(new MasterSetting { Namespace = "system", Key = "screen_off_timeout", Value = "600000" });
+            m.Settings.Add(new MasterSetting { Namespace = "global", Key = "database_creation_buildid", Value = "x" });
+            m.Settings.Add(new MasterSetting { Namespace = "secure", Key = "qs_auto_tiles", Value = "cast" });
+            m.WifiNetworks.Add(new MasterWifi { Ssid = "A", Security = "wpa2-psk" });
+            m.WifiNetworks.Add(new MasterWifi { Ssid = "A", Security = "wpa3-sae^", Password = "p" });
+            m.Steps.Add(new MasterStep { Title = "Recréer le compte work-1@android-for-work.gserviceaccount.com (com.google.work)" });
+            m.Steps.Add(new MasterStep { Title = "Ajouter le compte Google a@b.fr" });
+            m.Normalize();
+            Assert.AreEqual(2, m.Settings.Count);
+            Assert.IsTrue(m.Settings.Single(x => x.Key == "screen_off_timeout").Include);
+            Assert.IsFalse(m.Settings.Single(x => x.Key == "qs_auto_tiles").Include);
+            Assert.AreEqual("p", m.WifiNetworks.Single().Password);
+            Assert.AreEqual(1, m.Steps.Count);
+            m.Settings.Single(x => x.Key == "qs_auto_tiles").Include = true;
+            m.Normalize(); // déjà au format courant : les choix ne sont plus touchés
+            Assert.IsTrue(m.Settings.Single(x => x.Key == "qs_auto_tiles").Include);
+            Assert.IsTrue(MasterProfile.IsMdmManagedAccount("x", "com.google.work"));
+            Assert.AreEqual("SOTI MobiControl", MasterProfile.KnownAppName("net.soti.mobicontrol.androidwork/net.soti.mobicontrol.admin.DeviceAdminAdapter"));
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));
