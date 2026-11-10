@@ -1809,6 +1809,7 @@ namespace ADBToolsNew
                     }
                 }
                 // Langue et fuseau horaire : par l'appli d'aide et par « cmd alarm ».
+                string localeAnswer = "";
                 foreach (var st in toWrite.Where(x => x.Namespace == MasterSettingsCatalog.SpecialNamespace))
                 {
                     if (st.Key == MasterSettingsCatalog.SpecialLocale)
@@ -1816,8 +1817,10 @@ namespace ADBToolsNew
                         MasterStatus(t, Loc.F("Langue : {0}…", st.Value));
                         if (await EnsureMasterHelperAsync(t))
                         {
-                            var r = MasterProfile.ParseBroadcastResult(string.Join("\n", await RunMasterScriptAsync(t.Serial, MasterHelperApp.SetLocaleCommand(st.Value) + " 2>&1\n")));
-                            if (r.Code != 1) AppendConsole("\n" + Loc.F("{0} : langue non changée ({1})", t.Serial, r.Data));
+                            var raw = string.Join("\n", await RunMasterScriptAsync(t.Serial, MasterHelperApp.SetLocaleCommand(st.Value) + " 2>&1\n"));
+                            var r = MasterProfile.ParseBroadcastResult(raw);
+                            localeAnswer = r.Code == 0 ? LastLines(raw, 1) : r.Data;
+                            if (r.Code != 1) AppendConsole("\n" + Loc.F("{0} : langue non changée ({1})", t.Serial, localeAnswer));
                         }
                     }
                     else if (st.Key == MasterSettingsCatalog.SpecialTimeZone)
@@ -1844,7 +1847,7 @@ namespace ADBToolsNew
                                     (av == st.Value || MasterSettingsCatalog.SameValue(av, st.Value) || (st.Key == MasterSettingsCatalog.SpecialLocale && av.StartsWith(st.Value.Split(',')[0], StringComparison.OrdinalIgnoreCase)));
                         if (same) { setOk++; MasterAdd(t, catSet, name, "ok", (before ?? "").Length > 0 ? Loc.F("{0} → {1}", Show(before), Show(st.Value)) : Show(st.Value)); }
                         else MasterAdd(t, catSet, name, "ko",
-                            st.Key == MasterSettingsCatalog.SpecialLocale ? Loc.T("langue non changée : Android a refusé (voir la console)")
+                            st.Key == MasterSettingsCatalog.SpecialLocale ? (localeAnswer.StartsWith("OK") ? Loc.F("la mini appli a répondu « {0} », mais la langue lue sur le terminal n'a pas changé", localeAnswer) : Loc.F("langue non changée : {0}", localeAnswer.Length > 0 ? localeAnswer : Loc.T("mini appli ADB Tools Helper non installée")))
                             : st.Key == MasterSettingsCatalog.SpecialTimeZone ? Loc.T("fuseau non changé : Android a refusé")
                             : Loc.T("protégé par Android"));
                     }
@@ -2043,8 +2046,21 @@ namespace ADBToolsNew
         private async Task<bool> EnsureMasterHelperAsync(MasterTarget t)
         {
             if (t.HelperReady) return true;
-            var has = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm path {MasterHelperApp.Package}", TimeSpan.FromSeconds(15));
-            if (!(has.StandardOutput ?? "").Contains("package:"))
+            var has = await _adbManager.ExecuteAsync($"-s {t.Serial} shell dumpsys package {MasterHelperApp.Package}", TimeSpan.FromSeconds(15));
+            var vc = System.Text.RegularExpressions.Regex.Match(has.StandardOutput ?? "", @"versionCode=(\d+)");
+            bool present = vc.Success;
+            if (present && int.Parse(vc.Groups[1].Value) < MasterHelperApp.VersionCode)
+            {
+                // Ancienne version : mise à jour ; si la signature diffère, désinstallation puis réinstallation
+                // (les réseaux Wi-Fi du Master sont réenregistrés juste après, à l'étape Wi-Fi).
+                var up = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
+                if (!((up.StandardOutput ?? "") + (up.StandardError ?? "")).Contains("Success"))
+                {
+                    await _adbManager.ExecuteAsync($"-s {t.Serial} uninstall {MasterHelperApp.Package}", TimeSpan.FromSeconds(30));
+                    present = false;
+                }
+            }
+            if (!present)
             {
                 if (!File.Exists(MasterHelperApp.ApkPath))
                 {
@@ -2058,7 +2074,9 @@ namespace ADBToolsNew
                     return false;
                 }
             }
-            await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm grant {MasterHelperApp.Package} android.permission.CHANGE_CONFIGURATION", TimeSpan.FromSeconds(15));
+            var grant = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm grant {MasterHelperApp.Package} android.permission.CHANGE_CONFIGURATION", TimeSpan.FromSeconds(15));
+            string grantOut = ((grant.StandardOutput ?? "") + (grant.StandardError ?? "")).Trim();
+            if (grantOut.Length > 0) AppendConsole("\n" + Loc.F("{0} : autorisation de changer la langue : {1}", t.Serial, LastLines(grantOut, 1)));
             t.HelperReady = true;
             return true;
         }
