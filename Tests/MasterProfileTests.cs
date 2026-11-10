@@ -92,6 +92,38 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual("'l'\\''écran'", MasterProfile.ShellQuote("l'écran"));
 
         [TestMethod]
+        public void ParseAccounts_GoogleAndOthers_NoDuplicates()
+        {
+            const string d = "Accounts: 2\n    Account {name=atelier@exemple.fr, type=com.google}\n    Account {name=Agent, type=net.soti.account}\n" +
+                             "  RegisteredServicesCache\n    Account {name=atelier@exemple.fr, type=com.google}\n";
+            var r = MasterProfile.ParseAccounts(d);
+            Assert.AreEqual(2, r.Count);
+            Assert.AreEqual("atelier@exemple.fr", r[0].Key);
+            Assert.AreEqual("com.google", r[0].Value);
+            Assert.AreEqual(0, MasterProfile.ParseAccounts("Accounts: 0").Count);
+        }
+
+        [TestMethod]
+        public void ParseSettingInput_ValidAndInvalid()
+        {
+            var s = MasterProfile.ParseSettingInput("  Global stay_on_while_plugged_in = 3 ");
+            Assert.AreEqual("global", s.Namespace);
+            Assert.AreEqual("stay_on_while_plugged_in", s.Key);
+            Assert.AreEqual("3", s.Value.Trim());
+            Assert.AreEqual("a=b", MasterProfile.ParseSettingInput("secure x=a=b").Value);
+            Assert.IsNull(MasterProfile.ParseSettingInput("screen_off_timeout=1"));
+            Assert.IsNull(MasterProfile.ParseSettingInput("vendor x=1"));
+        }
+
+        [TestMethod]
+        public void StepScreens_AllHaveCommandExceptNone()
+        {
+            foreach (var sc in MasterProfile.StepScreens)
+                Assert.AreEqual(sc[0].Length > 0, MasterProfile.StepScreenCommand(sc[0]).StartsWith("am start"), sc[0]);
+            StringAssert.Contains(MasterProfile.StepScreenCommand("google"), "com.google");
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));
@@ -106,6 +138,7 @@ namespace ADBToolsNew.Tests
                 m.WifiNetworks.Add(new MasterWifi { Ssid = "Atelier", Security = "wpa2-psk", Password = "p'ss" });
                 m.Launcher = new MasterItem { Name = "com.zebra.launcher/.Main" };
                 m.Commands.Add("shell echo ok");
+                m.Steps.Add(new MasterStep { Title = "Ajouter le compte Google", Screen = "google", Include = false });
                 string archive = Path.Combine(root, "t" + MasterProfile.FileExtension);
                 m.SaveTo(work, archive);
 
@@ -118,6 +151,8 @@ namespace ADBToolsNew.Tests
                 Assert.AreEqual("com.zebra.launcher/.Main", o.Launcher.Name);
                 Assert.IsNull(o.DeviceOwner);
                 Assert.AreEqual("shell echo ok", o.Commands.Single());
+                Assert.AreEqual("google", o.Steps.Single().Screen);
+                Assert.IsFalse(o.Steps.Single().Include);
                 Assert.IsTrue(File.Exists(Path.Combine(work2, "apks", "com.a", "base.apk")));
             }
             finally { try { Directory.Delete(root, true); } catch { } }

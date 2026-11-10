@@ -1,4 +1,4 @@
-<Window x:Class="ADBToolsNew.MainWindow"
+﻿<Window x:Class="ADBToolsNew.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
@@ -4362,12 +4362,15 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="8"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox x:Name="TxtMasterName" Height="32" VerticalContentAlignment="Center" Tag="Nom du Master (ex. Client Dupont — TC53 entrepôt)" Style="{StaticResource PlaceholderTextBoxStyle}"/>
-                                                <Button x:Name="BtnMasterOpen" Grid.Column="2" Content="📂 Ouvrir…" Click="BtnMasterOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvrir un Master (.adbmaster)"/>
-                                                <Button x:Name="BtnMasterSave" Grid.Column="4" Content="💾 Enregistrer…" Click="BtnMasterSave_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Enregistrer le Master (.adbmaster), par exemple dans le dossier partagé de l'équipe"/>
+                                                <Button x:Name="BtnMasterNew" Grid.Column="2" Content="📄 Vide" Click="BtnMasterNew_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Commencer un Master vide, à remplir à la main (sans terminal de référence)"/>
+                                                <Button x:Name="BtnMasterOpen" Grid.Column="4" Content="📂 Ouvrir…" Click="BtnMasterOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Ouvrir un Master (.adbmaster)"/>
+                                                <Button x:Name="BtnMasterSave" Grid.Column="6" Content="💾 Enregistrer…" Click="BtnMasterSave_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" ToolTip="Enregistrer le Master (.adbmaster), par exemple dans le dossier partagé de l'équipe"/>
                                             </Grid>
-                                            <TextBlock x:Name="TxtMasterInfo" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Text="Aucun Master : capturez un terminal de référence ou ouvrez un Master enregistré."/>
+                                            <TextBlock x:Name="TxtMasterInfo" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Text="Aucun Master : capturez un terminal de référence, ouvrez un Master enregistré ou commencez-en un vide."/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -4383,12 +4386,13 @@
                                         <DockPanel>
                                             <Grid DockPanel.Dock="Top" Margin="16,12,16,8">
                                                 <TextBlock Text="CONTENU DU MASTER" Style="{StaticResource SettingsGroupLabelStyle}" VerticalAlignment="Center"/>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <WrapPanel HorizontalAlignment="Right" Margin="150,0,0,0">
                                                     <Button x:Name="BtnMasterAddApk" Content="📦 APK…" Click="BtnMasterAddApk_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Ajouter des applications depuis le PC (ex. agent MDM)"/>
                                                     <Button x:Name="BtnMasterAddFile" Content="📄 Fichier…" Click="BtnMasterAddFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Ajouter un fichier du PC à déposer sur le terminal (ex. configuration DataWedge .db)"/>
                                                     <Button x:Name="BtnMasterAddFolder" Content="📁 Dossier du terminal…" Click="BtnMasterAddFolder_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Récupérer un dossier du terminal de référence (ex. /sdcard/Documents/Client)"/>
-                                                    <Button x:Name="BtnMasterAddWifi" Content="📶 Wi-Fi…" Click="BtnMasterAddWifi_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" ToolTip="Ajouter un réseau Wi-Fi à la main"/>
-                                                </StackPanel>
+                                                    <Button x:Name="BtnMasterAddWifi" Content="📶 Wi-Fi…" Click="BtnMasterAddWifi_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" Margin="0,0,6,0" ToolTip="Ajouter un réseau Wi-Fi à la main"/>
+                                                    <Button x:Name="BtnMasterAddStep" Content="✋ Étape…" Click="BtnMasterAddStep_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" ToolTip="Ajouter une étape à faire à la main (compte Google, certificat, enrôlement MDM…)"/>
+                                                </WrapPanel>
                                             </Grid>
                                             <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Line}" Margin="16,0"/>
                                             <ScrollViewer VerticalScrollBarVisibility="Auto">

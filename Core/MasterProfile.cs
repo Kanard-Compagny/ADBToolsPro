@@ -35,6 +35,9 @@ namespace ADBToolsNew.Core
         public MasterItem DeviceOwner { get; set; }
         public List<MasterFile> Files { get; set; } = new List<MasterFile>();
         public List<string> Commands { get; set; } = new List<string>();
+        /// <summary>Ce qui ne se réinjecte pas par ADB (compte Google, Wi-Fi d'entreprise, certificat…) : étapes à faire à la main,
+        /// rappelées dans le bilan, avec l'écran du terminal ouvert au bon endroit.</summary>
+        public List<MasterStep> Steps { get; set; } = new List<MasterStep>();
 
         public const string ManifestName = "master.xml";
         public const string FileExtension = ".adbmaster";
@@ -166,6 +169,48 @@ namespace ADBToolsNew.Core
             return last ?? "";
         }
 
+        /// <summary>« dumpsys account » → comptes du terminal (nom, type), sans doublon.</summary>
+        public static List<KeyValuePair<string, string>> ParseAccounts(string dumpsys) =>
+            Regex.Matches(dumpsys ?? "", @"Account \{name=([^,}]+), type=([^}]+)\}").Cast<Match>()
+                .Select(m => new KeyValuePair<string, string>(m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim()))
+                .Distinct().ToList();
+
+        /// <summary>Saisie d'un réglage : « system screen_off_timeout=600000 » → (espace, clé, valeur), ou null.</summary>
+        public static MasterSetting ParseSettingInput(string input)
+        {
+            var m = Regex.Match((input ?? "").Trim(), @"^(system|secure|global)\s+([A-Za-z0-9_.:\-]+)\s*=\s*(.*)$", RegexOptions.IgnoreCase);
+            return m.Success ? new MasterSetting { Namespace = m.Groups[1].Value.ToLowerInvariant(), Key = m.Groups[2].Value, Value = m.Groups[3].Value } : null;
+        }
+
+        /// <summary>Écrans du terminal qu'une étape manuelle peut ouvrir (code → libellé français).</summary>
+        public static readonly string[][] StepScreens =
+        {
+            new[] { "", "Aucun écran" },
+            new[] { "google", "Ajout d'un compte Google" },
+            new[] { "accounts", "Ajout d'un compte" },
+            new[] { "wifi", "Wi-Fi" },
+            new[] { "security", "Sécurité / certificats" },
+            new[] { "date", "Date et heure" },
+            new[] { "locale", "Langue" },
+            new[] { "settings", "Paramètres" },
+        };
+
+        /// <summary>Arguments de « am start » pour ouvrir l'écran d'une étape, ou vide.</summary>
+        public static string StepScreenCommand(string screen)
+        {
+            switch (screen ?? "")
+            {
+                case "google": return "am start -a android.settings.ADD_ACCOUNT_SETTINGS --esa account_types com.google";
+                case "accounts": return "am start -a android.settings.ADD_ACCOUNT_SETTINGS";
+                case "wifi": return "am start -a android.settings.WIFI_SETTINGS";
+                case "security": return "am start -a android.settings.SECURITY_SETTINGS";
+                case "date": return "am start -a android.settings.DATE_SETTINGS";
+                case "locale": return "am start -a android.settings.LOCALE_SETTINGS";
+                case "settings": return "am start -a android.settings.SETTINGS";
+                default: return "";
+            }
+        }
+
         /// <summary>Valeur entre apostrophes pour le shell du terminal (« l'écran » → 'l'\''écran').</summary>
         public static string ShellQuote(string value) => "'" + (value ?? "").Replace("'", "'\\''") + "'";
     }
@@ -201,6 +246,16 @@ namespace ADBToolsNew.Core
         public string Ssid { get; set; } = "";
         public string Security { get; set; } = "";
         public string Password { get; set; } = "";
+        public bool Include { get; set; } = true;
+    }
+
+    public sealed class MasterStep
+    {
+        public string Title { get; set; } = "";
+        /// <summary>Précision pour le technicien (identifiant à saisir, où trouver le certificat…).</summary>
+        public string Detail { get; set; } = "";
+        /// <summary>Écran à ouvrir sur le terminal (voir MasterProfile.StepScreens).</summary>
+        public string Screen { get; set; } = "";
         public bool Include { get; set; } = true;
     }
 
