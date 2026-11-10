@@ -38,6 +38,7 @@ namespace ADBToolsNew.Core
             // Son
             { "alarm_alert", ("Sonnerie des alarmes", CatSound, "snd") },
             { "ringtone", ("Sonnerie des appels", CatSound, "snd") },
+            { "system_locales", ("Langue enregistrée par Android (sans effet : utilisez « Langue du système »)", CatInternal, "t") },
             { "notification_sound", ("Son des notifications", CatSound, "snd") },
             { "apply_ramping_ringer", ("Sonnerie progressive", CatSound, "b") },
             { "call_connected_tone_enabled", ("Bip à la connexion d'un appel", CatSound, "b") },

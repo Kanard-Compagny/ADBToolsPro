@@ -109,6 +109,16 @@ Source     : https://github.com/Live-Charts/Live-Charts
 
 Utilisé pour les graphiques en direct de l'Analyse Wi-Fi (latence et signal).
 
+--------------------------------------------------------------------------------
+8. QRCoder (assemblage embarqué dans l'application)
+--------------------------------------------------------------------------------
+Éditeur    : Raffael Herrmann et contributeurs
+Licence    : MIT License
+Source     : https://github.com/codebude/QRCoder
+
+Utilisé pour afficher les QR codes Wi-Fi du Master, à scanner depuis le
+terminal quand un réseau ne peut pas être enregistré automatiquement.
+
 Licence disponible intégralement à l'adresse :
 https://github.com/Live-Charts/Live-Charts/blob/master/LICENSE.TXT
 

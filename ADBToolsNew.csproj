@@ -53,6 +53,9 @@
     <Reference Include="DocumentFormat.OpenXml, Version=2.20.0.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
       <HintPath>packages\DocumentFormat.OpenXml.2.20.0\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
     </Reference>
+    <Reference Include="QRCoder, Version=1.4.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\QRCoder.1.4.3\lib\net40\QRCoder.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.12, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.12\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
@@ -135,6 +138,7 @@
     <Compile Include="Core\MasterProfile.cs" />
     <Compile Include="Core\MasterSettingsCatalog.cs" />
     <Compile Include="Core\MasterSettingsGlossary.cs" />
+    <Compile Include="Core\MasterHelperApp.cs" />
     <Compile Include="Core\XlsxExport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />

@@ -278,6 +278,34 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void WifiQr_And_Broadcast_And_Helper()
+        {
+            Assert.AreEqual("WIFI:T:WPA;S:Atelier\\;1;P:p\\:ss;;", MasterProfile.WifiQrPayload("Atelier;1", "wpa2", "p:ss", false));
+            Assert.AreEqual("WIFI:T:nopass;S:Invites;H:true;;", MasterProfile.WifiQrPayload("Invites", "open", "", true));
+            Assert.AreEqual("WIFI:T:SAE;S:A;P:b;;", MasterProfile.WifiQrPayload("A", "wpa3", "b", false));
+            var r = MasterProfile.ParseBroadcastResult("Broadcasting: Intent { flg=0x400020 cmp=fr.kanard.adbtools.helper/.AddNetwork }\nBroadcast completed: result=1, data=\"OK 7\"\n");
+            Assert.AreEqual(1, r.Code);
+            Assert.AreEqual("OK 7", r.Data);
+            Assert.AreEqual(0, MasterProfile.ParseBroadcastResult("Error: Bad component").Code);
+            StringAssert.Contains(MasterHelperApp.AddNetworkCommand("Mon réseau", "wpa2", "a'b", true), "--es ssid 'Mon réseau' --es type wpa2 --es pass 'a'\\''b' --ez hidden true");
+            StringAssert.Contains(MasterHelperApp.SetLocaleCommand("fr-FR"), ".SetLocale --es locale 'fr-FR'");
+        }
+
+        [TestMethod]
+        public void Normalize_Format4_MovesSystemLocalesToSpecialLocale()
+        {
+            var m = new MasterProfile { FormatVersion = 4 };
+            m.Settings.Add(new MasterSetting { Namespace = "system", Key = "system_locales", Value = "fr-FR,en-US", Include = true });
+            m.Normalize();
+            var sp = m.Settings.Single(x => x.Namespace == MasterSettingsCatalog.SpecialNamespace);
+            Assert.AreEqual(MasterSettingsCatalog.SpecialLocale, sp.Key);
+            Assert.AreEqual("fr-FR", sp.Value);
+            Assert.IsTrue(sp.Include);
+            Assert.IsFalse(m.Settings.Single(x => x.Key == "system_locales").Include);
+            Assert.IsNotNull(MasterSettingsCatalog.Find(MasterSettingsCatalog.SpecialNamespace, MasterSettingsCatalog.SpecialTimeZone));
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));

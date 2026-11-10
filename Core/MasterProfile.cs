@@ -28,7 +28,7 @@ namespace ADBToolsNew.Core
         public string Notes { get; set; } = "";
         /// <summary>Version du format : les Masters plus anciens sont remis au propre à l'ouverture (voir Normalize).</summary>
         public int FormatVersion { get; set; }
-        public const int CurrentFormat = 4;
+        public const int CurrentFormat = 5;
 
         public List<MasterApp> Apps { get; set; } = new List<MasterApp>();
         public List<MasterItem> DisabledApps { get; set; } = new List<MasterItem>();
@@ -112,6 +112,16 @@ namespace ADBToolsNew.Core
                 }
             }
             if (FormatVersion < 4) ApplyManagedOrigins();
+            if (FormatVersion < 5)
+            {
+                // « system_locales » n'a pas d'effet sur les Android récents : la langue devient le réglage spécial « Langue du système ».
+                var loc = Settings.FirstOrDefault(x => x.Namespace == "system" && x.Key == "system_locales");
+                if (loc != null && !Settings.Any(x => x.Namespace == MasterSettingsCatalog.SpecialNamespace && x.Key == MasterSettingsCatalog.SpecialLocale))
+                {
+                    Settings.Add(new MasterSetting { Namespace = MasterSettingsCatalog.SpecialNamespace, Key = MasterSettingsCatalog.SpecialLocale, Value = loc.Value.Split(',')[0], Include = loc.Include });
+                    loc.Include = false;
+                }
+            }
             FormatVersion = CurrentFormat;
         }
 
@@ -369,6 +379,21 @@ namespace ADBToolsNew.Core
         {
             string pkg = (packageOrComponent ?? "").Split('/')[0];
             return KnownApps.TryGetValue(pkg, out var n) ? Loc.T(n) : "";
+        }
+
+        /// <summary>Texte d'un QR code Wi-Fi (format lu par l'appareil photo et les Paramètres Wi-Fi d'Android).</summary>
+        public static string WifiQrPayload(string ssid, string type, string password, bool hidden)
+        {
+            string Esc(string v) => Regex.Replace(v ?? "", @"([\\;,:""])", "\\$1");
+            string t = type == "open" ? "nopass" : type == "wpa3" ? "SAE" : "WPA";
+            return $"WIFI:T:{t};S:{Esc(ssid)};" + (type == "open" ? "" : $"P:{Esc(password)};") + (hidden ? "H:true;" : "") + ";";
+        }
+
+        /// <summary>« am broadcast » → (code résultat, données), ex. « Broadcast completed: result=1, data="OK 5" » → (1, "OK 5").</summary>
+        public static (int Code, string Data) ParseBroadcastResult(string output)
+        {
+            var m = Regex.Match(output ?? "", @"result=(-?\d+)(?:,\s*data=""([^""]*)"")?");
+            return m.Success ? (int.Parse(m.Groups[1].Value), m.Groups[2].Value) : (0, "");
         }
 
         /// <summary>Valeur entre apostrophes pour le shell du terminal (« l'écran » → 'l'\''écran').</summary>

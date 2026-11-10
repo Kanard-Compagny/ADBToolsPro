@@ -53,6 +53,7 @@ namespace ADBToolsNew
             public bool Analyzing;
             public bool ShowingResults;
             public StackPanel PlanPanel;
+            public bool HelperReady;
         }
 
         private const int MasterTabIndex = 13;
@@ -406,6 +407,10 @@ namespace ADBToolsNew
                             m.Settings.Add(new MasterSetting { Namespace = ns, Key = kv.Key, Value = kv.Value, Include = MasterSettingsCatalog.Find(ns, kv.Key) != null });
                 }
 
+                // Langue et fuseau horaire : propriétés du système, pas des réglages « settings ».
+                foreach (var sp in await ReadMasterSpecialsAsync(serial))
+                    if (sp.Value.Length > 0) m.Settings.Add(new MasterSetting { Namespace = MasterSettingsCatalog.SpecialNamespace, Key = sp.Key, Value = sp.Value, Include = true });
+
                 if (sdk >= 30)
                     m.WifiNetworks = MasterProfile.ParseWifiNetworks((await _adbManager.ExecuteAsync($"-s {serial} shell cmd wifi list-networks", TimeSpan.FromSeconds(15))).StandardOutput);
 
@@ -717,7 +722,7 @@ namespace ADBToolsNew
 
                 case "wifi":
                     AddMasterSection(Loc.T("📶 Réseaux Wi-Fi"),
-                        Loc.T("Android ne donne pas les mots de passe : saisissez-les ici (ils sont enregistrés dans le Master, gardez le fichier en lieu sûr). Réinjection sur Android 11 et plus ; un réseau d'entreprise (802.1X) passe en étape à faire à la main."),
+                        Loc.T("Android ne donne pas les mots de passe : saisissez-les ici (ils sont enregistrés dans le Master, gardez le fichier en lieu sûr). Comme Android n'autorise plus l'ajout d'un réseau par câble, la mini appli « ADB Tools Helper » (sans icône) est installée pour les enregistrer et reste sur le terminal. En cas de refus, un QR code à scanner s'affiche. Un réseau d'entreprise (802.1X) passe en étape à faire à la main."),
                         m.WifiNetworks.Select(w => MasterWifiRow(m, w)).ToList(),
                         _masterWifiFormOpen ? null : (Func<Task>)(() => { _masterWifiFormOpen = true; RenderMasterView(); return Task.CompletedTask; }), Loc.T("＋ Ajouter un réseau"));
                     if (_masterWifiFormOpen) AddMasterWifiForm();
@@ -1329,6 +1334,16 @@ namespace ADBToolsNew
                 note.Width = 170; note.Margin = new Thickness(10, 0, 0, 0); note.VerticalAlignment = VerticalAlignment.Center;
                 extra.Children.Add(note);
             }
+            if (type.Length > 0)
+            {
+                var qr = new Button { Content = "QR", ToolTip = Loc.T("Afficher le QR code de ce réseau, à scanner depuis le terminal"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 26, Width = 36, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0) };
+                qr.Click += (s, a) =>
+                {
+                    if (type != "open" && string.IsNullOrEmpty(w.Password)) { TxtMasterSummary.Text = Loc.T("Saisissez d'abord le mot de passe de ce réseau."); return; }
+                    ShowMasterWifiQr(new List<MasterWifi> { w }, Loc.T("Sur le terminal : Paramètres > Wi-Fi, touchez l'icône QR (ou « Ajouter un réseau » puis l'icône QR) et scannez ce code."));
+                };
+                extra.Children.Add(qr);
+            }
             return new MasterRow
             {
                 Label = w.Ssid, Sub = w.Hidden ? Loc.T("réseau masqué") : "",
@@ -1671,6 +1686,7 @@ namespace ADBToolsNew
             BtnMasterRefresh.IsEnabled = false;
             AnimateNavButton(BtnNavMaster, true);
             AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧰 Master « {1} » appliqué à {2} terminal(aux).", DateTime.Now, m.Name, targets.Count));
+            _masterQrNeeded.Clear();
             int done = 0;
             SetTaskbarProgress(0);
             try
@@ -1697,6 +1713,7 @@ namespace ADBToolsNew
             int good = targets.Count(t => t.Outcome == "ok"), warn = targets.Count(t => t.Outcome == "warn"), bad = targets.Count(t => t.Outcome == "bad");
             TxtMasterSummary.Text = Loc.F("Terminé : {0} terminal(aux) complet(s), {1} avec des éléments non appliqués, {2} en échec. Ouvrez « Détail » pour la liste.", good, warn, bad);
             AppendConsole("\n" + TxtMasterSummary.Text);
+            if (_masterQrNeeded.Count > 0) ShowMasterWifiQr(_masterQrNeeded.ToList(), Loc.T("Ces réseaux n'ont pas pu être enregistrés automatiquement. Sur chaque terminal (l'écran Wi-Fi est ouvert), touchez l'icône QR (ou « Ajouter un réseau » puis l'icône QR) et scannez le code."));
             if (MainTabControl.SelectedIndex != MasterTabIndex)
                 await ShowCustomDialogAsync(Loc.T("🧰 Master appliqué"), TxtMasterSummary.Text, "OK", null, false);
         }
@@ -1721,6 +1738,7 @@ namespace ADBToolsNew
             t.BtnDetail.Visibility = Visibility.Collapsed;
             t.TxtDetail.Visibility = Visibility.Collapsed;
             t.PlanPanel.Visibility = Visibility.Collapsed;
+            t.HelperReady = false;
             if (t.AnalyzedMaster != m) await AnalyzeMasterTargetAsync(t);
             var apps = m.Apps.Where(a => a.Include && a.Files.Count > 0).ToList();
             int total = apps.Count + 6 + m.Files.Count(f => f.Include) + m.Commands.Count, step = 0;
@@ -1770,7 +1788,7 @@ namespace ADBToolsNew
                 var wanted = m.Settings.Where(x => x.Include).ToList();
                 var current = await ReadMasterSettingsAsync(t.Serial);
                 var toWrite = wanted.Where(x => !current.TryGetValue(x.Namespace + "|" + x.Key, out var cv) || cv != x.Value).ToList();
-                foreach (var st in toWrite)
+                foreach (var st in toWrite.Where(x => x.Namespace != MasterSettingsCatalog.SpecialNamespace))
                     script.Append($"settings put {st.Namespace} {st.Key} {MasterProfile.ShellQuote(st.Value)} >/dev/null 2>&1\n");
                 var lines = await RunMasterScriptAsync(t.Serial, script.ToString());
                 int permOk = 0;
@@ -1790,14 +1808,45 @@ namespace ADBToolsNew
                             break;
                     }
                 }
+                // Langue et fuseau horaire : par l'appli d'aide et par « cmd alarm ».
+                foreach (var st in toWrite.Where(x => x.Namespace == MasterSettingsCatalog.SpecialNamespace))
+                {
+                    if (st.Key == MasterSettingsCatalog.SpecialLocale)
+                    {
+                        MasterStatus(t, Loc.F("Langue : {0}…", st.Value));
+                        if (await EnsureMasterHelperAsync(t))
+                        {
+                            var r = MasterProfile.ParseBroadcastResult(string.Join("\n", await RunMasterScriptAsync(t.Serial, MasterHelperApp.SetLocaleCommand(st.Value) + " 2>&1\n")));
+                            if (r.Code != 1) AppendConsole("\n" + Loc.F("{0} : langue non changée ({1})", t.Serial, r.Data));
+                        }
+                    }
+                    else if (st.Key == MasterSettingsCatalog.SpecialTimeZone)
+                    {
+                        var r = await _adbManager.ExecuteAsync($"-s {t.Serial} shell cmd alarm set-timezone {MasterProfile.ShellQuote(st.Value)}", TimeSpan.FromSeconds(15));
+                        if (!r.IsSuccess || ((r.StandardOutput ?? "") + (r.StandardError ?? "")).IndexOf("Exception", StringComparison.OrdinalIgnoreCase) >= 0)
+                            await _adbManager.ExecuteAsync($"-s {t.Serial} shell service call alarm 3 s16 {MasterProfile.ShellQuote(st.Value)}", TimeSpan.FromSeconds(15));
+                    }
+                }
+
+                // Vérification : relecture du terminal ; chaque réglage modifié est listé avec son ancienne et sa nouvelle valeur.
                 int setSame = wanted.Count - toWrite.Count, setOk = 0;
                 if (toWrite.Count > 0)
                 {
+                    await Task.Delay(1500);
                     var after = await ReadMasterSettingsAsync(t.Serial);
                     foreach (var st in toWrite)
                     {
-                        if (after.TryGetValue(st.Namespace + "|" + st.Key, out var av) && av == st.Value) setOk++;
-                        else MasterAdd(t, catSet, $"{st.Namespace} · {st.Key}", "ko", Loc.T("protégé par Android"));
+                        var def = MasterSettingsCatalog.Find(st.Namespace, st.Key);
+                        string name = def != null ? Loc.T(def.Label) : Loc.T(MasterSettingsGlossary.Describe(st.Key).Label);
+                        string Show(string v) => def != null ? Loc.T(MasterSettingsCatalog.DisplayValue(def, v)) : Loc.T(MasterSettingsGlossary.DisplayValue(st.Key, v));
+                        current.TryGetValue(st.Namespace + "|" + st.Key, out var before);
+                        bool same = after.TryGetValue(st.Namespace + "|" + st.Key, out var av) &&
+                                    (av == st.Value || MasterSettingsCatalog.SameValue(av, st.Value) || (st.Key == MasterSettingsCatalog.SpecialLocale && av.StartsWith(st.Value.Split(',')[0], StringComparison.OrdinalIgnoreCase)));
+                        if (same) { setOk++; MasterAdd(t, catSet, name, "ok", (before ?? "").Length > 0 ? Loc.F("{0} → {1}", Show(before), Show(st.Value)) : Show(st.Value)); }
+                        else MasterAdd(t, catSet, name, "ko",
+                            st.Key == MasterSettingsCatalog.SpecialLocale ? Loc.T("langue non changée : Android a refusé (voir la console)")
+                            : st.Key == MasterSettingsCatalog.SpecialTimeZone ? Loc.T("fuseau non changé : Android a refusé")
+                            : Loc.T("protégé par Android"));
                     }
                 }
                 int permTotal = apps.Sum(a => a.Permissions.Count), setTotal = wanted.Count;
@@ -1805,19 +1854,38 @@ namespace ADBToolsNew
                 if (setTotal > 0) MasterAdd(t, catSet, Loc.F("{0} modifié(s), {1} déjà identique(s), {2} protégé(s)", setOk, setSame, setTotal - setOk - setSame), setOk + setSame == setTotal ? "ok" : "info");
                 step += 3; Advance();
 
-                // 5. Wi-Fi.
+                // 5. Wi-Fi : commande ADB si Android l'autorise, sinon mini appli ADB Tools Helper, sinon QR code à scanner.
                 foreach (var w in m.WifiNetworks.Where(x => x.Include))
                 {
                     string type = MasterProfile.WifiConnectType(w.Security);
-                    if (t.Sdk > 0 && t.Sdk < 30) { MasterAdd(t, catWifi, w.Ssid, "skip", Loc.T("Android 11 ou plus requis : à saisir à la main")); continue; }
                     if (type.Length == 0) { MasterAdd(t, catWifi, w.Ssid, "skip", Loc.T("réseau d'entreprise ou WEP : à configurer à la main ou par le MDM")); continue; }
                     if (type != "open" && string.IsNullOrEmpty(w.Password)) { MasterAdd(t, catWifi, w.Ssid, "skip", Loc.T("mot de passe non saisi dans le Master")); continue; }
                     MasterStatus(t, Loc.F("Wi-Fi : {0}…", w.Ssid));
-                    string cmd = $"cmd wifi connect-network {MasterProfile.ShellQuote(w.Ssid)} {type}" + (type == "open" ? "" : " " + MasterProfile.ShellQuote(w.Password)) + (w.Hidden ? " -h" : "");
-                    var res = await RunMasterScriptAsync(t.Serial, cmd + " 2>&1\n");
-                    string outp = string.Join(" ", res);
-                    bool failed = System.Text.RegularExpressions.Regex.IsMatch(outp, "(?i)exception|error|invalid|unknown|fail");
-                    MasterAdd(t, catWifi, w.Ssid, failed ? "ko" : "ok", failed ? outp.Trim() : Loc.T("enregistré"));
+                    bool saved = false;
+                    string why = "";
+                    if (t.Sdk == 0 || t.Sdk >= 30)
+                    {
+                        string cmd = $"cmd wifi connect-network {MasterProfile.ShellQuote(w.Ssid)} {type}" + (type == "open" ? "" : " " + MasterProfile.ShellQuote(w.Password)) + (w.Hidden ? " -h" : "");
+                        string outp = string.Join(" ", await RunMasterScriptAsync(t.Serial, cmd + " 2>&1\n"));
+                        saved = !System.Text.RegularExpressions.Regex.IsMatch(outp, "(?i)exception|error|invalid|unknown|fail|denied|does not have");
+                        if (saved) MasterAdd(t, catWifi, w.Ssid, "ok", Loc.T("enregistré"));
+                    }
+                    if (!saved && await EnsureMasterHelperAsync(t))
+                    {
+                        // Par un script envoyé sur le terminal : le mot de passe passe tel quel, quels que soient ses caractères.
+                        var r = await RunMasterScriptAsync(t.Serial, MasterHelperApp.AddNetworkCommand(w.Ssid, type, w.Password, w.Hidden) + " 2>&1\n");
+                        var br = MasterProfile.ParseBroadcastResult(string.Join("\n", r));
+                        saved = br.Code == 1;
+                        if (saved) MasterAdd(t, catWifi, w.Ssid, "ok", Loc.T("enregistré (mini appli ADB Tools Helper)"));
+                        else why = br.Data;
+                    }
+                    if (!saved)
+                    {
+                        // Dernier recours : QR code à scanner depuis l'écran Wi-Fi du terminal (affiché à la fin de l'envoi).
+                        MasterAdd(t, catWifi, w.Ssid, "todo", Loc.T("à ajouter en scannant son QR code (Paramètres > Wi-Fi > icône QR)") + (why.Length > 0 ? " — " + why : ""));
+                        lock (_masterQrNeeded) _masterQrNeeded.Add(w);
+                        await _adbManager.ExecuteAsync($"-s {t.Serial} shell am start -a android.settings.WIFI_SETTINGS", TimeSpan.FromSeconds(15));
+                    }
                 }
                 Advance();
 
@@ -1908,9 +1976,108 @@ namespace ADBToolsNew
         }
 
         /// <summary>Réglages actuels du terminal, clé « espace|nom ».</summary>
+        private readonly HashSet<MasterWifi> _masterQrNeeded = new HashSet<MasterWifi>();
+
+        /// <summary>QR codes Wi-Fi à scanner depuis le terminal (Paramètres > Wi-Fi > icône QR), un par réseau.</summary>
+        private void ShowMasterWifiQr(List<MasterWifi> networks, string intro)
+        {
+            var list = networks.Where(w => MasterProfile.WifiConnectType(w.Security).Length > 0).ToList();
+            if (list.Count == 0) return;
+            var root = new StackPanel { Margin = new Thickness(20) };
+            var head = new TextBlock { Text = intro, TextWrapping = TextWrapping.Wrap, FontSize = 13, Margin = new Thickness(0, 0, 0, 14), MaxWidth = 760 };
+            head.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            root.Children.Add(head);
+            var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            foreach (var w in list)
+            {
+                string type = MasterProfile.WifiConnectType(w.Security);
+                var card = new Border { Background = System.Windows.Media.Brushes.White, CornerRadius = new CornerRadius(8), Padding = new Thickness(14), Margin = new Thickness(0, 0, 14, 14), Width = 280 };
+                var p = new StackPanel();
+                p.Children.Add(new TextBlock { Text = w.Ssid, FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.Black, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center });
+                try
+                {
+                    using (var gen = new QRCoder.QRCodeGenerator())
+                    using (var data = gen.CreateQrCode(MasterProfile.WifiQrPayload(w.Ssid, type, w.Password, w.Hidden), QRCoder.QRCodeGenerator.ECCLevel.M))
+                    {
+                        byte[] png = new QRCoder.PngByteQRCode(data).GetGraphic(10);
+                        var img = new System.Windows.Media.Imaging.BitmapImage();
+                        using (var ms = new MemoryStream(png))
+                        {
+                            img.BeginInit();
+                            img.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            img.StreamSource = ms;
+                            img.EndInit();
+                        }
+                        var image = new Image { Source = img, Width = 240, Height = 240, Margin = new Thickness(0, 10, 0, 6) };
+                        System.Windows.Media.RenderOptions.SetBitmapScalingMode(image, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
+                        p.Children.Add(image);
+                    }
+                }
+                catch (Exception ex) { p.Children.Add(new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap }); }
+                p.Children.Add(new TextBlock { Text = (w.Hidden ? Loc.T("réseau masqué") + " · " : "") + w.Security, FontSize = 11, Foreground = System.Windows.Media.Brushes.DimGray, HorizontalAlignment = HorizontalAlignment.Center });
+                card.Child = p;
+                wrap.Children.Add(card);
+            }
+            root.Children.Add(wrap);
+            var warn = MasterMutedText(Loc.T("Le QR code contient le mot de passe : ne laissez pas cette fenêtre ouverte sans surveillance."), 11.5);
+            root.Children.Add(warn);
+            var win = new Window
+            {
+                Title = Loc.T("QR codes Wi-Fi à scanner"),
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                MaxHeight = SystemParameters.WorkArea.Height - 40,
+                MaxWidth = SystemParameters.WorkArea.Width - 40,
+                ResizeMode = ResizeMode.CanResizeWithGrip,
+                Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            };
+            win.SetResourceReference(Window.BackgroundProperty, "Bg");
+            win.Show();
+        }
+
+        /// <summary>
+        /// Installe la mini appli ADB Tools Helper si elle manque (jamais par-dessus une version déjà présente : elle porte les
+        /// réseaux Wi-Fi qu'elle a enregistrés) et lui accorde le droit de changer la langue.
+        /// </summary>
+        private async Task<bool> EnsureMasterHelperAsync(MasterTarget t)
+        {
+            if (t.HelperReady) return true;
+            var has = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm path {MasterHelperApp.Package}", TimeSpan.FromSeconds(15));
+            if (!(has.StandardOutput ?? "").Contains("package:"))
+            {
+                if (!File.Exists(MasterHelperApp.ApkPath))
+                {
+                    AppendConsole("\n" + Loc.F("Mini appli introuvable : {0}", MasterHelperApp.ApkPath));
+                    return false;
+                }
+                var inst = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
+                if (!((inst.StandardOutput ?? "") + (inst.StandardError ?? "")).Contains("Success"))
+                {
+                    AppendConsole("\n" + Loc.F("{0} : installation de la mini appli ADB Tools Helper refusée : {1}", t.Serial, LastLines(inst.StandardError + inst.StandardOutput, 1)));
+                    return false;
+                }
+            }
+            await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm grant {MasterHelperApp.Package} android.permission.CHANGE_CONFIGURATION", TimeSpan.FromSeconds(15));
+            t.HelperReady = true;
+            return true;
+        }
+
+        /// <summary>Langue (ex. fr-FR) et fuseau horaire (ex. Europe/Paris) du terminal.</summary>
+        private async Task<Dictionary<string, string>> ReadMasterSpecialsAsync(string serial)
+        {
+            var p = await _adbManager.RunShellSectionsAsync(serial, TimeSpan.FromSeconds(15), "getprop persist.sys.locale", "getprop ro.product.locale", "getprop persist.sys.timezone");
+            return new Dictionary<string, string>
+            {
+                { MasterSettingsCatalog.SpecialLocale, p[0].Length > 0 ? p[0] : p[1] },
+                { MasterSettingsCatalog.SpecialTimeZone, p[2] },
+            };
+        }
+
         private async Task<Dictionary<string, string>> ReadMasterSettingsAsync(string serial)
         {
             var d = new Dictionary<string, string>();
+            foreach (var sp in await ReadMasterSpecialsAsync(serial)) d[MasterSettingsCatalog.SpecialNamespace + "|" + sp.Key] = sp.Value;
             foreach (var ns in new[] { "system", "secure", "global" })
             {
                 var r = await _adbManager.ExecuteAsync($"-s {serial} shell settings list {ns}", TimeSpan.FromSeconds(30));

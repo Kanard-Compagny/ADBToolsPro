@@ -36,6 +36,11 @@ namespace ADBToolsNew.Core
         public const string ThemeSystem = "Sécurité et système";
         public static readonly string[] Themes = { ThemeScreen, ThemeSound, ThemeLanguage, ThemeNetwork, ThemeSystem };
 
+        /// <summary>Réglages qui ne passent pas par « settings put » : langue (appli d'aide) et fuseau horaire (cmd alarm).</summary>
+        public const string SpecialNamespace = "special";
+        public const string SpecialLocale = "locale";
+        public const string SpecialTimeZone = "time_zone";
+
         private static readonly (string, string)[] OnOff = { ("1", "Activé"), ("0", "Désactivé") };
 
         private static MasterSettingDef Toggle(string ns, string key, string label, string theme, string def = "1", string hint = "") =>
@@ -91,7 +96,9 @@ namespace ADBToolsNew.Core
             Toggle("system", "dtmf_tone", "Tonalité du clavier de numérotation", ThemeSound),
 
             // Langue, clavier et heure
-            Text("system", "system_locales", "Langue du système", ThemeLanguage, "fr-FR", "code langue-pays, ex. fr-FR, en-GB (selon le terminal, un redémarrage peut être nécessaire)"),
+            // Langue et fuseau : ce ne sont pas des réglages Android (settings) ; ADB Tools les applique autrement (espace « special »).
+            Text(SpecialNamespace, SpecialLocale, "Langue du système", ThemeLanguage, "fr-FR", "code langue-pays, ex. fr-FR, en-GB, de-DE (appliquée par la mini appli ADB Tools Helper)"),
+            Text(SpecialNamespace, SpecialTimeZone, "Fuseau horaire", ThemeLanguage, "Europe/Paris", "ex. Europe/Paris ; désactivez « Fuseau horaire automatique » pour qu'il ne soit pas remplacé par le réseau"),
             Text("secure", "default_input_method", "Clavier par défaut", ThemeLanguage, "", "identifiant du clavier (paquet/classe), tel que capturé"),
             Toggle("secure", "show_ime_with_hard_keyboard", "Clavier à l'écran avec un clavier physique", ThemeLanguage),
             Toggle("global", "auto_time", "Date et heure automatiques", ThemeLanguage),
