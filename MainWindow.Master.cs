@@ -415,6 +415,7 @@ namespace ADBToolsNew
 
                 string owner = MasterProfile.ParseDeviceOwner((await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys device_policy", TimeSpan.FromSeconds(20))).StandardOutput);
                 if (owner.Length > 0) m.DeviceOwner = new MasterItem { Name = owner };
+                m.ApplyManagedOrigins();
 
                 // Comptes (Google ou autres) : ils ne se recopient pas par ADB, ils deviennent des étapes à faire à la main.
                 var accounts = MasterProfile.ParseAccounts((await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys account", TimeSpan.FromSeconds(20))).StandardOutput);
@@ -571,6 +572,8 @@ namespace ADBToolsNew
                 case "system": return Loc.T("appli système du terminal (mise à jour)");
                 case "vendor": return Loc.T("livrée avec le terminal (fabricant ou Google)");
                 case "store": return Loc.T("installée par le Play Store");
+                case "mdmstore": return Loc.T("poussée par le MDM (Play Store d'entreprise)");
+                case "owner": return Loc.T("agent MDM, propriétaire du terminal : essentielle");
                 case "mdm": return Loc.F("installée par le MDM{0}", MasterProfile.KnownAppName(a.Installer) is string n && n.Length > 0 ? " (" + n + ")" : "");
                 case "manual": return Loc.T("installée à la main (APK, ADB)");
                 default: return "";

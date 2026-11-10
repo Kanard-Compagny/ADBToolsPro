@@ -28,7 +28,7 @@ namespace ADBToolsNew.Core
         public string Notes { get; set; } = "";
         /// <summary>Version du format : les Masters plus anciens sont remis au propre à l'ouverture (voir Normalize).</summary>
         public int FormatVersion { get; set; }
-        public const int CurrentFormat = 3;
+        public const int CurrentFormat = 4;
 
         public List<MasterApp> Apps { get; set; } = new List<MasterApp>();
         public List<MasterItem> DisabledApps { get; set; } = new List<MasterItem>();
@@ -111,7 +111,25 @@ namespace ADBToolsNew.Core
                     if (a.Origin == "vendor") a.Include = false;
                 }
             }
+            if (FormatVersion < 4) ApplyManagedOrigins();
             FormatVersion = CurrentFormat;
+        }
+
+        /// <summary>
+        /// Terminal géré par un MDM (propriétaire du terminal défini) : l'agent MDM est l'appli essentielle, et les applis venues
+        /// du Play Store y ont été poussées par le MDM (Play Store d'entreprise) : ce sont les applis métier, cochées.
+        /// </summary>
+        public void ApplyManagedOrigins()
+        {
+            string ownerPkg = (DeviceOwner?.Name ?? "").Split('/')[0];
+            if (ownerPkg.Length == 0) return;
+            foreach (var a in Apps.Where(x => !x.FromPc))
+            {
+                if (a.Package == ownerPkg) a.Origin = "owner";
+                else if (a.Origin == "store") a.Origin = "mdmstore";
+                else continue;
+                a.Include = a.Files.Count > 0;
+            }
         }
 
         // Applis livrées avec les terminaux (fabricant, Google) : déjà présentes, à ne réinstaller qu'en connaissance de cause.

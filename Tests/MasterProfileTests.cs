@@ -251,6 +251,21 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void ManagedDevice_PlayStoreAppsAreMdmApps()
+        {
+            var m = new MasterProfile { FormatVersion = 3, DeviceOwner = new MasterItem { Name = "net.soti.mobicontrol.androidwork/net.soti.X" } };
+            m.Apps.Add(new MasterApp { Package = "net.soti.mobicontrol.androidwork", Origin = "store", Include = false, Files = { "a" } });
+            m.Apps.Add(new MasterApp { Package = "hardis.com.wagonandroid", Origin = "store", Include = false, Files = { "b" } });
+            m.Apps.Add(new MasterApp { Package = "com.zebra.oemconfig.release", Origin = "vendor", Include = false, Files = { "c" } });
+            m.Normalize();
+            Assert.AreEqual("owner", m.Apps[0].Origin);
+            Assert.IsTrue(m.Apps[0].Include);
+            Assert.AreEqual("mdmstore", m.Apps[1].Origin);
+            Assert.IsTrue(m.Apps[1].Include);
+            Assert.IsFalse(m.Apps[2].Include);
+        }
+
+        [TestMethod]
         public void SaveThenOpen_RoundTrip()
         {
             string root = Path.Combine(Path.GetTempPath(), "adbt_master_test_" + Guid.NewGuid().ToString("N"));
