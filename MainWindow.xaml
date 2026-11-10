@@ -1270,6 +1270,12 @@
                                         <TextBlock Text="Master" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
                                     </StackPanel>
                                 </Button>
+                                <Button x:Name="BtnNavDepannage" Click="NavDepannage_Click" Style="{StaticResource MenuButtonStyle}" ToolTip="Dépannage : terminal non détecté, non autorisé, écran cassé, sans débogage USB">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🩺" Width="50" FontSize="16" TextAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Dépannage" VerticalAlignment="Center" Visibility="{Binding Visibility, ElementName=SidebarLogoGroup}"/>
+                                    </StackPanel>
+                                </Button>
 
                             </StackPanel>
                         </ScrollViewer>
@@ -4445,6 +4451,37 @@
                                         <Button x:Name="BtnMasterRefresh" Content="↻ Actualiser" Click="BtnMasterRefresh_Click" Style="{StaticResource OutlineButtonStyle}" Height="36" Padding="14,0" Margin="0,0,8,0"/>
                                         <Button x:Name="BtnMasterApply" Content="Appliquer le Master" Click="BtnMasterApply_Click" Style="{StaticResource PrimaryButtonStyle}" Height="36" Padding="18,0" IsEnabled="False"/>
                                     </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+                        <!-- Dépannage : terminal non détecté, non autorisé, écran cassé, sans débogage USB (index 14) -->
+                        <TabItem>
+                            <Grid Margin="15,0,15,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid Margin="0,0,0,15">
+                                    <StackPanel Margin="0,0,180,0">
+                                        <TextBlock Text="Dépannage" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                        <TextBlock Text="Terminal non détecté ou non autorisé, écran cassé, tactile mort, débogage USB désactivé : choisissez le symptôme, la page propose ce qui est possible dans ce cas, pour toutes les marques." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <Button x:Name="BtnDepRefresh" Content="↻ Actualiser" Click="BtnDepRefresh_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" HorizontalAlignment="Right" VerticalAlignment="Top" ToolTip="Relire les terminaux branchés"/>
+                                </Grid>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="280"/>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource SettingsCardStyle}" VerticalAlignment="Top" Padding="8,10">
+                                        <StackPanel x:Name="DepMenu"/>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource SettingsCardStyle}" Padding="0">
+                                        <ScrollViewer x:Name="DepScroll" VerticalScrollBarVisibility="Auto">
+                                            <StackPanel x:Name="DepContent" Margin="22,16,22,20"/>
+                                        </ScrollViewer>
+                                    </Border>
                                 </Grid>
                             </Grid>
                         </TabItem>

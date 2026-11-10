@@ -515,7 +515,7 @@ namespace ADBToolsNew
         private void UpdateNavButtonsUI(Button activeBtn)
         {
             // Liste complète de tous les boutons du menu latéral (BtnNavLibrary ajouté à la fin)
-            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavOsUpdate, BtnNavMaster, BtnNavSettings };
+            Button[] navBtns = { BtnNavDashboard, BtnNavMirroring, BtnNavPackages, BtnNavExplorer, BtnNavTools, BtnNavLogs, BtnNavDiag, BtnNavLibrary, BtnNavRadar, BtnNavCompare, BtnNavFileAnalysis, BtnNavOsUpdate, BtnNavMaster, BtnNavDepannage, BtnNavSettings };
 
             foreach (var btn in navBtns)
             {
@@ -557,6 +557,9 @@ namespace ADBToolsNew
 
             // 6. Master (capture ou remise en état)
             if (_masterBusy) AnimateNavButton(BtnNavMaster, true);
+
+            // 7. Dépannage (sauvegarde, rapport de bug, envoi d'un paquet)
+            if (_depBusy) AnimateNavButton(BtnNavDepannage, true);
         }
 
         private void NavDashboard_Click(object sender, RoutedEventArgs e)

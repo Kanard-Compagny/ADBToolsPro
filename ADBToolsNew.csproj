@@ -60,6 +60,7 @@
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.12\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
     </Reference>
@@ -133,12 +134,14 @@
     <Compile Include="MainWindow.SuggestBox.cs" />
     <Compile Include="MainWindow.MassOsUpdate.cs" />
     <Compile Include="MainWindow.Master.cs" />
+    <Compile Include="MainWindow.Depannage.cs" />
     <Compile Include="MainWindow.Taskbar.cs" />
     <Compile Include="Core\OsUpdatePackage.cs" />
     <Compile Include="Core\MasterProfile.cs" />
     <Compile Include="Core\MasterSettingsCatalog.cs" />
     <Compile Include="Core\MasterSettingsGlossary.cs" />
     <Compile Include="Core\MasterHelperApp.cs" />
+    <Compile Include="Core\Troubleshooting.cs" />
     <Compile Include="Core\XlsxExport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />

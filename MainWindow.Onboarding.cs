@@ -104,6 +104,8 @@ namespace ADBToolsNew
                 Body = Loc.T("Installe le paquet OS du fabricant sur un ou plusieurs terminaux en même temps, par câble ou par copie dans la mémoire du terminal : vérifications avant l'envoi, contrôle de la version au retour, bilan Excel.") },
             new TourStep { Target = () => BtnNavMaster, Title = Loc.T("Master"),
                 Body = Loc.T("Remet des terminaux en état après un wipe. Capturez un terminal de référence (ou créez le Master à la main), vérifiez et complétez son contenu par onglets (ce qui manque est en orange), puis cochez les terminaux : chacun est analysé avant l'envoi, et le bilan dit ce qui a été remis en place ou non.") },
+            new TourStep { Target = () => BtnNavDepannage, Title = Loc.T("Dépannage"),
+                Body = Loc.T("Terminal non détecté ou non autorisé, écran cassé, tactile mort, débogage USB désactivé : choisissez le symptôme, la page explique la cause et propose les solutions (prise en main au clavier et à la souris par câble, récupération des données, recovery, combinaisons de touches).") },
             new TourStep { Target = () => ConsoleBorder, Title = Loc.T("La console"),
                 Body = Loc.T("Chaque action y est notée, avec son résultat. « Copier Logs » pour transmettre un souci ; la flèche la replie.") },
             new TourStep { Target = () => BtnCapturesMenu, Title = Loc.T("Captures"),
