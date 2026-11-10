@@ -12,7 +12,7 @@ namespace ADBToolsNew.Core
     {
         public const string Package = "fr.kanard.adbtools.helper";
         /// <summary>versionCode de l'appli livrée (HelperApp/AndroidManifest.xml) : une version plus ancienne sur le terminal est remplacée.</summary>
-        public const int VersionCode = 2;
+        public const int VersionCode = 3;
         public static string ApkPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HelperApp", "ADBToolsHelper.apk");
 
         /// <summary>Arguments de « adb shell » pour enregistrer un réseau Wi-Fi.</summary>

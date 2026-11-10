@@ -2080,7 +2080,9 @@ namespace ADBToolsNew
             // Changer la langue demande aussi « modifier les paramètres système » (WRITE_SETTINGS), accordée par appops et non par pm grant.
             var ops = await _adbManager.ExecuteAsync($"-s {t.Serial} shell appops set {MasterHelperApp.Package} WRITE_SETTINGS allow", TimeSpan.FromSeconds(15));
             string opsOut = ((ops.StandardOutput ?? "") + (ops.StandardError ?? "")).Trim();
-            if (opsOut.Length > 0) AppendConsole("\n" + Loc.F("{0} : autorisation de modifier les paramètres système : {1}", t.Serial, LastLines(opsOut, 1)));
+            var opsGet = await _adbManager.ExecuteAsync($"-s {t.Serial} shell appops get {MasterHelperApp.Package} WRITE_SETTINGS", TimeSpan.FromSeconds(15));
+            if (opsOut.Length > 0 || !(opsGet.StandardOutput ?? "").Contains("allow"))
+                AppendConsole("\n" + Loc.F("{0} : autorisation de modifier les paramètres système : {1}", t.Serial, LastLines(opsOut + " " + opsGet.StandardOutput, 1)));
             t.HelperReady = true;
             return true;
         }

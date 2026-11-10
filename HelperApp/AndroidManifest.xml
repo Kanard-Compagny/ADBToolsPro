@@ -8,14 +8,16 @@
      Aucune donnée n'est envoyée ailleurs. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.helper"
-    android:versionCode="2"
-    android:versionName="1.1">
+    android:versionCode="3"
+    android:versionName="1.2">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="28" />
 
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_CONFIGURATION" />
+    <!-- Exigée par Android 14 pour changer la langue (« modifier les paramètres système »), accordée par « appops set ». -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
     <application android:label="ADB Tools Helper" android:allowBackup="false">
         <receiver android:name=".AddNetwork" android:exported="true" android:permission="android.permission.DUMP" />
