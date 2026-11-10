@@ -53,7 +53,7 @@ namespace ADBToolsNew
             public bool Analyzing;
             public bool ShowingResults;
             public StackPanel PlanPanel;
-            public bool HelperReady;
+            public int HelperVersion;
         }
 
         private const int MasterTabIndex = 13;
@@ -1738,7 +1738,7 @@ namespace ADBToolsNew
             t.BtnDetail.Visibility = Visibility.Collapsed;
             t.TxtDetail.Visibility = Visibility.Collapsed;
             t.PlanPanel.Visibility = Visibility.Collapsed;
-            t.HelperReady = false;
+            t.HelperVersion = 0;
             if (t.AnalyzedMaster != m) await AnalyzeMasterTargetAsync(t);
             var apps = m.Apps.Where(a => a.Include && a.Files.Count > 0).ToList();
             int total = apps.Count + 6 + m.Files.Count(f => f.Include) + m.Commands.Count, step = 0;
@@ -1787,6 +1787,19 @@ namespace ADBToolsNew
                 // Réglages : comparés sur le PC (une seule lecture par espace), seuls ceux qui diffèrent sont écrits.
                 var wanted = m.Settings.Where(x => x.Include).ToList();
                 var current = await ReadMasterSettingsAsync(t.Serial);
+                // Luminosité automatique active (imposée ou déjà sur le terminal) : la valeur de luminosité est gérée par Android
+                // et change sans cesse ; la réécrire n'aurait pas d'effet durable.
+                var modeSt = wanted.FirstOrDefault(x => x.Namespace == "system" && x.Key == "screen_brightness_mode");
+                current.TryGetValue("system|screen_brightness_mode", out var curMode);
+                if ((modeSt != null ? modeSt.Value : curMode) == "1")
+                {
+                    var bri = wanted.FirstOrDefault(x => x.Namespace == "system" && x.Key == "screen_brightness");
+                    if (bri != null)
+                    {
+                        wanted.Remove(bri);
+                        MasterAdd(t, catSet, Loc.T("Luminosité"), "skip", Loc.T("ignorée : la luminosité automatique est activée"));
+                    }
+                }
                 var toWrite = wanted.Where(x => !current.TryGetValue(x.Namespace + "|" + x.Key, out var cv) || cv != x.Value).ToList();
                 foreach (var st in toWrite.Where(x => x.Namespace != MasterSettingsCatalog.SpecialNamespace))
                     script.Append($"settings put {st.Namespace} {st.Key} {MasterProfile.ShellQuote(st.Value)} >/dev/null 2>&1\n");
@@ -1815,7 +1828,7 @@ namespace ADBToolsNew
                     if (st.Key == MasterSettingsCatalog.SpecialLocale)
                     {
                         MasterStatus(t, Loc.F("Langue : {0}…", st.Value));
-                        if (await EnsureMasterHelperAsync(t))
+                        if (await EnsureMasterHelperAsync(t, MasterHelperApp.LocaleMinVersion))
                         {
                             var raw = string.Join("\n", await RunMasterScriptAsync(t.Serial, MasterHelperApp.SetLocaleCommand(st.Value) + " 2>&1\n"));
                             var r = MasterProfile.ParseBroadcastResult(raw);
@@ -1873,7 +1886,7 @@ namespace ADBToolsNew
                         saved = !System.Text.RegularExpressions.Regex.IsMatch(outp, "(?i)exception|error|invalid|unknown|fail|denied|does not have");
                         if (saved) MasterAdd(t, catWifi, w.Ssid, "ok", Loc.T("enregistré"));
                     }
-                    if (!saved && await EnsureMasterHelperAsync(t))
+                    if (!saved && await EnsureMasterHelperAsync(t, MasterHelperApp.WifiMinVersion))
                     {
                         // Par un script envoyé sur le terminal : le mot de passe passe tel quel, quels que soient ses caractères.
                         var r = await RunMasterScriptAsync(t.Serial, MasterHelperApp.AddNetworkCommand(w.Ssid, type, w.Password, w.Hidden) + " 2>&1\n");
@@ -2040,50 +2053,58 @@ namespace ADBToolsNew
         }
 
         /// <summary>
-        /// Installe la mini appli ADB Tools Helper si elle manque (jamais par-dessus une version déjà présente : elle porte les
-        /// réseaux Wi-Fi qu'elle a enregistrés) et lui accorde le droit de changer la langue.
+        /// Prépare la mini appli ADB Tools Helper : installée si elle manque ; une version déjà présente est gardée tant qu'elle
+        /// sait faire l'opération demandée (minVersion), car la remplacer retire les réseaux Wi-Fi qu'elle avait enregistrés.
+        /// Remplacée seulement si elle est trop ancienne, et le bilan le signale.
         /// </summary>
-        private async Task<bool> EnsureMasterHelperAsync(MasterTarget t)
+        private async Task<bool> EnsureMasterHelperAsync(MasterTarget t, int minVersion)
         {
-            if (t.HelperReady) return true;
+            if (t.HelperVersion >= minVersion) return true;
             var has = await _adbManager.ExecuteAsync($"-s {t.Serial} shell dumpsys package {MasterHelperApp.Package}", TimeSpan.FromSeconds(15));
             var vc = System.Text.RegularExpressions.Regex.Match(has.StandardOutput ?? "", @"versionCode=(\d+)");
-            bool present = vc.Success;
-            if (present && int.Parse(vc.Groups[1].Value) < MasterHelperApp.VersionCode)
-            {
-                // Ancienne version : mise à jour ; si la signature diffère, désinstallation puis réinstallation
-                // (les réseaux Wi-Fi du Master sont réenregistrés juste après, à l'étape Wi-Fi).
-                var up = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
-                if (!((up.StandardOutput ?? "") + (up.StandardError ?? "")).Contains("Success"))
-                {
-                    await _adbManager.ExecuteAsync($"-s {t.Serial} uninstall {MasterHelperApp.Package}", TimeSpan.FromSeconds(30));
-                    present = false;
-                }
-            }
-            if (!present)
+            int installed = vc.Success ? int.Parse(vc.Groups[1].Value) : 0;
+            if (installed < minVersion)
             {
                 if (!File.Exists(MasterHelperApp.ApkPath))
                 {
                     AppendConsole("\n" + Loc.F("Mini appli introuvable : {0}", MasterHelperApp.ApkPath));
                     return false;
                 }
-                var inst = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
-                if (!((inst.StandardOutput ?? "") + (inst.StandardError ?? "")).Contains("Success"))
+                if (installed > 0)
                 {
-                    AppendConsole("\n" + Loc.F("{0} : installation de la mini appli ADB Tools Helper refusée : {1}", t.Serial, LastLines(inst.StandardError + inst.StandardOutput, 1)));
-                    return false;
+                    // Trop ancienne : mise à jour, ou désinstallation puis réinstallation si la signature diffère.
+                    var up = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
+                    if (((up.StandardOutput ?? "") + (up.StandardError ?? "")).Contains("Success"))
+                        installed = MasterHelperApp.VersionCode;
+                    else
+                    {
+                        await _adbManager.ExecuteAsync($"-s {t.Serial} uninstall {MasterHelperApp.Package}", TimeSpan.FromSeconds(30));
+                        MasterAdd(t, Loc.T("Mini appli ADB Tools Helper"), Loc.F("remplacée (version {0} → {1})", installed, MasterHelperApp.VersionCode), "info",
+                            Loc.T("les réseaux Wi-Fi qu'elle avait enregistrés et qui ne sont pas dans ce Master ont été retirés"));
+                        installed = 0;
+                    }
+                }
+                if (installed == 0)
+                {
+                    var inst = await _adbManager.ExecuteAsync($"-s {t.Serial} install -r -g {AdbManager.QuoteLocalArg(MasterHelperApp.ApkPath)}", TimeSpan.FromMinutes(2));
+                    if (!((inst.StandardOutput ?? "") + (inst.StandardError ?? "")).Contains("Success"))
+                    {
+                        AppendConsole("\n" + Loc.F("{0} : installation de la mini appli ADB Tools Helper refusée : {1}", t.Serial, LastLines(inst.StandardError + inst.StandardOutput, 1)));
+                        return false;
+                    }
+                    installed = MasterHelperApp.VersionCode;
                 }
             }
+            // Droits pour changer la langue : CHANGE_CONFIGURATION (pm grant) et WRITE_SETTINGS (appops), accordés à chaque fois.
             var grant = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm grant {MasterHelperApp.Package} android.permission.CHANGE_CONFIGURATION", TimeSpan.FromSeconds(15));
             string grantOut = ((grant.StandardOutput ?? "") + (grant.StandardError ?? "")).Trim();
             if (grantOut.Length > 0) AppendConsole("\n" + Loc.F("{0} : autorisation de changer la langue : {1}", t.Serial, LastLines(grantOut, 1)));
-            // Changer la langue demande aussi « modifier les paramètres système » (WRITE_SETTINGS), accordée par appops et non par pm grant.
             var ops = await _adbManager.ExecuteAsync($"-s {t.Serial} shell appops set {MasterHelperApp.Package} WRITE_SETTINGS allow", TimeSpan.FromSeconds(15));
             string opsOut = ((ops.StandardOutput ?? "") + (ops.StandardError ?? "")).Trim();
             var opsGet = await _adbManager.ExecuteAsync($"-s {t.Serial} shell appops get {MasterHelperApp.Package} WRITE_SETTINGS", TimeSpan.FromSeconds(15));
             if (opsOut.Length > 0 || !(opsGet.StandardOutput ?? "").Contains("allow"))
                 AppendConsole("\n" + Loc.F("{0} : autorisation de modifier les paramètres système : {1}", t.Serial, LastLines(opsOut + " " + opsGet.StandardOutput, 1)));
-            t.HelperReady = true;
+            t.HelperVersion = installed;
             return true;
         }
 
