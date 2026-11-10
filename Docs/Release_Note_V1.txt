@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.5.0
+                              RELEASE NOTES V1.6.0
 ================================================================================
-Version        : 1.5.0 (mise à jour OS de plusieurs terminaux)
-Date de sortie : Novembre 2026 (1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
+Version        : 1.6.0 (Master : remise en état des terminaux après un wipe)
+Date de sortie : Novembre 2026 (1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -25,7 +25,62 @@ matériel réel ; les limitations connues sont listées en fin de document
 (section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.5.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.6.0 (Novembre 2026)
+================================================================================
+MASTER (nouvelle page du menu)
+  - Remettre des terminaux en état après un wipe, toutes marques compatibles
+    ADB : un terminal de référence est capturé, puis le Master est réinjecté
+    sur un ou plusieurs terminaux en parallèle.
+  - Capture (rien n'est modifié sur le terminal de référence) : applications
+    (morceaux compris) et leurs autorisations, applis désactivées, réglages
+    Android, langue et fuseau horaire, réseaux Wi-Fi, lanceur par défaut,
+    propriétaire du terminal (kiosque / MDM). Les réglages propres à chaque
+    terminal (identifiants, compteurs, état du matériel) sont écartés.
+  - Master créé à la main, sans terminal de référence (bouton « Créer »).
+  - Contenu présenté par onglets, tout se vérifie et se modifie avant
+    l'envoi :
+    . Applications, avec leur origine : agent MDM (propriétaire du
+      terminal), poussée par le MDM (Play Store d'entreprise), installée à
+      la main, livrée avec le terminal. Seules les applis du MDM ou
+      installées à la main sont cochées par défaut.
+    . Réglages en formulaire par thème (écran, son, langue et heure,
+      réseau, sécurité) : « Ne pas modifier » ou valeur imposée, en clair.
+      Réglages techniques expliqués, rangés par catégorie, non cochés par
+      défaut.
+    . Wi-Fi : type de sécurité (WPA2, WPA2/WPA3, WPA3, ouvert, 802.1X,
+      WEP), mot de passe, réseau masqué.
+    . Étapes à faire à la main, guidées par modèles : compte Google, Wi-Fi
+      d'entreprise, certificat, enrôlement MDM, date, langue. L'écran
+      choisi s'ouvre sur le terminal en fin de remise en état.
+    . Fichiers (ex. configuration DataWedge) et commandes ADB.
+    Ce qui reste à compléter (mot de passe Wi-Fi, APK manquant) est signalé
+    en orange.
+  - Analyse de chaque terminal coché avant l'envoi : applis absentes, plus
+    anciennes, identiques ou plus récentes ; modèle ou Android différents.
+    Choix par appli : installer, mettre à jour, garder la version du
+    terminal, rétrograder.
+  - Bilan par terminal : chaque élément appliqué, déjà en place, ignoré ou
+    refusé avec la raison en clair ; chaque réglage modifié avec son
+    ancienne et sa nouvelle valeur. Export Excel.
+  - Mini appli « ADB Tools Helper » (sans icône, reste sur le terminal) :
+    enregistre les réseaux Wi-Fi (« cmd wifi connect-network » est réservé
+    aux terminaux rootés depuis Android 11) et change la langue du système.
+    Android retire les réseaux d'une appli quand on la désinstalle : elle
+    n'est remplacée que si elle est trop ancienne, et le bilan le signale.
+  - En dernier recours, QR code Wi-Fi à scanner depuis le terminal
+    (Paramètres > Wi-Fi > icône QR), aussi disponible réseau par réseau.
+  - Fichier .adbmaster (archive zip) à partager dans l'équipe. Les mots de
+    passe Wi-Fi y sont enregistrés en clair : gardez-le en lieu sûr.
+  - Limites : les données internes des applis ne se copient pas sans root
+    (rôle du MDM) ; le propriétaire du terminal ne se définit que sur un
+    terminal sans compte, juste après un wipe.
+
+AUTRES AMÉLIORATIONS
+  - Visite guidée complétée (Master).
+  - QR codes générés avec QRCoder (MIT, voir THIRD_PARTY_NOTICES.txt).
+
+================================================================================
+2 bis. NOUVEAUTÉS DE LA VERSION 1.5.0 (Novembre 2026)
 ================================================================================
 MISE À JOUR OS (nouvelle page du menu)
   - Un ou plusieurs terminaux branchés en USB mis à jour en même temps,
@@ -72,7 +127,7 @@ AUTRES AMÉLIORATIONS
     Mise à jour OS.
 
 ================================================================================
-2 bis. NOUVEAUTÉS DE LA VERSION 1.4.0 (Novembre 2026)
+2 ter. NOUVEAUTÉS DE LA VERSION 1.4.0 (Novembre 2026)
 ================================================================================
 ANALYSE DE FICHIERS (nouvelle page du menu)
   - Ouvre un relevé reçu du terrain : archive RxLogger Zebra, bugreport,
@@ -122,7 +177,7 @@ AUTRES AMÉLIORATIONS
   - Programme en 64 bits pour les gros relevés.
 
 ================================================================================
-2 ter. NOUVEAUTÉS DE LA VERSION 1.3.0 (Novembre 2026)
+2 quater. NOUVEAUTÉS DE LA VERSION 1.3.0 (Novembre 2026)
 ================================================================================
 ANALYSE AUTOMATIQUE DES LOGS (page Logs)
   - « Analyser les logs affichés » : toute la capture en direct est passée en
@@ -199,7 +254,7 @@ AUTRES AMÉLIORATIONS
   - Check-up Wi-Fi : SSID et point d'accès (BSSID) corrects sous Android 11.
 
 ================================================================================
-2 quater. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
+2 quinquies. NOUVEAUTÉS DE LA VERSION 1.2.0 (Novembre 2026)
 ================================================================================
 Une page Paramètres entièrement revue, sur le modèle de Scanalyse.
 
@@ -474,7 +529,7 @@ blocages et rend l'application plus fluide sur les longues sessions.
 - Extracteur XML de l'interface affichée (UI Automator dump), utile pour le
   paramétrage des applications de scan (Velocity, ProGlove...).
 - La mise à jour de l'OS a sa propre page depuis la version 1.5.0 (voir
-  section 2).
+  section 2 bis).
 - Chaque action affiche un message clair en cas d'échec (terminal débranché,
   commande refusée...) plutôt qu'un blocage silencieux de l'interface.
 

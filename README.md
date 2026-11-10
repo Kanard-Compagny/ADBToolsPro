@@ -10,7 +10,7 @@
 **La boîte à outils gratuite du technicien Android.**
 Diagnostiquer, contrôler et dépanner un terminal Android — smartphone, tablette ou terminal durci de logistique — depuis un PC Windows, sans taper une seule ligne de commande.
 
-*Free Windows toolbox for Android support technicians: device dashboard, screen mirroring, app and file management, guided hardware diagnostics, Wi-Fi analysis and Word reports — all on top of ADB, no command line needed.*
+*Free Windows toolbox for Android support technicians: device dashboard, screen mirroring, app and file management, guided hardware diagnostics, Wi-Fi analysis, Word reports, fleet OS updates and device restore after a wipe (Master) — all on top of ADB, no command line needed.*
 
 Windows 10 / 11 · programme portable, rien à installer dans Windows · **[Site de présentation](https://kanard-compagny.github.io/ADBToolsPro/)** ([English](https://kanard-compagny.github.io/ADBToolsPro/en/))
 
@@ -64,6 +64,12 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - Vérifications avant l'envoi : modèle visé par le paquet, terminal déjà à jour, retour à une version antérieure, batterie.
 - **Bibliothèque de paquets** : ADB Tools choisit le bon paquet pour chaque modèle d'un parc mélangé.
 - Au retour : contrôle de la nouvelle version, installation d'applications et commandes ADB ; **bilan Excel**.
+
+### 🧰 Master
+- **Remettre des terminaux en état après un wipe** : un terminal de référence est capturé, puis le Master est réinjecté sur un ou plusieurs terminaux en même temps. Il peut aussi être créé à la main.
+- Applications et autorisations, applis désactivées, réglages Android (formulaire par thème, en clair), langue et fuseau horaire, Wi-Fi, lanceur, propriétaire du terminal (MDM), fichiers (ex. DataWedge), commandes ADB, étapes à faire à la main guidées.
+- Chaque terminal est **analysé avant l'envoi** (applis absentes, plus anciennes ou plus récentes) et le **bilan** dit ce qui a été remis en place ou non, avec la raison ; export Excel.
+- La mini appli **ADB Tools Helper** enregistre les Wi-Fi et change la langue, ce qu'Android n'autorise plus par câble ; sinon, QR code Wi-Fi à scanner.
 
 ### ⚡ Outils avancés
 - Simulation des boutons physiques, luminosité, densité d'affichage, résolution, volume.

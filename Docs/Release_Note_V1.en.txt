@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.5.0
+                              RELEASE NOTES V1.6.0
 ================================================================================
-Version        : 1.5.0 (OS update of several devices)
-Release date   : November 2026 (1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.6.0 (Master: restoring devices after a wipe)
+Release date   : November 2026 (1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,60 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.5.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.6.0 (November 2026)
+================================================================================
+MASTER (new menu page)
+  - Restore devices after a wipe, any brand that supports ADB: a reference
+    device is captured, then the Master is reinjected onto one or several
+    devices in parallel.
+  - Capture (nothing is changed on the reference device): apps (split APKs
+    included) and their permissions, disabled apps, Android settings,
+    language and time zone, Wi-Fi networks, default launcher, device owner
+    (kiosk / MDM). Settings specific to each device (identifiers, counters,
+    hardware state) are left out.
+  - Master created by hand, without a reference device ("Create" button).
+  - Content shown in tabs; everything can be checked and changed before
+    sending:
+    . Apps, with their origin: MDM agent (device owner), pushed by the MDM
+      (managed Google Play), installed by hand, shipped with the device.
+      Only MDM apps and apps installed by hand are checked by default.
+    . Settings as a form per theme (screen, sound, language and time,
+      network, security): "Don't change" or an imposed value, in plain
+      words. Technical settings explained, sorted by category, unchecked
+      by default.
+    . Wi-Fi: security type (WPA2, WPA2/WPA3, WPA3, open, 802.1X, WEP),
+      password, hidden network.
+    . Manual steps, guided by templates: Google account, enterprise Wi-Fi,
+      certificate, MDM enrollment, date, language. The chosen screen opens
+      on the device at the end of the restore.
+    . Files (e.g. DataWedge configuration) and ADB commands.
+    Anything left to complete (Wi-Fi password, missing APK) is shown in
+    orange.
+  - Each checked device is analyzed before sending: apps missing, older,
+    identical or newer; different model or Android version. Choice per
+    app: install, update, keep the device's version, downgrade.
+  - Report per device: every item applied, already in place, skipped or
+    refused with the reason in plain words; every changed setting with its
+    old and new value. Excel export.
+  - Small "ADB Tools Helper" app (no icon, stays on the device): saves Wi-Fi
+    networks ("cmd wifi connect-network" is reserved for rooted devices
+    since Android 11) and changes the system language. Android removes an
+    app's networks when it is uninstalled: it is only replaced when too
+    old, and the report says so.
+  - As a last resort, a Wi-Fi QR code to scan from the device (Settings >
+    Wi-Fi > QR icon), also available network by network.
+  - .adbmaster file (zip archive) to share within the team. Wi-Fi passwords
+    are stored in clear text: keep it somewhere safe.
+  - Limits: app internal data cannot be copied without root (that is the
+    MDM's job); the device owner can only be set on a device without
+    accounts, right after a wipe.
+
+OTHER IMPROVEMENTS
+  - Guided tour completed (Master).
+  - QR codes generated with QRCoder (MIT, see THIRD_PARTY_NOTICES.txt).
+
+================================================================================
+2b. WHAT'S NEW IN VERSION 1.5.0 (November 2026)
 ================================================================================
 OS UPDATE (new menu page)
   - One or several USB-connected devices updated at the same time, each
@@ -64,7 +117,7 @@ OTHER IMPROVEMENTS
   - Guided tour completed: Logs, Comparator, File analysis, OS update.
 
 ================================================================================
-2b. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
+2c. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
 ================================================================================
 FILE ANALYSIS (new menu page)
   - Opens a log set received from the field: Zebra RxLogger archive,
@@ -112,7 +165,7 @@ OTHER IMPROVEMENTS
   - 64-bit program for large log sets.
 
 ================================================================================
-2c. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
+2d. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
 ================================================================================
 AUTOMATIC LOG ANALYSIS (Logs page)
   - "Analyse displayed logs": the whole live capture is reviewed, even lines
@@ -190,7 +243,7 @@ OTHER IMPROVEMENTS
   - Wi-Fi check-up: correct SSID and access point (BSSID) on Android 11.
 
 ================================================================================
-2d. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+2e. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
 A fully redesigned Settings page, modelled on Scanalyse.
 
@@ -328,7 +381,7 @@ v3 license), published on GitHub by Mr.Kanard.
   mode.
 - XML extractor of the displayed interface (UI Automator dump), useful to set
   up scanning apps (Velocity, ProGlove...).
-- OS update has its own page since version 1.5.0 (see section 2).
+- OS update has its own page since version 1.5.0 (see section 2b).
 
 [🔧 Service diagnostics]
 - One-click automatic check-up covering 9 checkpoints: ADB authorization, root
