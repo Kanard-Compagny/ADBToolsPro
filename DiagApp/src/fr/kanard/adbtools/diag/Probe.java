@@ -80,6 +80,9 @@ final class Probe {
         }
         Out.put(o, "scanner", scanner);
         Out.put(o, "storage", true);
+        String rfid = RfidTest.detect(c);
+        Out.put(o, "rfid", rfid.length() > 0);
+        Out.put(o, "rfid_mode", rfid);
         return o;
     }
 

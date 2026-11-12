@@ -11,8 +11,8 @@
      Android 8 (API 26) et plus récents ; minSdk plus bas pour ne bloquer aucun terminal ancien. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.diag"
-    android:versionCode="9"
-    android:versionName="5.3">
+    android:versionCode="10"
+    android:versionName="5.4">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
 
@@ -35,6 +35,8 @@
          l'utilisateur : lecture du journal Android complet et état du système (dumpsys) au moment d'un incident. -->
     <uses-permission android:name="android.permission.READ_LOGS" />
     <uses-permission android:name="android.permission.DUMP" />
+    <!-- Test RFID : repérer le service RFID du fabricant (proposé seulement si le terminal en a un). -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <!-- Matériel facultatif : l'appli s'installe aussi sur un terminal sans caméra, NFC, GPS... -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />

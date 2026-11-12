@@ -75,8 +75,8 @@ public class MainActivity extends Activity implements Out.Sink {
     static final int C_BRAND = Color.rgb(0x1F, 0x74, 0x54);
 
     /** Tests du diagnostic, dans l'ordre de l'enchaînement « Tout tester ». */
-    private static final String[] TESTS = { "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone",
-            "vibrator", "sensors", "nfc", "gps", "bluetooth", "keys", "storage_speed" };
+    private static final String[] ALL_TESTS = { "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone",
+            "vibrator", "sensors", "nfc", "gps", "bluetooth", "keys", "rfid", "storage_speed" };
 
     private static final String S_HOME = "home", S_DIAG = "diag", S_TEST = "test", S_SCAN = "scan", S_WIFI = "wifi",
             S_KEYS = "keys", S_FIELD = "field", S_RESULTS = "results";
@@ -196,6 +196,7 @@ public class MainActivity extends Activity implements Out.Sink {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         L.load(this);
         Out.init(new java.io.File(getExternalFilesDir(null) != null ? getExternalFilesDir(null) : getFilesDir(), "results"));
+        detectTests();
         restoreResults();
         Intent launch = getIntent();
         if (launch != null) L.apply(this, launch.getStringExtra("lang"), launch.getStringExtra("theme"));
@@ -300,7 +301,7 @@ public class MainActivity extends Activity implements Out.Sink {
                 show(S_SCAN);
                 return;
         }
-        if (indexOf(cmd) < 0) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
+        if (!known(cmd)) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
         runAll = false;
         startTest(cmd, true);
     }
@@ -328,9 +329,35 @@ public class MainActivity extends Activity implements Out.Sink {
 
     // ------------------------------------------------------------------ Tests
 
-    private static int indexOf(String id) {
-        for (int i = 0; i < TESTS.length; i++) if (TESTS[i].equals(id)) return i;
+    private int indexOf(String id) {
+        for (int i = 0; i < tests.length; i++) if (tests[i].equals(id)) return i;
         return -1;
+    }
+
+    private static boolean known(String id) {
+        for (String t : ALL_TESTS) if (t.equals(id)) return true;
+        return false;
+    }
+
+    /** Tests proposés : seulement ceux que le matériel du terminal permet (RFID, NFC, GPS…). */
+    private String[] tests = ALL_TESTS;
+    private String rfidMode = "";
+
+    private void detectTests() {
+        JSONObject f;
+        try { f = Probe.run(this); } catch (Exception e) { return; }
+        rfidMode = f.optString("rfid_mode", "");
+        List<String> list = new ArrayList<String>();
+        for (String id : ALL_TESTS) {
+            boolean ok;
+            switch (id) {
+                case "keys": case "storage_speed": ok = true; break;
+                case "sensors": { JSONArray a = f.optJSONArray("sensors"); ok = a != null && a.length() > 0; break; }
+                default: ok = f.optBoolean(id, true);
+            }
+            if (ok) list.add(id);
+        }
+        tests = list.toArray(new String[0]);
     }
 
     private DiagTest create(String cmd) {
@@ -347,6 +374,7 @@ public class MainActivity extends Activity implements Out.Sink {
             case "gps": return new GpsTest(this);
             case "bluetooth": return new BluetoothTest(this);
             case "storage_speed": return new StorageTest(this);
+            case "rfid": return rfidMode.length() > 0 ? new RfidTest(this, rfidMode) : null;
             default: return null;
         }
     }
@@ -365,6 +393,7 @@ public class MainActivity extends Activity implements Out.Sink {
             case "gps": return "GPS";
             case "bluetooth": return "Bluetooth";
             case "keys": return L.t("Touches", "Keys");
+            case "rfid": return "RFID";
             case "storage_speed": return L.t("Mémoire", "Storage");
             default: return cmd;
         }
@@ -377,7 +406,7 @@ public class MainActivity extends Activity implements Out.Sink {
         activeTestId = id;
         if ("keys".equals(id)) { show(S_KEYS); return; }
         DiagTest t = create(id);
-        if (t == null) return;
+        if (t == null) { Out.result(id, "na", Out.obj("reason", "absent")); return; }
         show(S_TEST);
         testMessage.setText("");
         testAuto.setVisibility(View.GONE);
@@ -447,7 +476,7 @@ public class MainActivity extends Activity implements Out.Sink {
 
     private String nextUntested(String after) {
         int start = after == null ? 0 : indexOf(after) + 1;
-        for (int i = start; i < TESTS.length; i++) if (!status.containsKey(TESTS[i])) return TESTS[i];
+        for (int i = start; i < tests.length; i++) if (!status.containsKey(tests[i])) return tests[i];
         return null;
     }
 
@@ -522,6 +551,15 @@ public class MainActivity extends Activity implements Out.Sink {
                 testLive.addView(text(L.t("Appareils trouvés : ", "Devices found: ") + j.optInt("devices")
                         + (j.has("best_rssi") && !j.isNull("best_rssi") ? L.t("  ·  meilleur signal : ", "  ·  best signal: ") + j.opt("best_rssi") + " dBm" : ""), 15, L.ink, false));
                 break;
+            case "rfid":
+                testLive.addView(text(L.t("Tags lus : ", "Tags read: ") + j.optInt("tags") + "  ·  " + j.optLong("seconds") + " s", 18, L.brandText, true));
+                if (j.optString("last").length() > 0) {
+                    TextView last = text(j.optString("last"), 13, L.ink, false);
+                    last.setTypeface(Typeface.MONOSPACE);
+                    last.setPadding(0, dp(6), 0, 0);
+                    testLive.addView(last);
+                }
+                break;
             case "storage_speed":
                 testLive.addView(meter(L.t("Écriture", "Writing"), j.optInt("mb") + " / " + j.optInt("total") + " Mo", j.optInt("mb") / (double) Math.max(1, j.optInt("total")), L.brandText));
                 break;
@@ -585,6 +623,8 @@ public class MainActivity extends Activity implements Out.Sink {
                             : L.t("Désactivé dans les réglages : activez-le, puis relancez le test.", "Turned off in settings: turn it on, then run the test again.");
                 case "permission": return L.t("Autorisation refusée : réinstallez l'appli depuis ADB Tools (bouton « Appli Diag »).", "Permission denied: reinstall the app from ADB Tools (\"Diag app\" button).");
                 case "timeout":
+                    if ("rfid".equals(test)) return L.t("Aucun tag RFID lu en 60 s : vérifiez qu'une étiquette UHF est à portée et que le lecteur est connecté.",
+                            "No RFID tag read in 60 s: check that a UHF tag is in range and the reader is connected.");
                     return "gps".equals(test) ? L.t("Pas de position obtenue : " + j.optInt("satellites") + " satellite(s) vu(s).", "No position fix: " + j.optInt("satellites") + " satellite(s) in view.")
                             : L.t("Rien détecté dans le temps imparti.", "Nothing detected in time.");
                 default: return L.t("Erreur : ", "Error: ") + reason + (j.has("message") ? " — " + j.optString("message") : "");
@@ -601,6 +641,7 @@ public class MainActivity extends Activity implements Out.Sink {
             case "bluetooth": return L.t("Appareils trouvés : ", "Devices found: ") + j.optInt("devices");
             case "gps": return L.t("Position obtenue en " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) utilisé(s).", "Position fixed in " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) used.");
             case "nfc": return L.t("Badge lu : ", "Tag read: ") + j.optString("uid");
+            case "rfid": return L.t("Tags RFID lus : ", "RFID tags read: ") + j.optInt("tags");
             case "sensors": {
                 StringBuilder sb = new StringBuilder();
                 java.util.Iterator<String> it = j.keys();
@@ -900,7 +941,7 @@ public class MainActivity extends Activity implements Out.Sink {
             case S_TEST:
                 titleView.setText(activeTestId == null ? L.t("Test", "Test") : label(activeTestId));
                 sub = stepText.length() > 0 && pcDriven ? "Test " + stepText
-                        : activeTestId != null ? L.t("Test " + (indexOf(activeTestId) + 1) + " sur " + TESTS.length, "Test " + (indexOf(activeTestId) + 1) + " of " + TESTS.length) : "";
+                        : activeTestId != null ? L.t("Test " + (indexOf(activeTestId) + 1) + " sur " + tests.length, "Test " + (indexOf(activeTestId) + 1) + " of " + tests.length) : "";
                 testBanner.setVisibility(pcDriven ? View.VISIBLE : View.GONE);
                 break;
             case S_SCAN: titleView.setText(L.t("Lecteur", "Scanner")); setScanMode(true); break;
@@ -1023,7 +1064,7 @@ public class MainActivity extends Activity implements Out.Sink {
     /** OK, à surveiller, KO, testés. */
     private int[] counts() {
         int ok = 0, warn = 0, bad = 0, done = 0;
-        for (String id : TESTS) {
+        for (String id : tests) {
             String s = status.get(id);
             if (s == null) continue;
             done++;
@@ -1095,7 +1136,7 @@ public class MainActivity extends Activity implements Out.Sink {
         if (diagList != null) {
             diagList.removeAllViews();
             String next = nextUntested(null);
-            for (final String id : TESTS) {
+            for (final String id : tests) {
                 LinearLayout row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
@@ -1112,12 +1153,12 @@ public class MainActivity extends Activity implements Out.Sink {
                 diagList.addView(row, lpMatch(6));
             }
             int[] c = counts();
-            diagProgressText.setText(L.t(c[3] + " tests sur " + TESTS.length, c[3] + " of " + TESTS.length + " tests"));
+            diagProgressText.setText(L.t(c[3] + " tests sur " + tests.length, c[3] + " of " + tests.length + " tests"));
             diagSummary.setText(c[1] + c[2] == 0 ? "" : L.t(c[1] + " à surveiller · " + c[2] + " KO", c[1] + " to monitor · " + c[2] + " faulty"));
             diagSummary.setVisibility(c[1] + c[2] == 0 ? View.GONE : View.VISIBLE);
             ViewGroup.LayoutParams lp = diagProgressFill.getLayoutParams();
             int full = getResources().getDisplayMetrics().widthPixels - dp(32);
-            lp.width = Math.round(full * c[3] / (float) TESTS.length);
+            lp.width = Math.round(full * c[3] / (float) tests.length);
             diagProgressFill.setLayoutParams(lp);
             diagContinue.setText(next == null ? L.t("Diagnostic terminé", "Diagnostics complete") : (c[3] == 0 ? L.t("Commencer : ", "Start: ") : L.t("Continuer : ", "Continue: ")) + label(next));
             diagContinue.setEnabled(next != null);
@@ -1127,7 +1168,7 @@ public class MainActivity extends Activity implements Out.Sink {
             resultsList.removeAllViews();
             SimpleDateFormat f = new SimpleDateFormat("HH:mm", Locale.US);
             boolean any = false;
-            for (String id : TESTS) {
+            for (String id : tests) {
                 String s = status.get(id);
                 if (s == null) continue;
                 any = true;
@@ -1565,6 +1606,7 @@ public class MainActivity extends Activity implements Out.Sink {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (current instanceof RfidTest && ((RfidTest) current).onKey(event)) return true;
         if (keysMode && S_KEYS.equals(screen)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                 String name = KeyEvent.keyCodeToString(event.getKeyCode()).replace("KEYCODE_", "");

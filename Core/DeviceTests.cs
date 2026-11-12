@@ -17,7 +17,7 @@ namespace ADBToolsNew.Core
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
         /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
-        public const int VersionCode = 9;
+        public const int VersionCode = 10;
 
         /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
         public static int ParseInstalledVersion(string dumpsys)
@@ -206,6 +206,8 @@ namespace ADBToolsNew.Core
                 Instruction = "Recherche des appareils Bluetooth proches pendant 15 secondes (allumez un appareil à côté si besoin)." },
             new DeviceTestDef { Id = "keys", Icon = "⌨️", Name = "Clavier physique", Feature = "keyboard", NeedsConfirmation = true,
                 Instruction = "Appuyez sur chaque touche du clavier du terminal, puis cliquez sur « Arrêter » et confirmez que toutes les touches sont apparues." },
+            new DeviceTestDef { Id = "rfid", Icon = "🏷️", Name = "Lecteur RFID", Feature = "rfid",
+                Instruction = "Appuyez sur la gâchette en visant des étiquettes RFID (UHF) : chaque tag lu s'affiche (60 secondes au plus). Proposé seulement si le terminal a un lecteur RFID." },
             new DeviceTestDef { Id = "storage_speed", Icon = "💾", Name = "Vitesse de la mémoire", Feature = "storage",
                 Instruction = "Écriture puis lecture de 64 Mo dans la mémoire interne (quelques secondes)." },
             new DeviceTestDef { Id = "scanner", Icon = "🔫", Name = "Lecteur code-barres", Feature = "scanner", External = true,
@@ -218,7 +220,7 @@ namespace ADBToolsNew.Core
         public static readonly string[] ChainOrder =
         {
             "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone", "vibrator",
-            "sensors", "nfc", "bluetooth", "keys", "storage_speed", "gps",
+            "sensors", "nfc", "bluetooth", "keys", "rfid", "storage_speed", "gps",
         };
         public const string SystemIdPrefix = "dev_";
     }
@@ -306,6 +308,9 @@ namespace ADBToolsNew.Core
                     if (m.Status == "bad") return Loc.F("La caméra ne s'ouvre pas ou ne prend pas de photo ({0}).", string.IsNullOrEmpty(reason) ? "?" : reason);
                     string photo = Loc.F("Photo {0} × {1} — luminosité {2}/255, contraste {3}", m.Str("width"), m.Str("height"), m.Str("brightness"), m.Str("contrast"));
                     return m.Status == "warn" ? photo + "\n" + Loc.T("Image trop sombre, trop claire ou uniforme : objectif masqué, sale ou capteur défaillant ?") : photo;
+                case "rfid":
+                    return m.Status == "ok" ? Loc.F("{0} tag(s) RFID lu(s).", m.Str("tags"))
+                        : Loc.T("Aucun tag RFID lu en 60 secondes : étiquette UHF à portée ? lecteur connecté ?");
                 case "flash": return m.Status == "confirm" ? Loc.T("Le flash a-t-il clignoté 3 fois ?") : Loc.T("Le flash ne s'allume pas (commande refusée).");
                 case "speaker": return m.Status == "confirm" ? Loc.T("Les 3 bips étaient-ils audibles et nets, sans grésillement ?") : Loc.T("Lecture du son impossible.");
                 case "earpiece": return m.Status == "confirm" ? Loc.T("Les 3 bips étaient-ils audibles dans l'écouteur ?") : Loc.T("Lecture du son impossible.");
@@ -403,6 +408,7 @@ namespace ADBToolsNew.Core
         {
             switch (m.Test)
             {
+                case "rfid": return Loc.F("{0} tag(s) lu(s) — dernier : {1}", m.Str("tags"), m.Str("last"));
                 case "microphone":
                     double lvl = m.Num("level_db");
                     int bars = double.IsNaN(lvl) ? 0 : (int)Math.Max(0, Math.Min(30, (lvl + 60) / 2));
