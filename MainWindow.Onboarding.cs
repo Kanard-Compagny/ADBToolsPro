@@ -81,7 +81,7 @@ namespace ADBToolsNew
             new TourStep { Target = () => BtnNavCompare, Title = Loc.T("Comparateur"),
                 Body = Loc.T("Compare deux terminaux, un terminal et sa référence validée, ou un terminal et un état précédent : seules les vraies différences ressortent.") },
             new TourStep { Target = () => BtnNavFileAnalysis, Title = Loc.T("Analyse de fichiers"),
-                Body = Loc.T("Ouvre un relevé reçu du terrain (RxLogger, bugreport, logcat) : frise par sujet, « Aller à l'incident », constats et rapport. L'« Enregistreur terrain » enregistre des heures sur le terminal débranché.") },
+                Body = Loc.T("Ouvre un relevé reçu du terrain (RxLogger, bugreport, logcat) : frise par sujet, « Aller à l'incident », constats et rapport. Le « Suivi terrain » enregistre des heures sur le terminal débranché.") },
             new TourStep { Target = () => BtnNavOsUpdate, Title = Loc.T("Mise à jour OS"),
                 Body = Loc.T("Installe le paquet OS du fabricant sur un ou plusieurs terminaux en même temps, par câble ou par copie dans la mémoire du terminal : vérifications avant l'envoi, contrôle de la version au retour, bilan Excel.") },
             new TourStep { Target = () => BtnNavMaster, Title = Loc.T("Master"),

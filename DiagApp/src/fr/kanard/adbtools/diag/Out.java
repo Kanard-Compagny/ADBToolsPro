@@ -21,6 +21,14 @@ final class Out {
 
     private Out() { }
 
+    /** L'écran de l'appli suit les résultats (statut de chaque test). Appelé depuis n'importe quel fil. */
+    interface Sink {
+        void onResult(String test, String status, JSONObject json);
+        void onVerdict(String test, String status);
+    }
+
+    static volatile Sink sink;
+
     static String b64(String s) {
         return Base64.encodeToString((s == null ? "" : s).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
     }
@@ -39,6 +47,8 @@ final class Out {
 
     static void result(String test, String status, JSONObject json) {
         Log.i(TAG, "RESULT\t" + test + "\t" + status + "\t" + b64(json == null ? "{}" : json.toString()));
+        Sink s = sink;
+        if (s != null) s.onResult(test, status, json);
     }
 
     static void scan(String source, String symbology, String data) {
@@ -49,6 +59,8 @@ final class Out {
     /** Résultat choisi par le technicien sur le terminal : ok / warn / bad / skip (test passé). */
     static void verdict(String test, String status) {
         Log.i(TAG, "VERDICT\t" + test + "\t" + status);
+        Sink s = sink;
+        if (s != null) s.onVerdict(test, status);
     }
 
     static void info(String text) {

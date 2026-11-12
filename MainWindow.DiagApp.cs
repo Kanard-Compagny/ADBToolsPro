@@ -43,7 +43,7 @@ namespace ADBToolsNew
                 if (await HasPendingRecordingAsync(serial))
                 {
                     await ShowCustomDialogAsync(Loc.T("🧪 Appli de diagnostic"),
-                        Loc.T("Un enregistrement terrain est encore sur le terminal : récupérez-le d'abord (Analyse de fichiers ▸ Enregistreur terrain ▸ Récupérer l'enregistrement)."),
+                        Loc.T("Un enregistrement terrain est encore sur le terminal : récupérez-le d'abord (Analyse de fichiers ▸ Suivi terrain ▸ Récupérer l'enregistrement)."),
                         Loc.T("OK"), "", false);
                     return false;
                 }
@@ -83,7 +83,7 @@ namespace ADBToolsNew
             if (await HasPendingRecordingAsync(serial))
             {
                 // Un enregistrement terrain n'a pas été récupéré : désinstaller l'appli l'effacerait.
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎙 Appli de diagnostic laissée sur {1} : un enregistrement terrain n'a pas encore été récupéré (Analyse de fichiers ▸ Enregistreur terrain).", DateTime.Now, serial));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📈 Appli de diagnostic laissée sur {1} : un enregistrement terrain n'a pas encore été récupéré (Analyse de fichiers ▸ Suivi terrain).", DateTime.Now, serial));
                 return;
             }
             try

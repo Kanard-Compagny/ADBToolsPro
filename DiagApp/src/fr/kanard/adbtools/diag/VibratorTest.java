@@ -20,7 +20,7 @@ final class VibratorTest implements DiagTest {
     public void start() {
         v = (Vibrator) a.getSystemService(Context.VIBRATOR_SERVICE);
         if (v == null || !v.hasVibrator()) { Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return; }
-        a.setMessage("Vibreur : 3 vibrations / Vibrator: 3 pulses");
+        a.setMessage(L.t("Le terminal doit vibrer 3 fois.", "The device should vibrate 3 times."));
         long[] pattern = {0, 600, 400, 600, 400, 600};
         if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createWaveform(pattern, -1));
         else v.vibrate(pattern, -1);

@@ -71,8 +71,9 @@ public class SurveyService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        L.load(this);
         if (running != null && running != this) running.stopSurvey("restart");
-        startForeground(1, notification("Démarrage… / Starting…"));
+        startForeground(1, notification(L.t("Démarrage…", "Starting…")));
         if (worker != null) return START_NOT_STICKY;
         running = this;
         target = intent == null ? "" : nz(intent.getStringExtra(EXTRA_TARGET));
@@ -140,12 +141,12 @@ public class SurveyService extends Service {
                         write(Out.obj("type", "roam", "t", t0, "from", lastBssid, "to", bssid, "rssi", rssi));
                         event("🔁 " + shortMac(lastBssid) + " → " + shortMac(bssid) + " (" + rssi + " dBm)");
                     }
-                    if (!wasConnected) { write(Out.obj("type", "conn", "t", t0, "bssid", bssid)); event("✅ Reconnecté / Reconnected"); }
+                    if (!wasConnected) { write(Out.obj("type", "conn", "t", t0, "bssid", bssid)); event(L.t("✅ Reconnecté", "✅ Reconnected")); }
                     lastBssid = bssid; lastSsid = ssid; lastRssi = rssi;
                 } else if (wasConnected) {
                     disconnects++;
                     write(Out.obj("type", "disc", "t", t0, "bssid", lastBssid));
-                    event("❌ Coupure Wi-Fi / Wi-Fi drop");
+                    event(L.t("❌ Coupure Wi-Fi", "❌ Wi-Fi drop"));
                     buzz(); // le technicien le sent même terminal en poche
                 }
                 wasConnected = connected;
@@ -272,12 +273,12 @@ public class SurveyService extends Service {
         } else {
             b = new Notification.Builder(this);
         }
-        int wifiIcon = getResources().getIdentifier("ic_launcher_wifi", "mipmap", getPackageName());
+        int wifiIcon = getResources().getIdentifier("ic_launcher", "mipmap", getPackageName());
         if (wifiIcon != 0) b.setLargeIcon(android.graphics.BitmapFactory.decodeResource(getResources(), wifiIcon));
         if (Build.VERSION.SDK_INT >= 21) b.setColor(MainActivity.C_BRAND);
-        return b.setContentTitle("ADB Tools — Mesure Wi-Fi en cours")
+        return b.setContentTitle(L.t("ADB Tools Diag — Mesure Wi-Fi en cours", "ADB Tools Diag — Wi-Fi survey running"))
                 .setContentText(text)
-                .setSubText("Rebranchez au PC pour récupérer / Plug back to retrieve")
+                .setSubText(L.t("Rebranchez au PC pour récupérer la mesure", "Plug back into the PC to retrieve the survey"))
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
                 .setContentIntent(pi)
                 .setOngoing(true)

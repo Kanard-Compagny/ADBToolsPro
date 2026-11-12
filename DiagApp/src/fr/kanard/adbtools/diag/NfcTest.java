@@ -21,7 +21,7 @@ final class NfcTest implements DiagTest, NfcAdapter.ReaderCallback {
         adapter = NfcAdapter.getDefaultAdapter(a);
         if (adapter == null) { Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return; }
         if (!adapter.isEnabled()) { Out.result(id(), "warn", Out.obj("reason", "disabled")); a.testFinished(this); return; }
-        a.setMessage("NFC : posez un badge au dos du terminal / NFC: hold a tag against the back");
+        a.setMessage(L.t("Posez un badge NFC au dos du terminal.", "Hold an NFC tag against the back of the device."));
         int flags = NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_NFC_B | NfcAdapter.FLAG_READER_NFC_F
                 | NfcAdapter.FLAG_READER_NFC_V | NfcAdapter.FLAG_READER_NFC_BARCODE;
         adapter.enableReaderMode(a, this, flags, null);

@@ -2,19 +2,29 @@ package fr.kanard.adbtools.diag;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.StatFs;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
@@ -22,88 +32,141 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.graphics.drawable.GradientDrawable;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
- * Appli de diagnostic pilotée par ADB Tools. Chaque commande arrive par
- *   adb shell am start -n fr.kanard.adbtools.diag/.MainActivity -e cmd &lt;commande&gt;
- * (probe, scan, camera_back, camera_front, flash, speaker, earpiece, microphone, vibrator, sensors, nfc, gps,
- * bluetooth, keys, storage_speed, stop) et les résultats repartent par le journal Android (voir {@link Out}).
- * Une seule chose à la fois : une nouvelle commande arrête le test en cours.
+ * ADB Tools Diag : une seule appli, pilotée par le PC ou utilisée seule.
+ * Le PC envoie ses commandes par
+ *   adb shell am start -n fr.kanard.adbtools.diag/.MainActivity -e cmd &lt;commande&gt; [-e lang fr|en] [-e theme dark|light]
+ * (probe, scan, keys, survey, record, camera_back, camera_front, flash, speaker, earpiece, microphone, vibrator,
+ * sensors, nfc, gps, bluetooth, storage_speed, stop…) et lit les résultats dans le journal Android (voir {@link Out}).
+ * Sur le terminal : accueil, menu burger (Diagnostic, Lecteur, Wi-Fi, Touches, Suivi terrain, Résultats). Les tâches
+ * de fond (mesure Wi-Fi, suivi terrain) restent visibles dans un bandeau en bas de chaque écran.
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements Out.Sink {
 
     private static final String ACTION_DATAWEDGE = "fr.kanard.adbtools.diag.DATAWEDGE";
     private static final String ACTION_HONEYWELL = "fr.kanard.adbtools.diag.HONEYWELL";
     private static final String DW_PROFILE = "ADBToolsDiag";
     private static final String HONEYWELL_SERVICE = "com.intermec.datacollectionservice";
 
-    // Couleurs du thème sombre d'ADB Tools (Themes/Theme.Dark.xaml).
-    static final int C_BG = Color.rgb(0x10, 0x13, 0x14);
-    static final int C_SURFACE = Color.rgb(0x18, 0x1C, 0x1E);
-    static final int C_SURFACE2 = Color.rgb(0x1F, 0x24, 0x27);
-    static final int C_LINE = Color.rgb(0x2A, 0x30, 0x33);
-    static final int C_INK = Color.rgb(0xE9, 0xEC, 0xEE);
-    static final int C_MUTED = Color.rgb(0x9A, 0xA3, 0xA9);
+    /** Vert de la charte (notifications des services). */
     static final int C_BRAND = Color.rgb(0x1F, 0x74, 0x54);
-    static final int C_BRAND_TEXT = Color.rgb(0x5F, 0xD3, 0xA1);
-    static final int C_ACTION = Color.rgb(0xFF, 0x9A, 0x2E);   // orange « bec de canard » : action principale
-    static final int C_ON_ACTION = Color.rgb(0x1B, 0x0F, 0x02);
-    static final int C_TITLE = Color.rgb(0x07, 0x1E, 0x17);
-    static final int C_TITLE_INK = Color.rgb(0xDC, 0xEB, 0xE3);
-    static final int C_TITLE_MUTED = Color.rgb(0x86, 0xA8, 0x97);
-    static final int C_OK_BG = Color.rgb(0x12, 0x33, 0x26), C_OK_FG = Color.rgb(0x73, 0xD9, 0xA9);
-    static final int C_WARN_BG = Color.rgb(0x3A, 0x2E, 0x0C), C_WARN_FG = Color.rgb(0xF5, 0xD5, 0x7E);
-    static final int C_BAD_BG = Color.rgb(0x3A, 0x17, 0x14), C_BAD_FG = Color.rgb(0xFF, 0x8A, 0x80);
+
+    /** Tests du diagnostic, dans l'ordre de l'enchaînement « Tout tester ». */
+    private static final String[] TESTS = { "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone",
+            "vibrator", "sensors", "nfc", "gps", "bluetooth", "keys", "storage_speed" };
+
+    private static final String S_HOME = "home", S_DIAG = "diag", S_TEST = "test", S_SCAN = "scan", S_WIFI = "wifi",
+            S_KEYS = "keys", S_FIELD = "field", S_RESULTS = "results";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private ImageView logoView;
-    private LinearLayout verdictRow;
-    private String activeTestId;
-    private String stepText = "";
-    private LinearLayout card;
-    private boolean wifiEntry;
-    private TextView titleView, messageView, bigView, detailView;
-    private TextureView preview;
-    private EditText input;
-    private DiagTest current;
     private boolean resumed;
     private String pendingCmd;
+    private Bundle pendingExtras;
 
-    // Mode « lecteur »
+    // Lien avec le PC : une commande du PC a été reçue (sinon : utilisation autonome).
+    private boolean pcLinked;
+
+    // Charpente de l'écran
+    private FrameLayout rootFrame, contentHost, drawer;
+    private LinearLayout drawerItems;
+    private ImageView navButton;
+    private TextView titleView, subtitleView, pillView;
+    private LinearLayout bgBar;
+    private TextView bgText;
+    private String bgTarget;
+    private String screen = S_HOME;
+    private final Map<String, View> screens = new LinkedHashMap<String, View>();
+
+    // Résultats de la session : test → statut (ok, warn, bad, confirm, na, skip).
+    private final Map<String, String> status = new LinkedHashMap<String, String>();
+    private final Map<String, Long> statusAt = new LinkedHashMap<String, Long>();
+
+    // Test en cours
+    private DiagTest current;
+    private String activeTestId;
+    private boolean pcDriven;      // test lancé par le PC
+    private boolean runAll;        // enchaînement « Tout tester » lancé sur le terminal
+    private String stepText = "";
+    private TextureView preview;
+    private FrameLayout previewBox;
+    private TextView testMessage, testStatus, testAuto, testBanner;
+    private Button testRestart;
+
+    // Accueil
+    private TextView homeModel, homeAndroid, homeBattery, homeWifi, homeStorage, homeLast;
+    private TextView pillHome;
+
+    // Diagnostic
+    private TextView diagProgressText, diagSummary;
+    private View diagProgressFill;
+    private LinearLayout diagList;
+    private Button diagContinue;
+
+    // Résultats
+    private LinearLayout resultsList;
+
+    // Lecteur
     private boolean scanMode;
     private int scanCount;
+    private final HashSet<String> scanDistinct = new HashSet<String>();
+    private final List<String[]> scanRecent = new ArrayList<String[]>();
     private String lastIntentData;
     private long lastIntentAt;
     private boolean receiverRegistered;
+    private EditText input;
+    private TextView scanLastLabel, scanLastData, scanLastInfo, scanCountView, scanDistinctView, scanSourceView;
+    private LinearLayout scanRecentList;
 
-    // Mesure Wi-Fi autonome
-    private LinearLayout surveyButtons;
-    private final Runnable surveyRefresh = new Runnable() { @Override public void run() { refreshSurvey(); } };
+    // Mesure Wi-Fi
+    private TextView wifiBig, wifiQuality, wifiDetail, wifiEvents, wifiIdle;
+    private LinearLayout wifiRunning, wifiStopped;
+    private long surveyStartRequestedAt;
 
-    // Enregistreur de terrain
-    private LinearLayout recorderButtons;
-    private final Runnable recorderRefresh = new Runnable() { @Override public void run() { refreshRecorder(); } };
+    // Suivi terrain
+    private TextView fieldBig, fieldDetail, fieldEvents, fieldIdle;
+    private LinearLayout fieldRunning;
     private long recorderStartRequestedAt;
 
-    // Test « clavier »
+    // Touches
     private boolean keysMode;
     private final Map<String, Integer> keys = new LinkedHashMap<String, Integer>();
+    private TextView keysBig, keysCount, keysList;
+    private LinearLayout keysVerdict;
+
+    private int tick;
+    private final Runnable ticker = new Runnable() {
+        @Override public void run() {
+            tick++;
+            refreshBackground();
+            if (S_WIFI.equals(screen)) refreshSurvey();
+            if (S_FIELD.equals(screen)) refreshRecorder();
+            if (S_HOME.equals(screen) && tick % 5 == 0) refreshHome();
+            if (resumed) handler.postDelayed(this, 1000);
+        }
+    };
 
     private final Runnable flushKeyboard = new Runnable() { @Override public void run() { flushKeyboardInput(); } };
 
@@ -130,157 +193,37 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(C_BG);
-        preview = new TextureView(this);
-        preview.setVisibility(View.GONE);
-        frame.addView(preview, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-
-        LinearLayout outer = new LinearLayout(this);
-        outer.setOrientation(LinearLayout.VERTICAL);
-
-        // Bandeau comme la barre de titre d'ADB Tools : logo, nom, mode en cours.
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setBackgroundColor(C_TITLE);
-        header.setPadding(dp(16), dp(12), dp(16), dp(12));
-        logoView = new ImageView(this);
-        setLogo(false);
-        header.addView(logoView, new LinearLayout.LayoutParams(dp(40), dp(40)));
-        LinearLayout names = new LinearLayout(this);
-        names.setOrientation(LinearLayout.VERTICAL);
-        names.setPadding(dp(12), 0, 0, 0);
-        names.addView(text("ADB Tools Pro", 18, C_TITLE_INK, true));
-        titleView = text("Diagnostic", 13, C_TITLE_MUTED, false);
-        names.addView(titleView);
-        header.addView(names);
-        outer.addView(header, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(20);
-        root.setPadding(pad, pad, pad, pad);
-        messageView = text("Piloté depuis ADB Tools sur le PC.\nControlled from ADB Tools on the PC.", 15, C_MUTED, false);
-        messageView.setPadding(0, 0, 0, dp(16));
-
-        // Carte des valeurs (fond de bloc, bord fin, coins arrondis) : valeur principale en vert de la charte.
-        card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(14), dp(16), dp(14));
-        card.setBackground(rounded(C_SURFACE, C_LINE, 12));
-        bigView = text("", 48, C_BRAND_TEXT, true);
-        bigView.setGravity(Gravity.CENTER_HORIZONTAL);
-        detailView = text("", 15, C_INK, false);
-        detailView.setTypeface(Typeface.MONOSPACE);
-        detailView.setPadding(0, dp(8), 0, 0);
-        card.addView(bigView);
-        card.addView(detailView);
-        card.setVisibility(View.GONE);
-
-        input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setTextColor(C_INK);
-        input.setHint("…");
-        input.setHintTextColor(C_MUTED);
-        if (Build.VERSION.SDK_INT >= 21) input.setShowSoftInputOnFocus(false);
-        input.setVisibility(View.GONE);
-        input.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) { }
-            @Override public void onTextChanged(CharSequence s, int st, int b, int c) { }
-            @Override public void afterTextChanged(Editable s) {
-                handler.removeCallbacks(flushKeyboard);
-                if (s.length() == 0 || !scanMode) return;
-                if (s.toString().indexOf('\n') >= 0) flushKeyboardInput();
-                else handler.postDelayed(flushKeyboard, 250);
-            }
-        });
-
-        root.addView(messageView);
-        root.addView(card, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        inputLp.topMargin = dp(12);
-        root.addView(input, inputLp);
-
-        surveyButtons = new LinearLayout(this);
-        surveyButtons.setOrientation(LinearLayout.VERTICAL);
-        surveyButtons.setVisibility(View.GONE);
-        Button markBtn = button("📍 Poser un repère / Add a marker", true);
-        markBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askMark(); } });
-        Button stopBtn = button("⏹ Arrêter la mesure / Stop measuring", false);
-        stopBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopSurvey(); } });
-        LinearLayout.LayoutParams b1 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
-        b1.topMargin = dp(16);
-        LinearLayout.LayoutParams b2 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
-        b2.topMargin = dp(10);
-        surveyButtons.addView(markBtn, b1);
-        surveyButtons.addView(stopBtn, b2);
-
-        recorderButtons = new LinearLayout(this);
-        recorderButtons.setOrientation(LinearLayout.VERTICAL);
-        recorderButtons.setVisibility(View.GONE);
-        Button incBtn = button("⚠️ Signaler un incident / Report an incident", true);
-        incBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-        incBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askIncident(); } });
-        Button recStopBtn = button("⏹ Arrêter l'enregistrement / Stop recording", false);
-        recStopBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopRecorder(); } });
-        LinearLayout.LayoutParams r1 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(64));
-        r1.topMargin = dp(16);
-        LinearLayout.LayoutParams r2 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
-        r2.topMargin = dp(10);
-        recorderButtons.addView(incBtn, r1);
-        recorderButtons.addView(recStopBtn, r2);
-        // Boutons en bas de l'écran, à portée de pouce (mesure Wi-Fi et résultat des tests).
-        LinearLayout bottomBar = new LinearLayout(this);
-        bottomBar.setOrientation(LinearLayout.VERTICAL);
-        bottomBar.setBackgroundColor(C_BG);
-        bottomBar.setPadding(dp(16), dp(4), dp(16), dp(16));
-        bottomBar.addView(surveyButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        bottomBar.addView(recorderButtons, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // Résultat du test choisi directement sur le terminal (le PC le reçoit et passe au test suivant).
-        verdictRow = new LinearLayout(this);
-        verdictRow.setOrientation(LinearLayout.VERTICAL);
-        verdictRow.setVisibility(View.GONE);
-        TextView vLabel = text("Résultat du test / Test result", 13, C_MUTED, false);
-        vLabel.setPadding(0, dp(8), 0, dp(6));
-        verdictRow.addView(vLabel);
-        LinearLayout vr1 = new LinearLayout(this);
-        vr1.setOrientation(LinearLayout.HORIZONTAL);
-        // Icônes seules (le libellé « À surveiller » prenait toute la place sur les petits écrans) ;
-        // le libellé complet reste lu par TalkBack via la description du bouton.
-        vr1.addView(iconVerdictButton("✅", "OK", "ok", C_OK_BG, C_OK_FG), verdictWeight());
-        vr1.addView(iconVerdictButton("⚠️", "À surveiller / Monitor", "warn", C_WARN_BG, C_WARN_FG), verdictWeight());
-        vr1.addView(iconVerdictButton("❌", "HS / Faulty", "bad", C_BAD_BG, C_BAD_FG), verdictWeight());
-        verdictRow.addView(vr1);
-        Button skip = verdictButton("⏭ Passer ce test / Skip", "skip", C_SURFACE2, C_MUTED);
-        LinearLayout.LayoutParams sk = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
-        sk.topMargin = dp(8);
-        verdictRow.addView(skip, sk);
-        bottomBar.addView(verdictRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
-        scroll.addView(root, new android.widget.ScrollView.LayoutParams(android.widget.ScrollView.LayoutParams.MATCH_PARENT, android.widget.ScrollView.LayoutParams.WRAP_CONTENT));
-        outer.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        outer.addView(bottomBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        frame.addView(outer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        setContentView(frame);
-
+        L.load(this);
         Intent launch = getIntent();
-        wifiEntry = launch != null && launch.getComponent() != null && launch.getComponent().getClassName().endsWith(".WifiLauncher");
-
+        if (launch != null) L.apply(this, launch.getStringExtra("lang"), launch.getStringExtra("theme"));
+        buildUi();
+        Out.sink = this;
         Log.i(Out.TAG, "READY\t" + Build.MANUFACTURER + "\t" + Build.MODEL + "\t" + Build.VERSION.RELEASE);
-        pendingCmd = getIntent() == null ? null : getIntent().getStringExtra("cmd");
-        pendingExtras = getIntent() == null ? null : getIntent().getExtras();
+        pendingCmd = launch == null ? null : launch.getStringExtra("cmd");
+        pendingExtras = launch == null ? null : launch.getExtras();
+        if (pendingCmd != null) pcLinked = true;
     }
 
-    private Bundle pendingExtras;
+    @Override
+    protected void onDestroy() {
+        if (Out.sink == this) Out.sink = null;
+        super.onDestroy();
+    }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        String cmd = intent == null ? null : intent.getStringExtra("cmd");
+        if (intent == null) return;
+        if (L.apply(this, intent.getStringExtra("lang"), intent.getStringExtra("theme"))) {
+            // Langue ou thème du PC changés : l'écran est reconstruit (les tâches de fond continuent).
+            stopCurrent();
+            setScanMode(false);
+            buildUi();
+        }
+        String cmd = intent.getStringExtra("cmd");
         if (cmd == null) return;
+        pcLinked = true;
+        updatePill();
         pendingExtras = intent.getExtras();
         if (resumed) handle(cmd); else pendingCmd = cmd;
     }
@@ -291,88 +234,79 @@ public class MainActivity extends Activity {
         resumed = true;
         if (scanMode) enableScanOutputs();
         if (pendingCmd != null) { String c = pendingCmd; pendingCmd = null; handle(c); }
-        else if (RecorderService.running != null) showRecorder();
-        else if (SurveyService.running != null) showSurvey();
-        else if (wifiEntry) {
-            setLogo(true);
-            titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
-            setMessage("Aucune mesure en cours : démarrez-la depuis ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble).\n"
-                    + "No survey running: start it from ADB Tools (Wi-Fi Analysis ▸ Cable-free survey).");
-        }
+        else if (S_HOME.equals(screen) && RecorderService.running != null) show(S_FIELD);
+        else if (S_HOME.equals(screen) && SurveyService.running != null) show(S_WIFI);
+        else show(screen);
+        handler.removeCallbacks(ticker);
+        handler.post(ticker);
     }
 
     @Override
     protected void onPause() {
         resumed = false;
+        handler.removeCallbacks(ticker);
         // Matériel libéré dès que l'appli passe en arrière-plan (caméra, micro, GPS…).
-        stopCurrent();
+        if (current != null) {
+            stopCurrent();
+            if (S_TEST.equals(screen)) setTestStatus(L.t("Test interrompu (appli mise en arrière-plan) : relancez-le ou donnez le résultat.",
+                    "Test interrupted (app sent to the background): run it again or give the result."), L.warnFg);
+        }
         if (scanMode) { flushKeyboardInput(); disableScanOutputs(); }
         super.onPause();
     }
 
-    // ------------------------------------------------------------------ Commandes
+    @Override
+    public void onBackPressed() {
+        if (drawer != null && drawer.getVisibility() == View.VISIBLE) { closeDrawer(); return; }
+        if (S_TEST.equals(screen)) { leaveTest(); show(S_DIAG); return; }
+        if (!S_HOME.equals(screen)) { show(S_HOME); return; }
+        super.onBackPressed();
+    }
+
+    // ------------------------------------------------------------------ Commandes du PC
 
     private void handle(String cmd) {
-        stopCurrent();
-        setScanMode(false);
-        keysMode = false;
-        hideSurvey();
-        hideRecorder();
-        verdictRow.setVisibility(View.GONE);
-        activeTestId = null;
-        stepText = pendingExtras == null ? "" : pendingExtras.getString("step", "");
-        bigView.setText("");
-        detailView.setText("");
-        resetCardStyle();
-        card.setVisibility(View.GONE);
+        stepText = pendingExtras == null ? "" : nz(pendingExtras.getString("step", ""));
         switch (cmd) {
             case "survey":
+                leaveTest();
                 startSurvey(pendingExtras);
                 return;
             case "survey_stop":
                 if (SurveyService.running != null) SurveyService.running.stopSurvey("pc");
                 else Out.result("survey_stop", "na", Out.obj("reason", "not_running"));
-                setMessage("Prêt / Ready");
                 return;
             case "record":
+                leaveTest();
                 startRecorder(pendingExtras);
                 return;
             case "record_stop":
                 if (RecorderService.running != null) RecorderService.running.stopRecording("pc");
                 else Out.result("record_stop", "na", Out.obj("reason", "not_running"));
-                setMessage("Prêt / Ready");
                 return;
             case "probe":
                 Out.features(Probe.run(this));
-                setMessage("Prêt / Ready");
                 return;
             case "stop":
             case "idle":
-                setMessage("Prêt / Ready");
+                leaveTest();
+                if (S_TEST.equals(screen) || S_SCAN.equals(screen) || S_KEYS.equals(screen)) show(S_DIAG);
                 return;
             case "scan":
-                setScanMode(true);
-                return;
-            case "keys":
-                startKeys();
-                activeTestId = "keys";
-                showVerdictRow();
+                leaveTest();
+                show(S_SCAN);
                 return;
         }
-        DiagTest t = create(cmd);
-        if (t == null) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
-        current = t;
-        activeTestId = t.id();
-        Out.state(t.id(), "started");
-        titleView.setText(stepText.length() > 0 ? "Test " + stepText : "Diagnostic");
-        showTestCard(label(cmd));
-        showVerdictRow();
-        try {
-            t.start();
-        } catch (Exception e) {
-            Out.result(t.id(), "bad", Out.obj("reason", "exception", "message", String.valueOf(e.getMessage())));
-            testFinished(t);
-        }
+        if (indexOf(cmd) < 0) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
+        runAll = false;
+        startTest(cmd, true);
+    }
+
+    // ------------------------------------------------------------------ Tests
+
+    private static int indexOf(String id) {
+        for (int i = 0; i < TESTS.length; i++) if (TESTS[i].equals(id)) return i;
+        return -1;
     }
 
     private DiagTest create(String cmd) {
@@ -393,21 +327,45 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static String label(String cmd) {
+    static String label(String cmd) {
         switch (cmd) {
-            case "camera_back": return "Caméra arrière / Back camera";
-            case "camera_front": return "Caméra avant / Front camera";
-            case "flash": return "Flash";
-            case "speaker": return "Haut-parleur / Speaker";
-            case "earpiece": return "Écouteur / Earpiece";
-            case "microphone": return "Micro / Microphone";
-            case "vibrator": return "Vibreur / Vibrator";
-            case "sensors": return "Capteurs / Sensors";
+            case "camera_back": return L.t("Caméra arrière", "Back camera");
+            case "camera_front": return L.t("Caméra avant", "Front camera");
+            case "flash": return L.t("Flash", "Flash");
+            case "speaker": return L.t("Haut-parleur", "Speaker");
+            case "earpiece": return L.t("Écouteur", "Earpiece");
+            case "microphone": return L.t("Micro", "Microphone");
+            case "vibrator": return L.t("Vibreur", "Vibrator");
+            case "sensors": return L.t("Capteurs", "Sensors");
             case "nfc": return "NFC";
             case "gps": return "GPS";
             case "bluetooth": return "Bluetooth";
-            case "storage_speed": return "Mémoire / Storage";
+            case "keys": return L.t("Touches", "Keys");
+            case "storage_speed": return L.t("Mémoire", "Storage");
             default: return cmd;
+        }
+    }
+
+    /** Lance un test : depuis le PC (fromPc) ou depuis l'appli. */
+    private void startTest(String id, boolean fromPc) {
+        stopCurrent();
+        pcDriven = fromPc;
+        activeTestId = id;
+        if ("keys".equals(id)) { show(S_KEYS); return; }
+        DiagTest t = create(id);
+        if (t == null) return;
+        show(S_TEST);
+        testMessage.setText("");
+        testAuto.setVisibility(View.GONE);
+        testRestart.setVisibility(View.GONE);
+        setTestStatus(L.t("En cours…", "Running…"), L.brandText);
+        current = t;
+        Out.state(t.id(), "started");
+        try {
+            t.start();
+        } catch (Exception e) {
+            Out.result(t.id(), "bad", Out.obj("reason", "exception", "message", String.valueOf(e.getMessage())));
+            testFinished(t);
         }
     }
 
@@ -420,7 +378,13 @@ public class MainActivity extends Activity {
             Out.state(t.id(), "stopped");
         }
         showPreview(false);
-        titleView.setText("Diagnostic"); setLogo(false);
+    }
+
+    /** Quitte le test affiché (le matériel est libéré ; pas de résultat). */
+    private void leaveTest() {
+        stopCurrent();
+        activeTestId = null;
+        runAll = false;
     }
 
     /** Appelé par un test terminé (sur le fil principal). */
@@ -430,15 +394,70 @@ public class MainActivity extends Activity {
         try { t.stop(); } catch (Exception ignored) { }
         Out.state(t.id(), "stopped");
         showPreview(false);
-        titleView.setText("Diagnostic"); setLogo(false);
-        setMessage("Choisissez le résultat en bas de l'écran, ou sur le PC.\nChoose the result at the bottom of the screen, or on the PC.");
-        detailView.setText((stepText.length() > 0 ? "Test " + stepText + "   ·   " : "") + "✔ Terminé / Finished");
+        setTestStatus(pcDriven ? L.t("Terminé : choisissez le résultat ci-dessous, ou sur le PC.", "Finished: choose the result below, or on the PC.")
+                : L.t("Terminé : choisissez le résultat ci-dessous.", "Finished: choose the result below."), L.ink);
+        testRestart.setVisibility(View.VISIBLE);
     }
 
-    // ------------------------------------------------------------------ Aide aux tests
+    /** Le technicien tranche sur le terminal : le test s'arrête, le PC (s'il est relié) reçoit le résultat. */
+    private void sendVerdict(String verdict) {
+        String id = activeTestId;
+        if (id == null) return;
+        stopCurrent();
+        Out.verdict(id, verdict);
+        activeTestId = null;
+        if (pcDriven) {
+            Toast.makeText(this, "skip".equals(verdict) ? L.t("Test passé", "Test skipped") : L.t("Résultat envoyé au PC", "Result sent to the PC"), Toast.LENGTH_SHORT).show();
+            show(S_DIAG);
+            return;
+        }
+        if (runAll) {
+            String next = nextUntested(id);
+            if (next != null) { startTest(next, false); return; }
+            runAll = false;
+        }
+        show(S_DIAG);
+    }
+
+    private String nextUntested(String after) {
+        int start = after == null ? 0 : indexOf(after) + 1;
+        for (int i = start; i < TESTS.length; i++) if (!status.containsKey(TESTS[i])) return TESTS[i];
+        return null;
+    }
+
+    @Override
+    public void onResult(final String test, final String st, JSONObject json) {
+        runLater(new Runnable() {
+            @Override public void run() {
+                if (indexOf(test) < 0) return;
+                // Résultat automatique : gardé jusqu'au verdict du technicien.
+                if (!"confirm".equals(st) || !status.containsKey(test)) { status.put(test, st); statusAt.put(test, System.currentTimeMillis()); }
+                if (test.equals(activeTestId) && testAuto != null) {
+                    testAuto.setText(L.t("Mesure automatique : ", "Automatic check: ") + statusLabel(st));
+                    styleStatus(testAuto, st);
+                    testAuto.setVisibility(View.VISIBLE);
+                }
+                refreshLists();
+            }
+        }, 0);
+    }
+
+    @Override
+    public void onVerdict(final String test, final String st) {
+        runLater(new Runnable() {
+            @Override public void run() {
+                if (indexOf(test) < 0) return;
+                status.put(test, st);
+                statusAt.put(test, System.currentTimeMillis());
+                refreshLists();
+            }
+        }, 0);
+    }
+
+    // ------------------------------------------------------------------ Aide aux tests (appelée par les tests)
 
     void setMessage(final String text) {
-        runLater(new Runnable() { @Override public void run() { messageView.setText(text); } }, 0);
+        runLater(new Runnable() { @Override public void run() { if (testMessage != null) testMessage.setText(text); } }, 0);
     }
 
     void runLater(Runnable r, long delayMs) {
@@ -450,330 +469,674 @@ public class MainActivity extends Activity {
 
     void showPreview(final boolean on) {
         runLater(new Runnable() {
-            @Override public void run() {
-                preview.setVisibility(on ? View.VISIBLE : View.GONE);
-                // Aperçu caméra : la carte du test s'efface pour laisser voir l'image.
-                if (on) card.setVisibility(View.GONE);
-                else if (activeTestId != null && !keysMode && !scanMode) card.setVisibility(View.VISIBLE);
-            }
+            @Override public void run() { if (previewBox != null) previewBox.setVisibility(on ? View.VISIBLE : View.GONE); }
         }, 0);
     }
 
-    // ------------------------------------------------------------------ Mesure Wi-Fi autonome
+    // ------------------------------------------------------------------ Construction de l'écran
 
-    private void startSurvey(Bundle extras) {
-        Intent i = new Intent(this, SurveyService.class);
-        if (extras != null) {
-            i.putExtra(SurveyService.EXTRA_TARGET, extras.getString(SurveyService.EXTRA_TARGET, ""));
-            i.putExtra(SurveyService.EXTRA_INTERVAL, parseInt(extras.get(SurveyService.EXTRA_INTERVAL), 1000));
-            i.putExtra(SurveyService.EXTRA_DURATION, parseInt(extras.get(SurveyService.EXTRA_DURATION), 0));
+    private void buildUi() {
+        screens.clear();
+        getWindow().getDecorView().setBackgroundColor(L.bg);
+        if (Build.VERSION.SDK_INT >= 21) {
+            getWindow().setStatusBarColor(L.title);
+            getWindow().setNavigationBarColor(L.bg);
         }
-        surveyStartRequestedAt = System.currentTimeMillis();
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
-        showSurvey();
+        rootFrame = new FrameLayout(this);
+        rootFrame.setBackgroundColor(L.bg);
+
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        outer.addView(buildHeader(), new LinearLayout.LayoutParams(-1, dp(56)));
+        contentHost = new FrameLayout(this);
+        outer.addView(contentHost, new LinearLayout.LayoutParams(-1, 0, 1f));
+        bgBar = buildBackgroundBar();
+        outer.addView(bgBar, new LinearLayout.LayoutParams(-1, -2));
+        rootFrame.addView(outer, new FrameLayout.LayoutParams(-1, -1));
+
+        screens.put(S_HOME, buildHome());
+        screens.put(S_DIAG, buildDiag());
+        screens.put(S_TEST, buildTest());
+        screens.put(S_SCAN, buildScan());
+        screens.put(S_WIFI, buildWifi());
+        screens.put(S_KEYS, buildKeys());
+        screens.put(S_FIELD, buildField());
+        screens.put(S_RESULTS, buildResults());
+        for (View v : screens.values()) { v.setVisibility(View.GONE); contentHost.addView(v, new FrameLayout.LayoutParams(-1, -1)); }
+
+        drawer = buildDrawer();
+        rootFrame.addView(drawer, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(rootFrame);
+        updatePill();
+        show(screen);
     }
 
-    /** Heure de la demande de démarrage : le service met un instant à démarrer, l'écran l'attend. */
-    private long surveyStartRequestedAt;
+    private View buildHeader() {
+        LinearLayout h = new LinearLayout(this);
+        h.setOrientation(LinearLayout.HORIZONTAL);
+        h.setGravity(Gravity.CENTER_VERTICAL);
+        h.setBackgroundColor(L.title);
+        h.setPadding(dp(4), 0, dp(10), 0);
+        navButton = new ImageView(this);
+        navButton.setScaleType(ImageView.ScaleType.CENTER);
+        navButton.setFocusable(true);
+        navButton.setBackground(selector(Color.TRANSPARENT, 0, L.sideActive, 8));
+        navButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (S_TEST.equals(screen)) { leaveTest(); show(S_DIAG); } else openDrawer();
+            }
+        });
+        h.addView(navButton, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout names = new LinearLayout(this);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(6), 0, dp(6), 0);
+        titleView = text("ADB Tools Diag", 18, L.titleInk, true);
+        titleView.setSingleLine(true);
+        titleView.setEllipsize(TextUtils.TruncateAt.END);
+        subtitleView = text("", 12, L.titleMuted, false);
+        subtitleView.setVisibility(View.GONE);
+        names.addView(titleView);
+        names.addView(subtitleView);
+        h.addView(names, new LinearLayout.LayoutParams(0, -2, 1f));
+        pillView = text("", 12, L.okFg, true);
+        pillView.setPadding(dp(10), dp(5), dp(10), dp(5));
+        h.addView(pillView);
+        updatePill();
+        return h;
+    }
 
-    private static int parseInt(Object o, int def) {
-        if (o == null) return def;
-        if (o instanceof Integer) return (Integer) o;
-        try { return Integer.parseInt(String.valueOf(o).trim()); } catch (Exception e) { return def; }
+    private void updatePill() {
+        if (pillView == null) return;
+        if (pcLinked) {
+            pillView.setText("● " + L.t("Relié au PC", "Linked to PC"));
+            pillView.setTextColor(L.okFg);
+            pillView.setBackground(rounded(L.okBg, 0, 14));
+        } else {
+            pillView.setText("○ " + L.t("Autonome", "Standalone"));
+            pillView.setTextColor(L.titleInk);
+            pillView.setBackground(rounded(L.sideActive, 0, 14));
+        }
+        if (pillHome != null) pillHome.setVisibility(pcLinked ? View.GONE : View.VISIBLE);
+    }
+
+    private LinearLayout buildBackgroundBar() {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.HORIZONTAL);
+        b.setGravity(Gravity.CENTER_VERTICAL);
+        b.setBackgroundColor(L.brandSoft);
+        b.setPadding(dp(16), dp(8), dp(8), dp(8));
+        b.setVisibility(View.GONE);
+        b.setFocusable(true);
+        b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { if (bgTarget != null) show(bgTarget); } });
+        bgText = text("", 13, L.dark ? L.titleInk : L.ink, false);
+        b.addView(bgText, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView see = text(L.t("Voir", "View"), 14, L.brandText, true);
+        see.setPadding(dp(12), dp(8), dp(8), dp(8));
+        b.addView(see);
+        return b;
+    }
+
+    private FrameLayout buildDrawer() {
+        FrameLayout d = new FrameLayout(this);
+        d.setVisibility(View.GONE);
+        View scrim = new View(this);
+        scrim.setBackgroundColor(Color.argb(140, 0, 0, 0));
+        scrim.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { closeDrawer(); } });
+        d.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(L.side);
+        panel.setClickable(true);
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.VERTICAL);
+        head.setPadding(dp(20), dp(22), dp(20), dp(16));
+        head.addView(text("ADB Tools Diag", 20, L.sideInk, true));
+        TextView dev = text(Build.MANUFACTURER + " " + Build.MODEL, 13, L.sideMuted, false);
+        dev.setPadding(0, dp(4), 0, 0);
+        head.addView(dev);
+        panel.addView(head);
+        View sep = new View(this);
+        sep.setBackgroundColor(L.sideActive);
+        panel.addView(sep, new LinearLayout.LayoutParams(-1, dp(1)));
+
+        drawerItems = new LinearLayout(this);
+        drawerItems.setOrientation(LinearLayout.VERTICAL);
+        drawerItems.setPadding(dp(8), dp(8), dp(8), dp(8));
+        ScrollView sv = new ScrollView(this);
+        sv.addView(drawerItems);
+        panel.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
+        View sep2 = new View(this);
+        sep2.setBackgroundColor(L.sideActive);
+        panel.addView(sep2, new LinearLayout.LayoutParams(-1, dp(1)));
+        LinearLayout foot = new LinearLayout(this);
+        foot.setOrientation(LinearLayout.VERTICAL);
+        foot.setPadding(dp(8), dp(4), dp(8), dp(10));
+        foot.addView(drawerItem("about", "ic_info", L.t("À propos", "About"), false));
+        panel.addView(foot);
+
+        int w = Math.min(dp(300), (int) (getResources().getDisplayMetrics().widthPixels * 0.82f));
+        d.addView(panel, new FrameLayout.LayoutParams(w, -1, Gravity.START));
+        return d;
+    }
+
+    private void fillDrawer() {
+        drawerItems.removeAllViews();
+        drawerItems.addView(drawerItem(S_HOME, "ic_home", L.t("Accueil", "Home"), false));
+        drawerItems.addView(drawerItem(S_DIAG, "ic_diag", L.t("Diagnostic", "Diagnostics"), false));
+        drawerItems.addView(drawerItem(S_SCAN, "ic_scan", L.t("Lecteur", "Scanner"), false));
+        drawerItems.addView(drawerItem(S_WIFI, "ic_wifi", "Wi-Fi", SurveyService.running != null));
+        drawerItems.addView(drawerItem(S_KEYS, "ic_keys", L.t("Touches", "Keys"), false));
+        drawerItems.addView(drawerItem(S_FIELD, "ic_field", L.t("Suivi terrain", "Field monitoring"), RecorderService.running != null));
+        drawerItems.addView(drawerItem(S_RESULTS, "ic_results", L.t("Résultats", "Results"), false));
+    }
+
+    private View drawerItem(final String id, String icon, String label, boolean running) {
+        boolean active = id.equals(screen) || (S_TEST.equals(screen) && S_DIAG.equals(id));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), 0, dp(12), 0);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setBackground(selector(active ? L.sideActive : Color.TRANSPARENT, 0, L.sideActive, 10));
+        row.addView(icon(icon, 22, active ? Color.WHITE : L.sideInk), new LinearLayout.LayoutParams(dp(24), dp(24)));
+        TextView t = text(label, 15, active ? Color.WHITE : L.sideInk, active);
+        t.setPadding(dp(14), 0, 0, 0);
+        row.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
+        if (running) {
+            TextView badge = text(L.t("en cours", "running"), 11, L.onAction, true);
+            badge.setPadding(dp(8), dp(3), dp(8), dp(3));
+            badge.setBackground(rounded(L.action, 0, 10));
+            row.addView(badge);
+        }
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                closeDrawer();
+                if ("about".equals(id)) { showAbout(); return; }
+                if (S_TEST.equals(screen)) leaveTest();
+                show(id);
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(52));
+        lp.bottomMargin = dp(2);
+        row.setLayoutParams(lp);
+        return row;
+    }
+
+    private void openDrawer() {
+        fillDrawer();
+        drawer.setVisibility(View.VISIBLE);
+        if (drawerItems.getChildCount() > 0) drawerItems.getChildAt(0).requestFocus();
+    }
+
+    private void closeDrawer() { drawer.setVisibility(View.GONE); }
+
+    private void showAbout() {
+        String version = "";
+        try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) { }
+        dialog().setTitle("ADB Tools Diag " + version)
+                .setMessage(L.t("Appli de diagnostic d'ADB Tools Pro, toutes marques. Elle fonctionne reliée au PC ou seule. "
+                                + "Aucune donnée n'est envoyée sur Internet.",
+                        "ADB Tools Pro diagnostics app, for all brands. It works linked to the PC or on its own. "
+                                + "No data is sent over the Internet."))
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    private AlertDialog.Builder dialog() {
+        return new AlertDialog.Builder(this, L.dark ? android.R.style.Theme_Material_Dialog_Alert : android.R.style.Theme_Material_Light_Dialog_Alert);
+    }
+
+    /** Affiche un écran ; quitter le lecteur ou les touches arrête leur mode. */
+    private void show(String id) {
+        if (!S_SCAN.equals(id) && scanMode) setScanMode(false);
+        if (!S_KEYS.equals(id) && keysMode) { finishKeys(); }
+        screen = id;
+        for (Map.Entry<String, View> e : screens.entrySet()) e.getValue().setVisibility(e.getKey().equals(id) ? View.VISIBLE : View.GONE);
+        boolean test = S_TEST.equals(id);
+        navButton.setImageDrawable(iconDrawable(test ? "ic_back" : "ic_menu"));
+        navButton.setColorFilter(L.titleInk, PorterDuff.Mode.SRC_IN);
+        navButton.setContentDescription(test ? L.t("Retour au diagnostic", "Back to diagnostics") : L.t("Ouvrir le menu", "Open the menu"));
+        String sub = "";
+        switch (id) {
+            case S_HOME: titleView.setText("ADB Tools Diag"); refreshHome(); break;
+            case S_DIAG: titleView.setText(L.t("Diagnostic", "Diagnostics")); refreshLists(); break;
+            case S_TEST:
+                titleView.setText(activeTestId == null ? L.t("Test", "Test") : label(activeTestId));
+                sub = stepText.length() > 0 && pcDriven ? "Test " + stepText
+                        : activeTestId != null ? L.t("Test " + (indexOf(activeTestId) + 1) + " sur " + TESTS.length, "Test " + (indexOf(activeTestId) + 1) + " of " + TESTS.length) : "";
+                testBanner.setVisibility(pcDriven ? View.VISIBLE : View.GONE);
+                break;
+            case S_SCAN: titleView.setText(L.t("Lecteur", "Scanner")); setScanMode(true); break;
+            case S_WIFI: titleView.setText(L.t("Mesure Wi-Fi", "Wi-Fi survey")); refreshSurvey(); break;
+            case S_KEYS: titleView.setText(L.t("Touches", "Keys")); startKeys(); break;
+            case S_FIELD: titleView.setText(L.t("Suivi terrain", "Field monitoring")); refreshRecorder(); break;
+            case S_RESULTS: titleView.setText(L.t("Résultats", "Results")); refreshLists(); break;
+        }
+        subtitleView.setText(sub);
+        subtitleView.setVisibility(sub.length() > 0 ? View.VISIBLE : View.GONE);
+        keepVisibleWhenLocked(S_WIFI.equals(id) && SurveyService.running != null || S_FIELD.equals(id) && RecorderService.running != null);
+        refreshBackground();
+    }
+
+    // ------------------------------------------------------------------ Accueil
+
+    private View buildHome() {
+        LinearLayout p = page();
+        LinearLayout card = card();
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.BOTTOM);
+        homeModel = text(Build.MANUFACTURER + " " + Build.MODEL, 20, L.ink, true);
+        top.addView(homeModel, new LinearLayout.LayoutParams(0, -2, 1f));
+        homeAndroid = text("Android " + Build.VERSION.RELEASE, 12, L.muted, false);
+        top.addView(homeAndroid);
+        card.addView(top);
+        LinearLayout stats = new LinearLayout(this);
+        stats.setOrientation(LinearLayout.HORIZONTAL);
+        stats.setPadding(0, dp(10), 0, 0);
+        homeBattery = stat(stats, L.t("Batterie", "Battery"), true);
+        homeWifi = stat(stats, "Wi-Fi", true);
+        homeStorage = stat(stats, L.t("Stockage", "Storage"), false);
+        card.addView(stats);
+        homeLast = text("", 12, L.muted, false);
+        homeLast.setPadding(0, dp(10), 0, 0);
+        card.addView(homeLast);
+        p.addView(card, lpMatch(0));
+
+        pillHome = text(L.t("Sans PC : les résultats restent sur le terminal tant qu'il n'est pas relié à ADB Tools.",
+                "Without a PC: results stay on the device until it is linked to ADB Tools."), 13, L.warnFg, false);
+        pillHome.setBackground(rounded(L.warnBg, 0, 10));
+        pillHome.setPadding(dp(14), dp(10), dp(14), dp(10));
+        p.addView(pillHome, lpMatch(12));
+
+        String[][] tiles = {
+                { S_DIAG, "ic_diag", L.t("Diagnostic", "Diagnostics") }, { S_SCAN, "ic_scan", L.t("Lecteur", "Scanner") },
+                { S_WIFI, "ic_wifi", "Wi-Fi" }, { S_KEYS, "ic_keys", L.t("Touches", "Keys") },
+                { S_FIELD, "ic_field", L.t("Suivi terrain", "Field monitoring") }, { S_RESULTS, "ic_results", L.t("Résultats", "Results") } };
+        for (int r = 0; r < tiles.length; r += 2) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int c = 0; c < 2; c++) {
+                final String[] t = tiles[r + c];
+                LinearLayout tile = new LinearLayout(this);
+                tile.setOrientation(LinearLayout.VERTICAL);
+                tile.setPadding(dp(14), dp(12), dp(14), dp(12));
+                tile.setFocusable(true);
+                tile.setClickable(true);
+                tile.setBackground(selector(L.surface, L.line, L.surface2, 12));
+                tile.addView(icon(t[1], 26, L.brandText), new LinearLayout.LayoutParams(dp(26), dp(26)));
+                View spacer = new View(this);
+                tile.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1f));
+                tile.addView(text(t[2], 15, L.ink, true));
+                tile.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { show(t[0]); } });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(92), 1f);
+                if (c == 0) lp.rightMargin = dp(5); else lp.leftMargin = dp(5);
+                row.addView(tile, lp);
+            }
+            p.addView(row, lpMatch(10));
+        }
+        Button all = actionButton(L.t("Tout tester", "Test everything"));
+        all.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(true); } });
+        p.addView(all, lpHeight(52, 14));
+        TextView foot = text(L.t("Le PC peut aussi lancer un test à tout moment : l'appli bascule sur le bon écran.",
+                "The PC can also start a test at any time: the app switches to the right screen."), 12, L.muted, false);
+        foot.setPadding(0, dp(14), 0, 0);
+        p.addView(foot);
+        return scroll(p);
+    }
+
+    private TextView stat(LinearLayout parent, String label, boolean gap) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setBackground(rounded(L.surface2, 0, 8));
+        box.setPadding(dp(10), dp(8), dp(10), dp(8));
+        box.addView(text(label, 11, L.muted, false));
+        TextView v = text("—", 16, L.ink, true);
+        box.addView(v);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        if (gap) lp.rightMargin = dp(8);
+        parent.addView(box, lp);
+        return v;
     }
 
     @SuppressWarnings("deprecation")
-    private void keepVisibleWhenLocked(boolean on) {
+    private void refreshHome() {
+        if (homeBattery == null) return;
         try {
-            if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(on); setTurnScreenOn(on); }
-            else if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-            else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        } catch (Exception ignored) { }
+            Intent b = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            int level = b == null ? -1 : b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = b == null ? 100 : b.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+            homeBattery.setText(level < 0 ? "—" : Math.round(100f * level / Math.max(1, scale)) + " %");
+        } catch (Exception e) { homeBattery.setText("—"); }
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            WifiInfo wi = wm == null ? null : wm.getConnectionInfo();
+            homeWifi.setText(wm == null || !wm.isWifiEnabled() ? L.t("Coupé", "Off") : wi == null || wi.getNetworkId() == -1 ? "—" : wi.getRssi() + " dBm");
+        } catch (Exception e) { homeWifi.setText("—"); }
+        try {
+            StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
+            long total = fs.getBlockCountLong() * fs.getBlockSizeLong(), free = fs.getAvailableBlocksLong() * fs.getBlockSizeLong();
+            homeStorage.setText(total <= 0 ? "—" : Math.round(100f * (total - free) / total) + " %");
+        } catch (Exception e) { homeStorage.setText("—"); }
+        int[] c = counts();
+        homeLast.setText(c[0] + c[1] + c[2] == 0 ? L.t("Aucun test pour l'instant.", "No test yet.")
+                : L.t("Cette session : " + c[0] + " OK · " + c[1] + " à surveiller · " + c[2] + " KO",
+                      "This session: " + c[0] + " OK · " + c[1] + " to monitor · " + c[2] + " faulty"));
     }
 
-    private void showSurvey() {
-        keepVisibleWhenLocked(true); // l'écran de mesure reste consultable sans déverrouiller
-        titleView.setText("Mesure Wi-Fi / Wi-Fi survey");
-        setLogo(true);
-        card.setVisibility(View.VISIBLE);
-        setMessage("Vous pouvez débrancher le terminal et vous déplacer. Posez des repères aux endroits clés.\n"
-                + "You can unplug the device and walk around. Add markers at key places.");
-        surveyButtons.setVisibility(View.VISIBLE);
-        handler.removeCallbacks(surveyRefresh);
-        refreshSurvey();
-    }
-
-    private void hideSurvey() {
-        handler.removeCallbacks(surveyRefresh);
-        keepVisibleWhenLocked(false);
-        surveyButtons.setVisibility(View.GONE);
-    }
-
-    private void refreshSurvey() {
-        SurveyService s = SurveyService.running;
-        if (s == null && System.currentTimeMillis() - surveyStartRequestedAt < 15000) {
-            // Service en cours de démarrage : on patiente (sans ça, l'écran restait sur « Mesure terminée »
-            // jusqu'à ce que l'appli soit remise au premier plan).
-            bigView.setText("…");
-            bigView.setTextColor(C_MUTED);
-            detailView.setText("⏳ Démarrage de la mesure… / Starting the survey…");
-            handler.postDelayed(surveyRefresh, 500);
-            return;
+    /** OK, à surveiller, KO, testés. */
+    private int[] counts() {
+        int ok = 0, warn = 0, bad = 0, done = 0;
+        for (String id : TESTS) {
+            String s = status.get(id);
+            if (s == null) continue;
+            done++;
+            if ("ok".equals(s)) ok++; else if ("warn".equals(s)) warn++; else if ("bad".equals(s)) bad++;
         }
-        if (s == null) {
-            surveyButtons.setVisibility(View.GONE);
-            if (titleView.getText().toString().startsWith("Mesure Wi-Fi")) {
-                bigView.setText("");
-                detailView.setText("Mesure terminée / Survey finished");
-                setMessage("Rebranchez le terminal au PC et récupérez les mesures dans ADB Tools.\n"
-                        + "Plug the device back into the PC and retrieve the data in ADB Tools.");
+        return new int[] { ok, warn, bad, done };
+    }
+
+    /** « Tout tester » : reprend au premier test non fait (ou recommence tout si reset). */
+    private void startAll(boolean reset) {
+        if (reset) { status.clear(); statusAt.clear(); }
+        String next = nextUntested(null);
+        if (next == null) { show(S_DIAG); return; }
+        runAll = true;
+        startTest(next, false);
+    }
+
+    // ------------------------------------------------------------------ Diagnostic
+
+    private View buildDiag() {
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.VERTICAL);
+        head.setPadding(dp(16), dp(14), dp(16), dp(10));
+        LinearLayout line = new LinearLayout(this);
+        diagProgressText = text("", 13, L.muted, false);
+        line.addView(diagProgressText, new LinearLayout.LayoutParams(0, -2, 1f));
+        diagSummary = text("", 13, L.muted, false);
+        line.addView(diagSummary);
+        head.addView(line);
+        FrameLayout bar = new FrameLayout(this);
+        bar.setBackground(rounded(L.surface2, 0, 3));
+        diagProgressFill = new View(this);
+        diagProgressFill.setBackground(rounded(L.brandText, 0, 3));
+        bar.addView(diagProgressFill, new FrameLayout.LayoutParams(0, dp(6)));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(-1, dp(6));
+        blp.topMargin = dp(8);
+        head.addView(bar, blp);
+        outer.addView(head);
+
+        diagList = new LinearLayout(this);
+        diagList.setOrientation(LinearLayout.VERTICAL);
+        diagList.setPadding(dp(16), 0, dp(16), dp(8));
+        ScrollView sv = new ScrollView(this);
+        sv.addView(diagList);
+        outer.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setPadding(dp(16), dp(10), dp(16), dp(12));
+        diagContinue = actionButton("");
+        diagContinue.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(false); } });
+        actions.addView(diagContinue, new LinearLayout.LayoutParams(0, dp(52), 1f));
+        Button redo = secondaryButton(L.t("Tout refaire", "Start over"));
+        redo.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(true); } });
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(-2, dp(52));
+        rlp.leftMargin = dp(10);
+        actions.addView(redo, rlp);
+        outer.addView(actions);
+        return outer;
+    }
+
+    private void refreshLists() {
+        if (diagList != null) {
+            diagList.removeAllViews();
+            String next = nextUntested(null);
+            for (final String id : TESTS) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(dp(14), 0, dp(14), 0);
+                row.setFocusable(true);
+                row.setClickable(true);
+                boolean isNext = id.equals(next);
+                row.setBackground(selector(L.surface, isNext ? L.action : 0, L.surface2, 10));
+                row.addView(text(label(id), 15, L.ink, false), new LinearLayout.LayoutParams(0, -2, 1f));
+                row.addView(statusPill(status.get(id)));
+                row.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { runAll = false; startTest(id, false); } });
+                diagList.addView(row, lpHeight(52, 6));
             }
-            return;
+            int[] c = counts();
+            diagProgressText.setText(L.t(c[3] + " tests sur " + TESTS.length, c[3] + " of " + TESTS.length + " tests"));
+            diagSummary.setText(c[1] + c[2] == 0 ? "" : L.t(c[1] + " à surveiller · " + c[2] + " KO", c[1] + " to monitor · " + c[2] + " faulty"));
+            ViewGroup.LayoutParams lp = diagProgressFill.getLayoutParams();
+            int full = getResources().getDisplayMetrics().widthPixels - dp(32);
+            lp.width = Math.round(full * c[3] / (float) TESTS.length);
+            diagProgressFill.setLayoutParams(lp);
+            diagContinue.setText(next == null ? L.t("Diagnostic terminé", "Diagnostics complete") : (c[3] == 0 ? L.t("Commencer : ", "Start: ") : L.t("Continuer : ", "Continue: ")) + label(next));
+            diagContinue.setEnabled(next != null);
+            diagContinue.setAlpha(next == null ? 0.6f : 1f);
         }
-        long now = System.currentTimeMillis();
-        long sec = (now - s.startedAt) / 1000;
-        int rssi = s.lastRssi;
-        bigView.setText(rssi != 0 ? rssi + " dBm" : "—");
-        bigView.setTextColor(rssi == 0 ? C_MUTED : rssi >= -65 ? C_OK_FG : rssi >= -75 ? C_WARN_FG : C_BAD_FG);
-        String quality = rssi == 0 ? "Pas de Wi-Fi / No Wi-Fi" : rssi >= -60 ? "Excellent" : rssi >= -67 ? "Bon / Good"
-                : rssi >= -75 ? "Moyen / Fair" : "Faible / Weak";
-        // Preuve que la mesure tourne : âge de la dernière mesure (alerte si elle n'avance plus).
-        long age = s.lastSampleAt == 0 ? -1 : (now - s.lastSampleAt) / 1000;
-        boolean stalled = age > Math.max(5, 3 * s.intervalForUi / 1000);
-        String pulse = (sec % 2 == 0 ? "●" : "○") + (stalled ? "  ⚠ mesure bloquée / survey stalled" : "  Mesure en cours / Recording")
-                + (age >= 0 ? " — " + age + " s" : "");
-        int lossPct = s.samples == 0 ? 0 : Math.round(100f * s.lost / s.samples);
-        String events = s.recentText();
-        detailView.setText(String.format(java.util.Locale.US,
-                "%s\n%s\n\n⏱ %02d:%02d:%02d   📶 %s\nBSSID %s\nPing %s   ·   pertes %d %%\n%d mesures · %d changements de borne · %d coupures · %d repères%s",
-                pulse, quality, sec / 3600, (sec / 60) % 60, sec % 60, s.lastSsid, s.lastBssid, s.lastPing, lossPct,
-                s.samples, s.roams, s.disconnects, s.marks, events.length() > 0 ? "\n\n" + events : ""));
-        handler.postDelayed(surveyRefresh, 1000);
-    }
-
-    // ------------------------------------------------------------------ Enregistreur de terrain
-
-    private void startRecorder(Bundle extras) {
-        Intent i = new Intent(this, RecorderService.class);
-        if (extras != null) {
-            i.putExtra(RecorderService.EXTRA_TARGET, extras.getString(RecorderService.EXTRA_TARGET, ""));
-            i.putExtra(RecorderService.EXTRA_DURATION, parseInt(extras.get(RecorderService.EXTRA_DURATION), 0));
-            i.putExtra(RecorderService.EXTRA_INTERVAL, parseInt(extras.get(RecorderService.EXTRA_INTERVAL), 15));
-        }
-        recorderStartRequestedAt = System.currentTimeMillis();
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
-        showRecorder();
-    }
-
-    private void showRecorder() {
-        keepVisibleWhenLocked(true); // le bouton « Incident » reste accessible sans déverrouiller
-        titleView.setText("Enregistreur / Recorder");
-        setLogo(false);
-        card.setVisibility(View.VISIBLE);
-        setMessage("Utilisez le terminal normalement. Au moindre problème, appuyez sur « Signaler un incident » (aussi dans la notification).\n"
-                + "Use the device as usual. When a problem occurs, press \"Report an incident\" (also in the notification).");
-        recorderButtons.setVisibility(View.VISIBLE);
-        handler.removeCallbacks(recorderRefresh);
-        refreshRecorder();
-    }
-
-    private void hideRecorder() {
-        handler.removeCallbacks(recorderRefresh);
-        if (recorderButtons != null) recorderButtons.setVisibility(View.GONE);
-    }
-
-    private void refreshRecorder() {
-        RecorderService s = RecorderService.running;
-        if (s == null && System.currentTimeMillis() - recorderStartRequestedAt < 15000) {
-            bigView.setText("…");
-            bigView.setTextColor(C_MUTED);
-            detailView.setText("⏳ Démarrage de l'enregistrement… / Starting…");
-            handler.postDelayed(recorderRefresh, 500);
-            return;
-        }
-        if (s == null) {
-            recorderButtons.setVisibility(View.GONE);
-            keepVisibleWhenLocked(false);
-            if (titleView.getText().toString().startsWith("Enregistreur")) {
-                bigView.setText("");
-                detailView.setText("Enregistrement terminé / Recording finished");
-                setMessage("Rebranchez le terminal au PC et récupérez l'enregistrement dans ADB Tools (Analyse de fichiers ▸ Enregistreur).\n"
-                        + "Plug the device back into the PC and retrieve the recording in ADB Tools.");
+        if (resultsList != null) {
+            resultsList.removeAllViews();
+            SimpleDateFormat f = new SimpleDateFormat("HH:mm", Locale.US);
+            boolean any = false;
+            for (String id : TESTS) {
+                String s = status.get(id);
+                if (s == null) continue;
+                any = true;
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(dp(14), 0, dp(14), 0);
+                row.setBackground(rounded(L.surface, 0, 10));
+                row.addView(text(label(id), 15, L.ink, false), new LinearLayout.LayoutParams(0, -2, 1f));
+                Long at = statusAt.get(id);
+                if (at != null) { TextView tm = text(f.format(new Date(at)), 12, L.muted, false); tm.setPadding(0, 0, dp(10), 0); row.addView(tm); }
+                row.addView(statusPill(s));
+                resultsList.addView(row, lpHeight(52, 6));
             }
-            return;
+            if (!any) {
+                TextView empty = text(L.t("Aucun résultat pour l'instant. Lancez un diagnostic depuis l'accueil ou depuis le PC.",
+                        "No results yet. Start diagnostics from the home screen or from the PC."), 14, L.muted, false);
+                resultsList.addView(empty);
+            }
         }
-        long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
-        bigView.setText(String.format(java.util.Locale.US, "%02d:%02d:%02d", sec / 3600, (sec / 60) % 60, sec % 60));
-        bigView.setTextColor(C_BRAND_TEXT);
-        String remaining = "";
-        if (s.endAt > 0) {
-            long left = Math.max(0, (s.endAt - System.currentTimeMillis()) / 60000);
-            remaining = "\nFin dans " + (left / 60) + " h " + String.format(java.util.Locale.US, "%02d", left % 60) + " / Ends in " + (left / 60) + " h " + String.format(java.util.Locale.US, "%02d", left % 60);
-        }
-        String events = s.recentText();
-        detailView.setText((sec % 2 == 0 ? "●" : "○") + "  Enregistrement en cours / Recording" + remaining
-                + "\n\n⚠️ " + s.incidents + " incident(s) signalé(s)"
-                + "\n📜 " + String.format(java.util.Locale.US, "%,d", s.logLines) + " lignes de journal · " + (s.logBytes / (1024 * 1024)) + " Mo"
-                + (s.logsReadable ? "" : "\n⚠ Journal système non accessible (droit non accordé) : seuls les relevés sont enregistrés.")
-                + (s.target.length() > 0 ? "\n🎯 " + s.target : "")
-                + (s.lastBattery.length() > 0 ? "\n🔋 " + s.lastBattery : "")
-                + (s.lastWifi.length() > 0 ? "\n📶 " + s.lastWifi : "")
-                + (events.length() > 0 ? "\n\n" + events : ""));
-        handler.postDelayed(recorderRefresh, 1000);
+        if (S_HOME.equals(screen)) refreshHome();
     }
 
-    /** Incident : motif rapide en un geste, précision facultative. */
-    private void askIncident() {
-        final RecorderService s = RecorderService.running;
-        if (s == null) return;
-        final EditText note = new EditText(this);
-        note.setHint("Précisez si besoin / Details (optional)");
-        note.setSingleLine(false);
-        final String[] reasons = { "Le lecteur ne lit pas / Scanner not reading", "Application bloquée ou lente / App frozen or slow",
-                "Application fermée toute seule / App closed by itself", "Wi-Fi ou réseau coupé / Wi-Fi or network down",
-                "Terminal lent ou redémarré / Device slow or restarted", "Autre / Other" };
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(16), dp(4), dp(16), 0);
-        final AlertDialog[] dlg = new AlertDialog[1];
-        for (final String r : reasons) {
-            Button b = button(r, false);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-            b.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    String extra = note.getText().toString().trim();
-                    s.incident(r.split(" / ")[0] + (extra.length() > 0 ? " — " + extra : ""));
-                    if (dlg[0] != null) dlg[0].dismiss();
-                    Toast.makeText(MainActivity.this, "Incident noté / Incident recorded", Toast.LENGTH_SHORT).show();
-                }
+    private TextView statusPill(String s) {
+        TextView p = text(s == null ? L.t("Non testé", "Not tested") : statusLabel(s), 12, L.muted, s != null);
+        p.setPadding(dp(10), dp(4), dp(10), dp(4));
+        if (s != null) styleStatus(p, s);
+        return p;
+    }
+
+    private static String statusLabel(String s) {
+        switch (s) {
+            case "ok": return "OK";
+            case "warn": return L.t("À surveiller", "To monitor");
+            case "bad": return "KO";
+            case "confirm": return L.t("À confirmer", "To confirm");
+            case "na": return L.t("Absent", "Not present");
+            case "skip": return L.t("Passé", "Skipped");
+            default: return s;
+        }
+    }
+
+    private void styleStatus(TextView v, String s) {
+        int bg = L.surface2, fg = L.muted;
+        if ("ok".equals(s)) { bg = L.okBg; fg = L.okFg; }
+        else if ("warn".equals(s)) { bg = L.warnBg; fg = L.warnFg; }
+        else if ("bad".equals(s)) { bg = L.badBg; fg = L.badFg; }
+        else if ("confirm".equals(s)) { bg = L.infoBg; fg = L.infoFg; }
+        v.setTextColor(fg);
+        v.setBackground(rounded(bg, 0, 10));
+    }
+
+    // ------------------------------------------------------------------ Écran d'un test
+
+    private View buildTest() {
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        testBanner = text(L.t("Lancé depuis le PC. Le résultat peut se donner ici ou sur le PC.",
+                "Started from the PC. The result can be given here or on the PC."), 13, L.infoFg, false);
+        testBanner.setBackgroundColor(L.infoBg);
+        testBanner.setPadding(dp(16), dp(9), dp(16), dp(9));
+        outer.addView(testBanner, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout p = page();
+        previewBox = new FrameLayout(this);
+        previewBox.setBackground(rounded(L.previewBg, L.line, 12));
+        previewBox.setPadding(dp(1), dp(1), dp(1), dp(1));
+        preview = new TextureView(this);
+        previewBox.addView(preview, new FrameLayout.LayoutParams(-1, -1));
+        previewBox.setVisibility(View.GONE);
+        p.addView(previewBox, lpHeight(300, 0));
+        testMessage = text("", 16, L.ink, true);
+        testMessage.setPadding(0, dp(12), 0, 0);
+        p.addView(testMessage);
+        testStatus = text("", 14, L.brandText, false);
+        testStatus.setPadding(0, dp(8), 0, 0);
+        p.addView(testStatus);
+        testAuto = text("", 13, L.okFg, true);
+        testAuto.setPadding(dp(12), dp(6), dp(12), dp(6));
+        testAuto.setVisibility(View.GONE);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(-2, -2);
+        alp.topMargin = dp(10);
+        p.addView(testAuto, alp);
+        outer.addView(scroll(p), new LinearLayout.LayoutParams(-1, 0, 1f));
+        outer.addView(verdictArea(true));
+        return outer;
+    }
+
+    /** OK / À surveiller / KO, puis « Relancer » et « Passer ce test ». */
+    private LinearLayout verdictArea(boolean withRestart) {
+        LinearLayout v = new LinearLayout(this);
+        v.setOrientation(LinearLayout.VERTICAL);
+        v.setPadding(dp(16), dp(10), dp(16), dp(14));
+        LinearLayout row = new LinearLayout(this);
+        row.addView(verdictButton("OK", "ok", L.okBg, L.okFg), verdictWeight(false));
+        row.addView(verdictButton(L.t("À surveiller", "To monitor"), "warn", L.warnBg, L.warnFg), verdictWeight(true));
+        row.addView(verdictButton("KO", "bad", L.badBg, L.badFg), verdictWeight(true));
+        v.addView(row);
+        LinearLayout row2 = new LinearLayout(this);
+        if (withRestart) {
+            testRestart = secondaryButton(L.t("Relancer", "Run again"));
+            testRestart.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View x) { if (activeTestId != null) { boolean all = runAll; startTest(activeTestId, pcDriven); runAll = all; } }
             });
-            // Hauteur selon le texte (deux lignes FR / EN) : rien n'est coupé.
-            b.setMinHeight(dp(46));
-            b.setPadding(dp(10), dp(8), dp(10), dp(8));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.topMargin = dp(6);
-            box.addView(b, lp);
+            testRestart.setVisibility(View.GONE);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1f);
+            lp.rightMargin = dp(8);
+            row2.addView(testRestart, lp);
         }
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        nl.topMargin = dp(10);
-        box.addView(note, nl);
-        android.widget.ScrollView sv = new android.widget.ScrollView(this);
-        sv.addView(box);
-        dlg[0] = new AlertDialog.Builder(this)
-                .setTitle("⚠️ Que se passe-t-il ? / What happened?")
-                .setView(sv)
-                .setNegativeButton("✖", null)
-                .show();
+        Button skip = secondaryButton(L.t("Passer ce test  »", "Skip this test  »"));
+        skip.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View x) { sendVerdict("skip"); } });
+        row2.addView(skip, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        LinearLayout.LayoutParams l2 = new LinearLayout.LayoutParams(-1, -2);
+        l2.topMargin = dp(8);
+        v.addView(row2, l2);
+        return v;
     }
 
-    private void confirmStopRecorder() {
-        new AlertDialog.Builder(this)
-                .setTitle("⏹")
-                .setMessage("Arrêter l'enregistrement ? / Stop recording?")
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int w) {
-                        RecorderService s = RecorderService.running;
-                        if (s != null) s.stopRecording("user");
-                    }
-                })
-                .setNegativeButton("✖", null)
-                .show();
+    private void setTestStatus(String text, int color) {
+        if (testStatus == null) return;
+        testStatus.setText(text);
+        testStatus.setTextColor(color);
     }
 
-    private void askMark() {
-        final SurveyService s = SurveyService.running;
-        if (s == null) return;
-        final EditText name = new EditText(this);
-        name.setText("Repère " + (s.marks + 1));
-        name.setSelectAllOnFocus(true);
-        new AlertDialog.Builder(this)
-                .setTitle("📍 Repère / Marker")
-                .setMessage("Où êtes-vous ? (quai, rayon, bureau…) / Where are you?")
-                .setView(name)
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int w) {
-                        String label = name.getText().toString().trim();
-                        s.mark(label.length() > 0 ? label : "Repère " + (s.marks + 1));
-                    }
-                })
-                .setNegativeButton("✖", null)
-                .show();
+    private Button verdictButton(String label, final String verdict, int bg, int fg) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, label.length() > 4 ? 13 : 15);
+        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTextColor(fg);
+        b.setBackground(selector(bg, fg, bg, 10));
+        b.setPadding(dp(4), 0, dp(4), 0);
+        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
+        b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendVerdict(verdict); } });
+        return b;
     }
 
-    private void confirmStopSurvey() {
-        new AlertDialog.Builder(this)
-                .setTitle("⏹")
-                .setMessage("Arrêter la mesure ? / Stop measuring?")
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int w) {
-                        SurveyService s = SurveyService.running;
-                        if (s != null) s.stopSurvey("user");
-                    }
-                })
-                .setNegativeButton("✖", null)
-                .show();
-    }
-
-    // ------------------------------------------------------------------ Clavier physique
-
-    private void startKeys() {
-        keysMode = true;
-        keys.clear();
-        titleView.setText(stepText.length() > 0 ? "Clavier / Keypad · " + stepText : "Clavier / Keypad");
-        setMessage("Appuyez sur chaque touche du terminal / Press every key on the device");
-        Out.state("keys", "started");
-    }
-
-    private void finishKeys() {
-        keysMode = false;
-        JSONArray list = new JSONArray();
-        for (Map.Entry<String, Integer> e : keys.entrySet()) list.put(Out.obj("key", e.getKey(), "count", e.getValue()));
-        Out.result("keys", keys.isEmpty() ? "warn" : "confirm", Out.obj("keys", list));
-        Out.state("keys", "stopped");
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (keysMode) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                String name = KeyEvent.keyCodeToString(event.getKeyCode()).replace("KEYCODE_", "");
-                Integer n = keys.get(name);
-                keys.put(name, n == null ? 1 : n + 1);
-                bigView.setText(name); card.setVisibility(View.VISIBLE);
-                detailView.setText(keys.size() + " touche(s) / key(s)");
-                Out.live("keys", Out.obj("key", name, "distinct", keys.size()));
-            }
-            // Retour et accueil gardent leur rôle ; les autres touches restent dans le test.
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BACK || event.getKeyCode() == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(event);
-            return true;
-        }
-        if (scanMode && event.getAction() == KeyEvent.ACTION_UP
-                && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER || event.getKeyCode() == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
-            handler.removeCallbacks(flushKeyboard);
-            flushKeyboardInput();
-            return true;
-        }
-        return super.dispatchKeyEvent(event);
+    private LinearLayout.LayoutParams verdictWeight(boolean gap) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(62), 1f);
+        if (gap) lp.leftMargin = dp(8);
+        return lp;
     }
 
     // ------------------------------------------------------------------ Lecteur code-barres
+
+    private View buildScan() {
+        LinearLayout p = page();
+        LinearLayout last = card();
+        last.setBackground(rounded(L.surface, L.sideActive, 12));
+        scanLastLabel = text(L.t("Dernière lecture", "Last read"), 12, L.muted, false);
+        last.addView(scanLastLabel);
+        scanLastData = text(L.t("Scannez un code-barres", "Scan a barcode"), 22, L.brandText, true);
+        scanLastData.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        scanLastData.setPadding(0, dp(4), 0, dp(4));
+        last.addView(scanLastData);
+        scanLastInfo = text("", 12, L.muted, false);
+        last.addView(scanLastInfo);
+        p.addView(last, lpMatch(0));
+
+        LinearLayout stats = new LinearLayout(this);
+        scanCountView = stat(stats, L.t("Lectures", "Reads"), true);
+        scanDistinctView = stat(stats, L.t("Codes différents", "Distinct codes"), true);
+        scanSourceView = stat(stats, L.t("Réception", "Received by"), false);
+        p.addView(stats, lpMatch(12));
+
+        TextView prev = text(L.t("Lectures précédentes", "Previous reads"), 13, L.muted, true);
+        prev.setPadding(0, dp(14), 0, dp(6));
+        p.addView(prev);
+        scanRecentList = new LinearLayout(this);
+        scanRecentList.setOrientation(LinearLayout.VERTICAL);
+        p.addView(scanRecentList);
+
+        // Lecteur en mode clavier : les caractères arrivent dans ce champ (toutes marques).
+        input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setTextColor(L.ink);
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        input.setHint(L.t("Lecture en mode clavier", "Keyboard-mode reading"));
+        input.setHintTextColor(L.muted);
+        input.setBackground(rounded(L.surface2, L.line, 8));
+        input.setPadding(dp(12), dp(8), dp(12), dp(8));
+        if (Build.VERSION.SDK_INT >= 21) input.setShowSoftInputOnFocus(false);
+        input.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) { }
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) { }
+            @Override public void afterTextChanged(Editable s) {
+                handler.removeCallbacks(flushKeyboard);
+                if (s.length() == 0 || !scanMode) return;
+                if (s.toString().indexOf('\n') >= 0) flushKeyboardInput();
+                else handler.postDelayed(flushKeyboard, 250);
+            }
+        });
+        p.addView(input, lpMatch(14));
+        TextView hint = text(L.t("Appuyez sur la gâchette ou une touche de lecture. Les lectures s'affichent aussi dans ADB Tools si le terminal est relié.",
+                "Press the trigger or a scan key. Reads are also shown in ADB Tools when the device is linked."), 13, L.muted, false);
+        hint.setGravity(Gravity.CENTER_HORIZONTAL);
+        hint.setPadding(0, dp(12), 0, 0);
+        p.addView(hint);
+        return scroll(p);
+    }
 
     private void setScanMode(boolean on) {
         if (scanMode == on) return;
         scanMode = on;
         if (on) {
-            scanCount = 0;
-            titleView.setText("Test du lecteur / Scanner test");
-            setMessage("Scannez des codes-barres : ils s'affichent dans ADB Tools.\nScan barcodes: they are shown in ADB Tools.");
-            bigView.setText("0");
-            card.setVisibility(View.VISIBLE);
-            input.setVisibility(View.VISIBLE);
             input.requestFocus();
             if (resumed) enableScanOutputs();
+            refreshScan();
         } else {
             handler.removeCallbacks(flushKeyboard);
-            input.setText("");
-            input.setVisibility(View.GONE);
+            if (input != null) input.setText("");
             disableScanOutputs();
         }
     }
@@ -801,6 +1164,7 @@ public class MainActivity extends Activity {
     }
 
     private void flushKeyboardInput() {
+        if (input == null) return;
         String text = input.getText().toString();
         if (text.length() == 0) return;
         input.setText("");
@@ -820,9 +1184,45 @@ public class MainActivity extends Activity {
 
     private void emitScan(String data, String source, String symbology) {
         scanCount++;
-        bigView.setText(String.valueOf(scanCount));
-        detailView.setText(data);
+        scanDistinct.add(data);
+        scanRecent.add(0, new String[] { data, symbology == null ? "" : symbology, source, new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date()) });
+        while (scanRecent.size() > 6) scanRecent.remove(scanRecent.size() - 1);
         Out.scan(source, symbology, data);
+        refreshScan();
+    }
+
+    private static String sourceLabel(String s) {
+        if ("datawedge".equals(s)) return "DataWedge";
+        if ("honeywell".equals(s)) return "Honeywell";
+        return L.t("Clavier", "Keyboard");
+    }
+
+    private void refreshScan() {
+        if (scanCountView == null) return;
+        scanCountView.setText(String.valueOf(scanCount));
+        scanDistinctView.setText(String.valueOf(scanDistinct.size()));
+        scanRecentList.removeAllViews();
+        if (scanRecent.isEmpty()) { scanSourceView.setText("—"); return; }
+        String[] last = scanRecent.get(0);
+        scanSourceView.setText(sourceLabel(last[2]));
+        scanLastData.setText(last[0]);
+        scanLastLabel.setText(L.t("Dernière lecture", "Last read") + (last[1].length() > 0 ? " · " + last[1] : "") + " · " + last[3]);
+        scanLastInfo.setText(L.t(last[0].length() + " caractères · reçu par ", last[0].length() + " characters · received by ") + sourceLabel(last[2]));
+        for (int i = 1; i < scanRecent.size(); i++) {
+            String[] r = scanRecent.get(i);
+            LinearLayout row = new LinearLayout(this);
+            row.setPadding(dp(12), dp(10), dp(12), dp(10));
+            row.setBackground(rounded(L.surface, 0, 8));
+            TextView d = text((r[1].length() > 0 ? r[1] + " · " : "") + r[0], 13, L.ink, false);
+            d.setTypeface(Typeface.MONOSPACE);
+            d.setSingleLine(true);
+            d.setEllipsize(TextUtils.TruncateAt.END);
+            row.addView(d, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView tm = text(r[3], 12, L.muted, false);
+            tm.setPadding(dp(10), 0, 0, 0);
+            row.addView(tm);
+            scanRecentList.addView(row, lpMatch(i == 1 ? 0 : 6));
+        }
     }
 
     private void configureDataWedge() {
@@ -899,16 +1299,494 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
-    // ------------------------------------------------------------------ Outils
+    // ------------------------------------------------------------------ Touches
 
-    /** Logo du bandeau : ADB Tools Diag, ou ADB Tools Wi-Fi pendant la mesure sans câble. */
-    private void setLogo(boolean wifi) {
-        if (logoView == null) return;
-        int id = getResources().getIdentifier(wifi ? "ic_launcher_wifi" : "ic_launcher", "mipmap", getPackageName());
-        if (id != 0) logoView.setImageResource(id);
+    private View buildKeys() {
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout p = page();
+        TextView help = text(L.t("Appuyez sur chaque touche du terminal : son nom s'affiche. La touche Retour quitte ce test.",
+                "Press every key on the device: its name is shown. The Back key leaves this test."), 15, L.ink, true);
+        p.addView(help);
+        LinearLayout c = card();
+        keysBig = text("—", 34, L.brandText, true);
+        keysBig.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.addView(keysBig);
+        keysCount = text("", 13, L.muted, false);
+        keysCount.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.addView(keysCount);
+        p.addView(c, lpMatch(14));
+        keysList = text("", 13, L.ink, false);
+        keysList.setTypeface(Typeface.MONOSPACE);
+        keysList.setPadding(0, dp(12), 0, 0);
+        p.addView(keysList);
+        outer.addView(scroll(p), new LinearLayout.LayoutParams(-1, 0, 1f));
+        keysVerdict = verdictArea(false);
+        outer.addView(keysVerdict);
+        return outer;
     }
 
-    static GradientDrawable rounded(int fill, int stroke, int radiusDp, android.content.Context c) {
+    private void startKeys() {
+        if (keysMode) return;
+        keysMode = true;
+        keys.clear();
+        if (!"keys".equals(activeTestId)) { activeTestId = "keys"; pcDriven = false; }
+        keysBig.setText("—");
+        keysCount.setText(L.t("Aucune touche pour l'instant", "No key yet"));
+        keysList.setText("");
+        Out.state("keys", "started");
+    }
+
+    private void finishKeys() {
+        if (!keysMode) return;
+        keysMode = false;
+        // Simple visite de l'écran Touches sans rien presser : pas de résultat.
+        if (keys.isEmpty() && !pcDriven) { Out.state("keys", "stopped"); return; }
+        JSONArray list = new JSONArray();
+        for (Map.Entry<String, Integer> e : keys.entrySet()) list.put(Out.obj("key", e.getKey(), "count", e.getValue()));
+        Out.result("keys", keys.isEmpty() ? "warn" : "confirm", Out.obj("keys", list));
+        Out.state("keys", "stopped");
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (keysMode && S_KEYS.equals(screen)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                String name = KeyEvent.keyCodeToString(event.getKeyCode()).replace("KEYCODE_", "");
+                Integer n = keys.get(name);
+                keys.put(name, n == null ? 1 : n + 1);
+                keysBig.setText(name);
+                keysCount.setText(L.t(keys.size() + " touche(s) différente(s)", keys.size() + " distinct key(s)"));
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, Integer> e : keys.entrySet()) sb.append(e.getKey()).append(" ×").append(e.getValue()).append("   ");
+                keysList.setText(sb.toString().trim());
+                Out.live("keys", Out.obj("key", name, "distinct", keys.size()));
+            }
+            // Retour et accueil gardent leur rôle ; les autres touches restent dans le test.
+            if (event.getKeyCode() == KeyEvent.KEYCODE_BACK || event.getKeyCode() == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(event);
+            return true;
+        }
+        if (scanMode && event.getAction() == KeyEvent.ACTION_UP
+                && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER || event.getKeyCode() == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+            handler.removeCallbacks(flushKeyboard);
+            flushKeyboardInput();
+            return true;
+        }
+        if (event.getAction() == KeyEvent.ACTION_UP && event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+            if (drawer.getVisibility() == View.VISIBLE) closeDrawer(); else openDrawer();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    // ------------------------------------------------------------------ Mesure Wi-Fi
+
+    private View buildWifi() {
+        LinearLayout p = page();
+        wifiRunning = new LinearLayout(this);
+        wifiRunning.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout c = card();
+        wifiBig = text("—", 44, L.brandText, true);
+        wifiBig.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.addView(wifiBig);
+        wifiQuality = text("", 15, L.ink, true);
+        wifiQuality.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.addView(wifiQuality);
+        wifiDetail = text("", 13, L.ink, false);
+        wifiDetail.setPadding(0, dp(12), 0, 0);
+        c.addView(wifiDetail);
+        wifiRunning.addView(c);
+        wifiEvents = text("", 13, L.muted, false);
+        wifiEvents.setPadding(0, dp(12), 0, 0);
+        wifiRunning.addView(wifiEvents);
+        Button mark = actionButton(L.t("Poser un repère", "Add a marker"));
+        mark.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askMark(); } });
+        wifiRunning.addView(mark, lpHeight(54, 16));
+        Button stop = secondaryButton(L.t("Arrêter la mesure", "Stop measuring"));
+        stop.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopSurvey(); } });
+        wifiRunning.addView(stop, lpHeight(48, 10));
+        TextView tip = text(L.t("Vous pouvez débrancher le terminal et vous déplacer. Posez des repères aux endroits clés (quai, rayon, bureau…).",
+                "You can unplug the device and walk around. Add markers at key places (dock, aisle, office…)."), 13, L.muted, false);
+        tip.setPadding(0, dp(12), 0, 0);
+        wifiRunning.addView(tip);
+        p.addView(wifiRunning);
+
+        wifiStopped = new LinearLayout(this);
+        wifiStopped.setOrientation(LinearLayout.VERTICAL);
+        wifiIdle = text("", 15, L.ink, false);
+        wifiStopped.addView(wifiIdle);
+        Button start = actionButton(L.t("Démarrer une mesure", "Start a survey"));
+        start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startSurvey(null); } });
+        wifiStopped.addView(start, lpHeight(52, 16));
+        p.addView(wifiStopped);
+        return scroll(p);
+    }
+
+    private void startSurvey(Bundle extras) {
+        Intent i = new Intent(this, SurveyService.class);
+        i.putExtra(SurveyService.EXTRA_INTERVAL, 1000);
+        if (extras != null) {
+            i.putExtra(SurveyService.EXTRA_TARGET, extras.getString(SurveyService.EXTRA_TARGET, ""));
+            i.putExtra(SurveyService.EXTRA_INTERVAL, parseInt(extras.get(SurveyService.EXTRA_INTERVAL), 1000));
+            i.putExtra(SurveyService.EXTRA_DURATION, parseInt(extras.get(SurveyService.EXTRA_DURATION), 0));
+        }
+        surveyStartRequestedAt = System.currentTimeMillis();
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        show(S_WIFI);
+    }
+
+    private static int parseInt(Object o, int def) {
+        if (o == null) return def;
+        if (o instanceof Integer) return (Integer) o;
+        try { return Integer.parseInt(String.valueOf(o).trim()); } catch (Exception e) { return def; }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void keepVisibleWhenLocked(boolean on) {
+        try {
+            if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(on); setTurnScreenOn(on); }
+            else if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+            else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        } catch (Exception ignored) { }
+    }
+
+    private void refreshSurvey() {
+        if (wifiRunning == null) return;
+        SurveyService s = SurveyService.running;
+        boolean starting = s == null && System.currentTimeMillis() - surveyStartRequestedAt < 15000;
+        wifiRunning.setVisibility(s != null || starting ? View.VISIBLE : View.GONE);
+        wifiStopped.setVisibility(s != null || starting ? View.GONE : View.VISIBLE);
+        if (starting) {
+            wifiBig.setText("…");
+            wifiBig.setTextColor(L.muted);
+            wifiQuality.setText(L.t("Démarrage de la mesure…", "Starting the survey…"));
+            wifiDetail.setText("");
+            return;
+        }
+        if (s == null) {
+            wifiIdle.setText(surveyStartRequestedAt > 0
+                    ? L.t("Mesure terminée. Rebranchez le terminal au PC et récupérez-la dans ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble).",
+                          "Survey finished. Plug the device back into the PC and retrieve it in ADB Tools (Wi-Fi Analysis ▸ Cable-free survey).")
+                    : L.t("Mesure le signal Wi-Fi en vous déplaçant, terminal débranché : force du signal, changements de borne, coupures. "
+                          + "La mesure se récupère ensuite dans ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble), qui peut aussi la lancer.",
+                          "Measures the Wi-Fi signal while you walk around with the device unplugged: signal strength, roaming, drops. "
+                          + "Retrieve it afterwards in ADB Tools (Wi-Fi Analysis ▸ Cable-free survey), which can also start it."));
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long sec = (now - s.startedAt) / 1000;
+        int rssi = s.lastRssi;
+        wifiBig.setText(rssi != 0 ? rssi + " dBm" : "—");
+        wifiBig.setTextColor(rssi == 0 ? L.muted : rssi >= -65 ? L.okFg : rssi >= -75 ? L.warnFg : L.badFg);
+        String quality = rssi == 0 ? L.t("Pas de Wi-Fi", "No Wi-Fi") : rssi >= -60 ? L.t("Excellent", "Excellent") : rssi >= -67 ? L.t("Bon", "Good")
+                : rssi >= -75 ? L.t("Moyen", "Fair") : L.t("Faible", "Weak");
+        long age = s.lastSampleAt == 0 ? -1 : (now - s.lastSampleAt) / 1000;
+        boolean stalled = age > Math.max(5, 3 * s.intervalForUi / 1000);
+        wifiQuality.setText(quality + (stalled ? L.t("  ·  mesure bloquée", "  ·  survey stalled") : ""));
+        int lossPct = s.samples == 0 ? 0 : Math.round(100f * s.lost / s.samples);
+        wifiDetail.setText(String.format(Locale.US, "%s %02d:%02d:%02d   ·   %s\nBSSID %s\nPing %s   ·   %s %d %%\n%s",
+                (sec % 2 == 0 ? "●" : "○"), sec / 3600, (sec / 60) % 60, sec % 60, nz(s.lastSsid), nz(s.lastBssid), nz(s.lastPing),
+                L.t("pertes", "loss"), lossPct,
+                L.t(s.samples + " mesures · " + s.roams + " changements de borne · " + s.disconnects + " coupures · " + s.marks + " repères",
+                    s.samples + " samples · " + s.roams + " roams · " + s.disconnects + " drops · " + s.marks + " markers")));
+        wifiEvents.setText(s.recentText());
+    }
+
+    private void askMark() {
+        final SurveyService s = SurveyService.running;
+        if (s == null) return;
+        final EditText name = new EditText(this);
+        name.setText(L.t("Repère ", "Marker ") + (s.marks + 1));
+        name.setSelectAllOnFocus(true);
+        dialog().setTitle(L.t("Poser un repère", "Add a marker"))
+                .setMessage(L.t("Où êtes-vous ? (quai, rayon, bureau…)", "Where are you? (dock, aisle, office…)"))
+                .setView(name)
+                .setPositiveButton("OK", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        String label = name.getText().toString().trim();
+                        s.mark(label.length() > 0 ? label : L.t("Repère ", "Marker ") + (s.marks + 1));
+                    }
+                })
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
+    }
+
+    private void confirmStopSurvey() {
+        dialog().setMessage(L.t("Arrêter la mesure ?", "Stop measuring?"))
+                .setPositiveButton(L.t("Arrêter", "Stop"), new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        SurveyService s = SurveyService.running;
+                        if (s != null) s.stopSurvey("user");
+                    }
+                })
+                .setNegativeButton(L.t("Continuer", "Keep going"), null)
+                .show();
+    }
+
+    // ------------------------------------------------------------------ Suivi terrain
+
+    private View buildField() {
+        LinearLayout p = page();
+        fieldRunning = new LinearLayout(this);
+        fieldRunning.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout c = card();
+        fieldBig = text("—", 40, L.brandText, true);
+        fieldBig.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.addView(fieldBig);
+        fieldDetail = text("", 13, L.ink, false);
+        fieldDetail.setPadding(0, dp(10), 0, 0);
+        c.addView(fieldDetail);
+        fieldRunning.addView(c);
+        Button inc = actionButton(L.t("Signaler un incident", "Report an incident"));
+        inc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        inc.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askIncident(); } });
+        fieldRunning.addView(inc, lpHeight(64, 16));
+        Button stop = secondaryButton(L.t("Arrêter le suivi", "Stop monitoring"));
+        stop.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopRecorder(); } });
+        fieldRunning.addView(stop, lpHeight(48, 10));
+        TextView tip = text(L.t("Utilisez le terminal normalement. Au moindre problème, appuyez sur « Signaler un incident » (aussi dans la notification).",
+                "Use the device as usual. When a problem occurs, press \"Report an incident\" (also in the notification)."), 13, L.muted, false);
+        tip.setPadding(0, dp(12), 0, 0);
+        fieldRunning.addView(tip);
+        fieldEvents = text("", 13, L.muted, false);
+        fieldEvents.setPadding(0, dp(12), 0, 0);
+        fieldRunning.addView(fieldEvents);
+        p.addView(fieldRunning);
+        fieldIdle = text("", 15, L.ink, false);
+        p.addView(fieldIdle);
+        return scroll(p);
+    }
+
+    private void startRecorder(Bundle extras) {
+        Intent i = new Intent(this, RecorderService.class);
+        if (extras != null) {
+            i.putExtra(RecorderService.EXTRA_TARGET, extras.getString(RecorderService.EXTRA_TARGET, ""));
+            i.putExtra(RecorderService.EXTRA_DURATION, parseInt(extras.get(RecorderService.EXTRA_DURATION), 0));
+            i.putExtra(RecorderService.EXTRA_INTERVAL, parseInt(extras.get(RecorderService.EXTRA_INTERVAL), 15));
+        }
+        recorderStartRequestedAt = System.currentTimeMillis();
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        show(S_FIELD);
+    }
+
+    private void refreshRecorder() {
+        if (fieldRunning == null) return;
+        RecorderService s = RecorderService.running;
+        boolean starting = s == null && System.currentTimeMillis() - recorderStartRequestedAt < 15000;
+        fieldRunning.setVisibility(s != null || starting ? View.VISIBLE : View.GONE);
+        fieldIdle.setVisibility(s != null || starting ? View.GONE : View.VISIBLE);
+        if (starting) { fieldBig.setText("…"); fieldDetail.setText(L.t("Démarrage du suivi…", "Starting…")); return; }
+        if (s == null) {
+            fieldIdle.setText(recorderStartRequestedAt > 0
+                    ? L.t("Suivi terminé. Rebranchez le terminal au PC et récupérez-le dans ADB Tools (Analyse de fichiers ▸ Suivi terrain).",
+                          "Monitoring finished. Plug the device back into the PC and retrieve it in ADB Tools (File analysis ▸ Field monitoring).")
+                    : L.t("Le suivi terrain confie le terminal à un utilisateur pendant plusieurs heures : il note le journal Android, la batterie, "
+                          + "le Wi-Fi, les coupures et les incidents signalés d'un bouton. Il se lance depuis ADB Tools (Analyse de fichiers ▸ Suivi terrain), "
+                          + "qui accorde les droits nécessaires.",
+                          "Field monitoring hands the device to a user for several hours: it records the Android log, battery, Wi-Fi, drops "
+                          + "and incidents reported with one button. Start it from ADB Tools (File analysis ▸ Field monitoring), which grants the required permissions."));
+            return;
+        }
+        long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
+        fieldBig.setText(String.format(Locale.US, "%02d:%02d:%02d", sec / 3600, (sec / 60) % 60, sec % 60));
+        StringBuilder d = new StringBuilder();
+        d.append(sec % 2 == 0 ? "● " : "○ ").append(L.t("Suivi en cours", "Monitoring"));
+        if (s.endAt > 0) {
+            long left = Math.max(0, (s.endAt - System.currentTimeMillis()) / 60000);
+            d.append(L.t(" · fin dans ", " · ends in ")).append(left / 60).append(" h ").append(String.format(Locale.US, "%02d", left % 60));
+        }
+        d.append("\n").append(L.t(s.incidents + " incident(s) signalé(s)", s.incidents + " incident(s) reported"));
+        d.append("\n").append(String.format(Locale.US, "%,d", s.logLines)).append(L.t(" lignes de journal · ", " log lines · ")).append(s.logBytes / (1024 * 1024)).append(" Mo");
+        if (!s.logsReadable) d.append("\n").append(L.t("Journal système non accessible (droit non accordé) : seuls les relevés sont enregistrés.",
+                "System log not readable (permission not granted): only readings are recorded."));
+        if (nz(s.target).length() > 0) d.append("\n").append(L.t("Appli suivie : ", "Monitored app: ")).append(s.target);
+        if (nz(s.lastBattery).length() > 0) d.append("\n").append(L.t("Batterie : ", "Battery: ")).append(s.lastBattery);
+        if (nz(s.lastWifi).length() > 0) d.append("\nWi-Fi : ").append(s.lastWifi);
+        fieldDetail.setText(d.toString());
+        fieldEvents.setText(s.recentText());
+    }
+
+    /** Incident : motif rapide en un geste, précision facultative. */
+    private void askIncident() {
+        final RecorderService s = RecorderService.running;
+        if (s == null) return;
+        final EditText note = new EditText(this);
+        note.setHint(L.t("Précisez si besoin", "Details (optional)"));
+        note.setSingleLine(false);
+        // Motif enregistré en français (lu par ADB Tools dans le rapport), affiché dans la langue de l'appli.
+        final String[][] reasons = {
+                { "Le lecteur ne lit pas", "Scanner not reading" }, { "Application bloquée ou lente", "App frozen or slow" },
+                { "Application fermée toute seule", "App closed by itself" }, { "Wi-Fi ou réseau coupé", "Wi-Fi or network down" },
+                { "Terminal lent ou redémarré", "Device slow or restarted" }, { "Autre", "Other" } };
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(4), dp(16), 0);
+        final AlertDialog[] dlg = new AlertDialog[1];
+        for (final String[] r : reasons) {
+            Button b = secondaryButton(L.t(r[0], r[1]));
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    String extra = note.getText().toString().trim();
+                    s.incident(r[0] + (extra.length() > 0 ? " — " + extra : ""));
+                    if (dlg[0] != null) dlg[0].dismiss();
+                    Toast.makeText(MainActivity.this, L.t("Incident noté", "Incident recorded"), Toast.LENGTH_SHORT).show();
+                }
+            });
+            b.setMinHeight(dp(48));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+            lp.topMargin = dp(6);
+            box.addView(b, lp);
+        }
+        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(-1, -2);
+        nl.topMargin = dp(10);
+        box.addView(note, nl);
+        ScrollView sv = new ScrollView(this);
+        sv.addView(box);
+        dlg[0] = dialog().setTitle(L.t("Que se passe-t-il ?", "What happened?"))
+                .setView(sv)
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
+    }
+
+    private void confirmStopRecorder() {
+        dialog().setMessage(L.t("Arrêter le suivi terrain ?", "Stop field monitoring?"))
+                .setPositiveButton(L.t("Arrêter", "Stop"), new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        RecorderService s = RecorderService.running;
+                        if (s != null) s.stopRecording("user");
+                    }
+                })
+                .setNegativeButton(L.t("Continuer", "Keep going"), null)
+                .show();
+    }
+
+    // ------------------------------------------------------------------ Résultats
+
+    private View buildResults() {
+        LinearLayout p = page();
+        TextView intro = text(L.t("Résultats de cette session. Reliée au PC, l'appli les envoie aussi à ADB Tools au fil des tests.",
+                "Results of this session. When linked to the PC, the app also sends them to ADB Tools as tests go."), 13, L.muted, false);
+        intro.setPadding(0, 0, 0, dp(12));
+        p.addView(intro);
+        resultsList = new LinearLayout(this);
+        resultsList.setOrientation(LinearLayout.VERTICAL);
+        p.addView(resultsList);
+        return scroll(p);
+    }
+
+    // ------------------------------------------------------------------ Tâches de fond
+
+    private void refreshBackground() {
+        if (bgBar == null) return;
+        SurveyService sv = SurveyService.running;
+        RecorderService rc = RecorderService.running;
+        String text = null;
+        bgTarget = null;
+        if (sv != null && !S_WIFI.equals(screen)) {
+            long sec = (System.currentTimeMillis() - sv.startedAt) / 1000;
+            text = String.format(Locale.US, "%s · %02d:%02d · %s", L.t("Mesure Wi-Fi en fond", "Wi-Fi survey running"), sec / 60, sec % 60,
+                    sv.lastRssi != 0 ? sv.lastRssi + " dBm" : "—");
+            bgTarget = S_WIFI;
+        }
+        if (rc != null && !S_FIELD.equals(screen)) {
+            long sec = (System.currentTimeMillis() - rc.startedAt) / 1000;
+            String t = String.format(Locale.US, "%s · %02d:%02d", L.t("Suivi terrain en cours", "Field monitoring running"), sec / 3600, (sec / 60) % 60);
+            text = text == null ? t : text + "\n" + t;
+            if (bgTarget == null) bgTarget = S_FIELD;
+        }
+        bgBar.setVisibility(text == null ? View.GONE : View.VISIBLE);
+        if (text != null) bgText.setText(text);
+    }
+
+    // ------------------------------------------------------------------ Outils d'interface
+
+    private LinearLayout page() {
+        LinearLayout p = new LinearLayout(this);
+        p.setOrientation(LinearLayout.VERTICAL);
+        p.setPadding(dp(16), dp(16), dp(16), dp(16));
+        return p;
+    }
+
+    private ScrollView scroll(View content) {
+        ScrollView s = new ScrollView(this);
+        s.setFillViewport(true);
+        s.addView(content);
+        return s;
+    }
+
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        c.setBackground(rounded(L.surface, L.line, 12));
+        return c;
+    }
+
+    private LinearLayout.LayoutParams lpMatch(int topDp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.topMargin = dp(topDp);
+        return lp;
+    }
+
+    private LinearLayout.LayoutParams lpHeight(int hDp, int topDp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(hDp));
+        lp.topMargin = dp(topDp);
+        return lp;
+    }
+
+    private Drawable iconDrawable(String name) {
+        int id = getResources().getIdentifier(name, "drawable", getPackageName());
+        if (id == 0) return new ColorDrawable(Color.TRANSPARENT);
+        return Build.VERSION.SDK_INT >= 21 ? getResources().getDrawable(id, getTheme()) : getResources().getDrawable(id);
+    }
+
+    private ImageView icon(String name, int sizeDp, int color) {
+        ImageView v = new ImageView(this);
+        v.setImageDrawable(iconDrawable(name));
+        v.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        v.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        return v;
+    }
+
+    /** Orange : action principale. */
+    private Button actionButton(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTextColor(L.onAction);
+        b.setBackground(selector(L.action, 0, L.action, 10));
+        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
+        return b;
+    }
+
+    /** Bouton secondaire : contour fin. */
+    private Button secondaryButton(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        b.setTextColor(L.ink);
+        b.setPadding(dp(14), 0, dp(14), 0);
+        b.setBackground(selector(Color.TRANSPARENT, L.line, L.surface2, 10));
+        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
+        return b;
+    }
+
+    /** Fond avec états : appuyé (pressedFill) et sélection au clavier (contour orange). */
+    private StateListDrawable selector(int fill, int stroke, int pressedFill, int radiusDp) {
+        StateListDrawable s = new StateListDrawable();
+        GradientDrawable focused = rounded(fill, 0, radiusDp);
+        focused.setStroke(dp(2), L.action);
+        s.addState(new int[] { android.R.attr.state_focused }, focused);
+        s.addState(new int[] { android.R.attr.state_pressed }, rounded(pressedFill, stroke, radiusDp));
+        s.addState(new int[0], rounded(fill, stroke, radiusDp));
+        return s;
+    }
+
+    static GradientDrawable rounded(int fill, int stroke, int radiusDp, Context c) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(fill);
         float r = radiusDp * c.getResources().getDisplayMetrics().density;
@@ -919,86 +1797,6 @@ public class MainActivity extends Activity {
 
     private GradientDrawable rounded(int fill, int stroke, int radiusDp) { return rounded(fill, stroke, radiusDp, this); }
 
-    private LinearLayout.LayoutParams weight() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        lp.setMargins(dp(3), 0, dp(3), 0);
-        return lp;
-    }
-
-    private Button verdictButton(String label, final String status, int bg, int fg) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setTextColor(fg);
-        b.setBackground(rounded(bg, fg, 8));
-        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
-        b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendVerdict(status); } });
-        return b;
-    }
-
-    private Button iconVerdictButton(String icon, String description, String status, int bg, int fg) {
-        Button b = verdictButton(icon, status, bg, fg);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
-        b.setPadding(0, 0, 0, 0);
-        b.setContentDescription(description);
-        return b;
-    }
-
-    private LinearLayout.LayoutParams verdictWeight() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(58), 1f);
-        lp.setMargins(dp(4), 0, dp(4), 0);
-        return lp;
-    }
-
-    private void showVerdictRow() { verdictRow.setVisibility(View.VISIBLE); }
-
-    /** Test en cours bien visible : nom en grand, étape de l'enchaînement, état. */
-    private void showTestCard(String name) {
-        bigView.setText(name.replace(" / ", "\n"));
-        bigView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
-        bigView.setTextColor(C_INK);
-        detailView.setTypeface(Typeface.DEFAULT_BOLD);
-        detailView.setTextColor(C_BRAND_TEXT);
-        detailView.setText((stepText.length() > 0 ? "Test " + stepText + "   ·   " : "") + "⏳ En cours… / Running…");
-        card.setBackground(rounded(C_SURFACE, C_BRAND, 12));
-        card.setVisibility(View.VISIBLE);
-    }
-
-    /** Remet la carte dans son style « valeurs » (lecteur, mesure Wi-Fi, clavier). */
-    private void resetCardStyle() {
-        bigView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
-        bigView.setTextColor(C_BRAND_TEXT);
-        detailView.setTypeface(Typeface.MONOSPACE);
-        detailView.setTextColor(C_INK);
-        card.setBackground(rounded(C_SURFACE, C_LINE, 12));
-    }
-
-    /** Le technicien tranche sur le terminal : le test en cours s'arrête, le PC reçoit le résultat. */
-    private void sendVerdict(String status) {
-        String id = activeTestId;
-        if (id == null) return;
-        stopCurrent();
-        Out.verdict(id, status);
-        verdictRow.setVisibility(View.GONE);
-        activeTestId = null;
-        setMessage("skip".equals(status) ? "Test passé / Test skipped" : "Résultat envoyé à ADB Tools / Result sent to ADB Tools");
-    }
-
-    /** Bouton dans le style d'ADB Tools : orange pour l'action principale, sinon bloc sombre bordé. */
-    private Button button(String label, boolean primary) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setTextColor(primary ? C_ON_ACTION : C_INK);
-        b.setBackground(rounded(primary ? C_ACTION : C_SURFACE2, primary ? 0 : C_LINE, 8));
-        if (Build.VERSION.SDK_INT >= 21) b.setStateListAnimator(null);
-        return b;
-    }
-
     private TextView text(String s, int sp, int color, boolean bold) {
         TextView t = new TextView(this);
         t.setText(s);
@@ -1007,6 +1805,8 @@ public class MainActivity extends Activity {
         if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
         return t;
     }
+
+    private static String nz(String s) { return s == null ? "" : s; }
 
     private int dp(int v) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());

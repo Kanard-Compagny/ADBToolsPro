@@ -27,7 +27,7 @@ final class TorchTest implements DiagTest {
             }
         } catch (Exception ignored) { }
         if (cameraId == null) { Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return; }
-        a.setMessage("Flash : il doit clignoter 3 fois / Flash: it should blink 3 times");
+        a.setMessage(L.t("Le flash doit clignoter 3 fois.", "The flash should blink 3 times."));
         blink();
     }
 

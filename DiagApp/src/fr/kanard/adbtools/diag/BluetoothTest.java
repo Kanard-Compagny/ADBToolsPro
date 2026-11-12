@@ -64,7 +64,7 @@ final class BluetoothTest implements DiagTest {
     public void start() {
         adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) { Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return; }
-        a.setMessage("Bluetooth : recherche des appareils proches (15 s) / Bluetooth: scanning nearby devices (15 s)");
+        a.setMessage(L.t("Recherche des appareils Bluetooth proches (15 s)…", "Scanning nearby Bluetooth devices (15 s)…"));
         try {
             if (!adapter.isEnabled()) {
                 enabledByUs = adapter.enable();

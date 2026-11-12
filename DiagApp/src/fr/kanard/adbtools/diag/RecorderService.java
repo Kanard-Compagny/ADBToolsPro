@@ -79,12 +79,13 @@ public class RecorderService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        L.load(this);
         if (intent != null && ACTION_INCIDENT.equals(intent.getAction())) {
             if (running == this) incident("");      // bouton « Incident » de la notification
             return START_NOT_STICKY;
         }
         if (running != null && running != this) running.stopRecording("restart");
-        startForeground(2, notification("Démarrage… / Starting…"));
+        startForeground(2, notification(L.t("Démarrage…", "Starting…")));
         if (snapThread != null) return START_NOT_STICKY;
         running = this;
         target = intent == null ? "" : nz(intent.getStringExtra(EXTRA_TARGET));
@@ -376,16 +377,16 @@ public class RecorderService extends Service {
         Notification.Builder b;
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Enregistreur", NotificationManager.IMPORTANCE_LOW));
+            nm.createNotificationChannel(new NotificationChannel(CHANNEL, L.t("Suivi terrain", "Field monitoring"), NotificationManager.IMPORTANCE_LOW));
             b = new Notification.Builder(this, CHANNEL);
         } else b = new Notification.Builder(this);
-        b.setContentTitle("ADB Tools — Enregistreur / Recorder")
+        b.setContentTitle(L.t("ADB Tools Diag — Suivi terrain", "ADB Tools Diag — Field monitoring"))
          .setContentText(text)
          .setSmallIcon(android.R.drawable.ic_menu_save)
          .setContentIntent(pi)
          .setOngoing(true);
         if (Build.VERSION.SDK_INT >= 20)
-            b.addAction(new Notification.Action.Builder(android.R.drawable.ic_dialog_alert, "⚠️ Incident", inc).build());
+            b.addAction(new Notification.Action.Builder(android.R.drawable.ic_dialog_alert, L.t("Signaler un incident", "Report an incident"), inc).build());
         return b.build();
     }
 

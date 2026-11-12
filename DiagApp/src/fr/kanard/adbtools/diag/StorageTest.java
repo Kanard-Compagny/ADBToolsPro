@@ -20,7 +20,7 @@ final class StorageTest implements DiagTest {
 
     @Override
     public void start() {
-        a.setMessage("Mémoire : mesure en cours… / Storage: measuring…");
+        a.setMessage(L.t("Mesure de la vitesse de la mémoire…", "Measuring storage speed…"));
         new Thread(new Runnable() { @Override public void run() { measure(); } }, "storage").start();
     }
 

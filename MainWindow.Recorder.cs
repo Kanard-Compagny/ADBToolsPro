@@ -11,7 +11,7 @@ using System.Windows.Controls;
 namespace ADBToolsNew
 {
     /// <summary>
-    /// Enregistreur terrain (Analyse de fichiers ▸ « Enregistreur terrain ») : l'appli de diagnostic enregistre sur le
+    /// Suivi terrain (Analyse de fichiers ▸ « Suivi terrain ») : l'appli de diagnostic enregistre sur le
     /// terminal débranché le journal Android complet, l'état du terminal et les incidents signalés par l'utilisateur
     /// (DiagApp/RecorderService.java). Au retour, le dossier est copié sur le PC et ouvert dans Analyse de fichiers.
     /// </summary>
@@ -69,12 +69,12 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                await ShowCustomDialogAsync(Loc.T("🎙 Enregistreur terrain"), Loc.T("Connectez d'abord le terminal (ADB autorisé)."), Loc.T("OK"), "", false);
+                await ShowCustomDialogAsync(Loc.T("📈 Suivi terrain"), Loc.T("Connectez d'abord le terminal (ADB autorisé)."), Loc.T("OK"), "", false);
                 return;
             }
             if (dev.Serial.Contains(":"))
             {
-                await ShowCustomDialogAsync(Loc.T("🎙 Enregistreur terrain"), Loc.T("Branchez le terminal en USB pour démarrer l'enregistrement (une connexion ADB par Wi-Fi serait coupée une fois le terminal emporté)."), Loc.T("OK"), "", false);
+                await ShowCustomDialogAsync(Loc.T("📈 Suivi terrain"), Loc.T("Branchez le terminal en USB pour démarrer l'enregistrement (une connexion ADB par Wi-Fi serait coupée une fois le terminal emporté)."), Loc.T("OK"), "", false);
                 return;
             }
             string target = (TxtRecorderTarget.Text ?? "").Trim();
@@ -113,7 +113,7 @@ namespace ADBToolsNew
                 }
                 string until = duration > 0 ? Loc.F("pendant {0} h au plus", (duration / 60.0).ToString("0.#", System.Globalization.CultureInfo.CurrentCulture)) : Loc.T("jusqu'à l'arrêt");
                 TxtRecorderStatus.Text = Loc.F("✅ Enregistrement en cours ({0}). Vous pouvez débrancher le terminal et le confier à l'utilisateur : au moindre problème, il appuie sur « Signaler un incident ». Au retour, rebranchez-le puis « Récupérer l'enregistrement ».", until);
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎙 Enregistreur terrain démarré sur {1}.", DateTime.Now, s));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📈 Suivi terrain démarré sur {1}.", DateTime.Now, s));
             }
             catch (Exception ex)
             {
@@ -127,7 +127,7 @@ namespace ADBToolsNew
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
-                await ShowCustomDialogAsync(Loc.T("🎙 Enregistreur terrain"), Loc.T("Rebranchez le terminal (ADB autorisé) pour récupérer l'enregistrement."), Loc.T("OK"), "", false);
+                await ShowCustomDialogAsync(Loc.T("📈 Suivi terrain"), Loc.T("Rebranchez le terminal (ADB autorisé) pour récupérer l'enregistrement."), Loc.T("OK"), "", false);
                 return;
             }
             BtnRecorderFetch.IsEnabled = false;
@@ -169,7 +169,7 @@ namespace ADBToolsNew
                 await ReleaseDiagAppAsync("record");
 
                 TxtRecorderStatus.Text = Loc.F("✅ {0} enregistrement(s) copié(s) dans {1}.", dirs.Count, root);
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🎙 Enregistrement récupéré : {1}", DateTime.Now, last));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📈 Enregistrement récupéré : {1}", DateTime.Now, last));
                 RecorderOverlay.Visibility = Visibility.Collapsed;
                 NavFileAnalysis_Click(null, null);
                 await LoadFileAnalysisAsync(last);

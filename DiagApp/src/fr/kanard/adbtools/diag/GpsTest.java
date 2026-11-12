@@ -37,8 +37,7 @@ final class GpsTest implements DiagTest, LocationListener {
         if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Out.result(id(), "warn", Out.obj("reason", "disabled")); a.testFinished(this); return;
         }
-        a.setMessage("GPS : placez le terminal près d'une fenêtre ou dehors (2 min max)\n"
-                + "GPS: place the device near a window or outside (2 min max)");
+        a.setMessage(L.t("Placez le terminal près d'une fenêtre ou dehors (2 min au plus).", "Place the device near a window or outside (2 min at most)."));
         startedAt = System.currentTimeMillis();
         try {
             if (Build.VERSION.SDK_INT >= 24) {

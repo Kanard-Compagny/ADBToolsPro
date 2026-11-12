@@ -18,8 +18,10 @@ namespace ADBToolsNew.Core
         public const string DataWedgeProfile = "ADBToolsDiag";
         public static string ApkPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DiagApp", "ADBToolsDiag.apk");
 
-        /// <summary>Arguments adb pour envoyer une commande à l'appli (elle passe au premier plan).</summary>
-        public static string CommandArgs(string serial, string cmd) => $"-s {serial} shell am start -n {Activity} -e cmd {cmd}";
+        /// <summary>Arguments adb pour envoyer une commande à l'appli (elle passe au premier plan), avec la langue et le thème
+        /// du programme : l'appli s'affiche comme lui.</summary>
+        public static string CommandArgs(string serial, string cmd) =>
+            $"-s {serial} shell am start -n {Activity} -e cmd {cmd} -e lang {(Loc.IsEnglish ? "en" : "fr")} -e theme {(ThemeManager.Current == AppTheme.Light ? "light" : "dark")}";
 
         /// <summary>Flux du journal limité à l'appli, à partir de maintenant.</summary>
         public static string LogcatArgs(string serial) => $"-s {serial} logcat -T 1 -v brief -s {LogTag}:I";

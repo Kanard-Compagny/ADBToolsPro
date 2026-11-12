@@ -43,7 +43,7 @@ namespace ADBToolsNew.Core
                 switch (Kind)
                 {
                     case ArchiveFileKind.Log: return "📜";
-                    case ArchiveFileKind.Recording: return "🎙";
+                    case ArchiveFileKind.Recording: return "📈";
                     case ArchiveFileKind.Anr: return "🧊";
                     case ArchiveFileKind.Tombstone: return "💥";
                     case ArchiveFileKind.Snapshot: return "📸";

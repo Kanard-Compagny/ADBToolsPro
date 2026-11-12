@@ -62,8 +62,7 @@ final class SensorsTest implements DiagTest, SensorEventListener {
             sm.registerListener(this, s, SensorManager.SENSOR_DELAY_UI);
         }
         if (tracks.isEmpty()) { Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return; }
-        a.setMessage("Capteurs : bougez, tournez le terminal, couvrez le haut de l'écran et la lumière (20 s)\n"
-                + "Sensors: move and rotate the device, cover the top of the screen and the light (20 s)");
+        a.setMessage(L.t("Bougez et tournez le terminal, couvrez le haut de l'écran et la lumière (20 s).", "Move and rotate the device, cover the top of the screen and the light (20 s)."));
         a.runLater(new Runnable() { @Override public void run() { finish(); } }, DURATION_MS);
     }
 

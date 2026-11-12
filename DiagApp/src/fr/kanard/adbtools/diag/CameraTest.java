@@ -57,8 +57,7 @@ final class CameraTest implements DiagTest {
         thread = new HandlerThread("camera");
         thread.start();
         handler = new Handler(thread.getLooper());
-        a.setMessage(front ? "Caméra avant : visez un objet / Front camera: aim at an object"
-                           : "Caméra arrière : visez un objet / Back camera: aim at an object");
+        a.setMessage(L.t("Visez un objet : l'image est-elle nette, sans tache ni ligne ?", "Aim at an object: is the image sharp, with no spot or line?"));
         a.showPreview(true);
         TextureView tv = a.preview();
         if (tv.isAvailable()) open(tv.getSurfaceTexture());

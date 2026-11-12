@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Appli de diagnostic installée temporairement par ADB Tools (Diagnostics SAV), puis désinstallée à la fin.
+<!-- ADB Tools Diag : appli de diagnostic d'ADB Tools, pilotée par le PC ou utilisée seule (accueil, menu burger :
+     Diagnostic, Lecteur, Wi-Fi, Touches, Suivi terrain, Résultats). Installée par ADB Tools (Diagnostics SAV).
      - Tests du terminal : caméras, flash, haut-parleur, écouteur, micro, vibreur, capteurs, NFC, GPS, Bluetooth,
        clavier physique, vitesse du stockage. Chaque test est lancé depuis le PC (am start ... -e cmd <test>).
      - Test du lecteur code-barres : mode clavier (toutes marques), DataWedge (Zebra) et intents Honeywell.
@@ -10,8 +11,8 @@
      Android 8 (API 26) et plus récents ; minSdk plus bas pour ne bloquer aucun terminal ancien. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.diag"
-    android:versionCode="5"
-    android:versionName="4.1">
+    android:versionCode="6"
+    android:versionName="5.0">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
 
@@ -59,18 +60,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Deuxième entrée dans le lanceur, « ADB Tools Wi-Fi » (logo Wi-Fi) : retrouver la mesure sans câble en cours. -->
-        <activity-alias
-            android:name=".WifiLauncher"
-            android:targetActivity=".MainActivity"
-            android:label="ADB Tools Wi-Fi"
-            android:icon="@mipmap/ic_launcher_wifi"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
         <service android:name=".SurveyService" android:exported="false" />
         <service android:name=".RecorderService" android:exported="false" />
     </application>

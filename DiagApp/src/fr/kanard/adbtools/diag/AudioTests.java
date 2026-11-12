@@ -35,8 +35,8 @@ final class AudioTests {
         public void start() {
             AudioManager am = (AudioManager) a.getSystemService(Context.AUDIO_SERVICE);
             stream = earpiece ? AudioManager.STREAM_VOICE_CALL : AudioManager.STREAM_MUSIC;
-            a.setMessage(earpiece ? "Écouteur : portez le terminal à l'oreille / Earpiece: hold the device to your ear"
-                                  : "Haut-parleur : 3 bips / Speaker: 3 beeps");
+            a.setMessage(earpiece ? L.t("Portez le terminal à l'oreille : vous devez entendre 3 bips.", "Hold the device to your ear: you should hear 3 beeps.")
+                                  : L.t("Vous devez entendre 3 bips.", "You should hear 3 beeps."));
             try {
                 savedMode = am.getMode();
                 savedVolume = am.getStreamVolume(stream);
@@ -117,7 +117,7 @@ final class AudioTests {
 
         @Override
         public void start() {
-            a.setMessage("Micro : parlez ou tapez des mains / Microphone: speak or clap");
+            a.setMessage(L.t("Parlez ou tapez des mains près du micro.", "Speak or clap near the microphone."));
             new Thread(new Runnable() { @Override public void run() { record(); } }, "micro").start();
         }
 
