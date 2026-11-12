@@ -474,8 +474,10 @@ namespace ADBToolsNew
                 Loc.T("Une petite fenêtre s'ouvre : cliquez dedans, puis utilisez la souris et le clavier comme s'ils étaient branchés sur le terminal. Fermez-la pour terminer."),
             }));
             var status = DepText("", false);
-            DepContent.Children.Add(DepButtons(DepButton(Loc.T("🖱️ Prendre la main (clavier et souris)"), async () => await DepStartOtgAsync(status))));
+            var choices = new WrapPanel();
+            DepContent.Children.Add(DepButtons(DepButton(Loc.T("🖱️ Prendre la main (clavier et souris)"), async () => await DepStartOtgAsync(status, choices, null))));
             DepContent.Children.Add(status);
+            DepContent.Children.Add(choices);
             DepContent.Children.Add(DepText(Loc.T("Selon le terminal et le pilote USB de Windows, le mode OTG peut être refusé : le message de scrcpy s'affiche alors dans la console.")));
 
             DepContent.Children.Add(DepHeading(Loc.T("Activer le débogage USB (toutes marques)")));
@@ -490,9 +492,14 @@ namespace ADBToolsNew
             DepContent.Children.Add(DepButtons(DepButton(Loc.T("♻️ Recovery et réinitialisation"), () => DepGo("recovery")), DepButton(Loc.T("⌨️ Combinaisons de touches"), () => DepGo("keys"))));
         }
 
-        private async Task DepStartOtgAsync(TextBlock status)
+        /// <summary>
+        /// Lance scrcpy en mode OTG. serial : numéro USB du terminal ; vide = on le cherche (Windows, puis liste de scrcpy).
+        /// Plusieurs appareils USB (webcam, clavier…) : scrcpy refuse de choisir, on garde le terminal ou on demande lequel.
+        /// </summary>
+        private async Task DepStartOtgAsync(TextBlock status, WrapPanel choices, string serial)
         {
             if (_depOtgProcess != null && !_depOtgProcess.HasExited) { status.Text = Loc.T("La prise en main est déjà ouverte."); return; }
+            choices.Children.Clear();
             string scrcpy = MirroringService.ResolveScrcpyPath(AppDomain.CurrentDomain.BaseDirectory);
             if (scrcpy == null)
             {
@@ -500,15 +507,28 @@ namespace ADBToolsNew
                 _ = OfferToInstallToolAsync(ToolComponent.Scrcpy, "scrcpy sert à prendre la main sur le terminal en clavier et souris.");
                 return;
             }
+            if (string.IsNullOrEmpty(serial))
+            {
+                // Un seul terminal d'un fabricant connu vu par Windows : on le désigne d'emblée.
+                try
+                {
+                    var usb = await Task.Run(() => UsbDeviceScanner.Scan());
+                    var phones = usb.Where(d => d.Serial.Length > 0 && d.Brand.Length > 0).ToList();
+                    if (phones.Count == 1) serial = phones[0].Serial;
+                }
+                catch { }
+            }
             status.Text = Loc.T("Arrêt du serveur ADB, puis ouverture de la prise en main…");
             await _adbManager.ExecuteAsync("kill-server", TimeSpan.FromSeconds(15));
             try
             {
+                string args = "--otg --window-title \"ADB Tools Pro - OTG\"";
+                if (!string.IsNullOrEmpty(serial)) args += " -s \"" + serial.Replace("\"", "") + "\"";
                 var psi = new ProcessStartInfo
                 {
                     FileName = scrcpy,
                     WorkingDirectory = Path.GetDirectoryName(scrcpy),
-                    Arguments = "--otg --window-title \"ADB Tools Pro - OTG\"",
+                    Arguments = args,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true,
@@ -518,13 +538,34 @@ namespace ADBToolsNew
                 var log = new System.Text.StringBuilder();
                 p.OutputDataReceived += (s, e) => { if (e.Data != null) lock (log) log.AppendLine(e.Data); };
                 p.ErrorDataReceived += (s, e) => { if (e.Data != null) lock (log) log.AppendLine(e.Data); };
+                bool hadSerial = !string.IsNullOrEmpty(serial);
                 p.Exited += (s, e) => Dispatcher.BeginInvoke(new Action(async () =>
                 {
                     string text; lock (log) text = log.ToString().Trim();
-                    bool failed = p.ExitCode != 0;
-                    status.Text = failed ? Loc.F("La prise en main n'a pas pu démarrer : {0}", LastLines(text, 2)) : Loc.T("Prise en main terminée.");
-                    if (text.Length > 0) AppendConsole("\n[scrcpy --otg] " + text);
                     _depOtgProcess = null;
+                    if (text.Length > 0) AppendConsole("\n[scrcpy --otg] " + text);
+                    if (p.ExitCode != 0 && !hadSerial && ScrcpyOtg.NeedsSerial(text))
+                    {
+                        var all = ScrcpyOtg.ParseDevices(text);
+                        var cand = ScrcpyOtg.Candidates(all);
+                        if (cand.Count == 1)
+                        {
+                            await DepStartOtgAsync(status, choices, cand[0].Serial);
+                            return;
+                        }
+                        status.Text = cand.Count > 1
+                            ? Loc.T("Plusieurs appareils USB sont branchés : choisissez le terminal.")
+                            : Loc.T("Plusieurs appareils USB sont branchés et aucun ne ressemble à un terminal : vérifiez que le câble transfère les données, puis choisissez le terminal dans la liste.");
+                        foreach (var d in (cand.Count > 0 ? cand : all))
+                        {
+                            string label = (d.Brand.Length > 0 ? d.Brand + " · " : "") + (d.Label.Length > 0 ? d.Label + " · " : "") + d.Serial;
+                            string sn = d.Serial;
+                            choices.Children.Add(DepButton("🖱️ " + label, async () => await DepStartOtgAsync(status, choices, sn),
+                                Loc.F("Identifiant USB {0}:{1}", d.Vid, d.Pid)));
+                        }
+                    }
+                    else
+                        status.Text = p.ExitCode != 0 ? Loc.F("La prise en main n'a pas pu démarrer : {0}", LastLines(text, 2)) : Loc.T("Prise en main terminée.");
                     await _adbManager.ExecuteAsync("start-server", TimeSpan.FromSeconds(30));
                 }));
                 p.Start();

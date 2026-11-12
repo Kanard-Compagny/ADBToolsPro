@@ -126,5 +126,29 @@ namespace ADBToolsNew.Tests
             CollectionAssert.Contains(s.Select(x => x.Label + "=" + x.Value).ToList(), "Mode=bootloader");
             Assert.IsFalse(s.Any(x => x.Label == "Slot actif"));
         }
+
+        [TestMethod]
+        public void ScrcpyOtg_PicksPhoneAmongUsbDevices()
+        {
+            string output = "ERROR: Multiple (2) USB devices:\n    -->  21345678           (05e0:2101)  Zebra Technologies TC53\n    -->  0001               (0408:5483)  Quanta HP HD Camera\nERROR: Select a device via -s (--serial)";
+            Assert.IsTrue(ScrcpyOtg.NeedsSerial(output));
+            var all = ScrcpyOtg.ParseDevices(output);
+            Assert.AreEqual(2, all.Count);
+            Assert.AreEqual("0408", all[1].Vid);
+            var cand = ScrcpyOtg.Candidates(all);
+            Assert.AreEqual(1, cand.Count);
+            Assert.AreEqual("21345678", cand[0].Serial);
+            Assert.AreEqual("Zebra", cand[0].Brand);
+        }
+
+        [TestMethod]
+        public void ScrcpyOtg_UnknownBrandKeptWebcamDropped()
+        {
+            string output = "    -->  ABC123   (2a45:0c02)  Acme Rugged Phone\n    -->  0001     (0408:5483)  Quanta HP HD Camera\n    -->  X        (046d:c52b)  Logitech USB Receiver";
+            var cand = ScrcpyOtg.Candidates(ScrcpyOtg.ParseDevices(output));
+            Assert.AreEqual(1, cand.Count);
+            Assert.AreEqual("ABC123", cand[0].Serial);
+            Assert.IsFalse(ScrcpyOtg.NeedsSerial("INFO: scrcpy 3.1"));
+        }
     }
 }

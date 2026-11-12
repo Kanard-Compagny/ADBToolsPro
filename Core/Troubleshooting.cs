@@ -119,6 +119,62 @@ namespace ADBToolsNew.Core
     }
 
     /// <summary>Une façon d'entrer en recovery / bootloader (fastboot) pour une marque et des modèles donnés.</summary>
+    /// <summary>Un appareil USB listé par « scrcpy --otg » quand il en voit plusieurs.</summary>
+    public sealed class OtgUsbDevice
+    {
+        public string Serial = "";
+        public string Vid = "";
+        public string Pid = "";
+        public string Label = "";
+        public string Brand => UsbDeviceScanner.KnownVendors.TryGetValue(Vid, out var b) ? b : "";
+    }
+
+    /// <summary>
+    /// Mode OTG de scrcpy : quand plusieurs appareils USB sont branchés (webcam, clavier, lecteur…), scrcpy refuse de choisir
+    /// et liste les appareils. On retrouve ici le ou les terminaux dans cette liste, toutes marques confondues.
+    /// </summary>
+    public static class ScrcpyOtg
+    {
+        /// <summary>scrcpy demande de choisir un appareil (« Select a device via -s »).</summary>
+        public static bool NeedsSerial(string output) =>
+            Regex.IsMatch(output ?? "", @"Select a device via -s|Multiple \(\d+\) USB devices", RegexOptions.IgnoreCase);
+
+        /// <summary>Lignes « --> 0001   (0408:5483)  Quanta HP HD Camera » → appareils.</summary>
+        public static List<OtgUsbDevice> ParseDevices(string output)
+        {
+            var list = new List<OtgUsbDevice>();
+            foreach (var raw in (output ?? "").Replace("\r", "").Split('\n'))
+            {
+                var m = Regex.Match(raw, @"(?:-->|\s)\s*(\S+)\s+\(([0-9A-Fa-f]{4}):([0-9A-Fa-f]{4})\)\s*(.*)$");
+                if (!m.Success) continue;
+                string serial = m.Groups[1].Value;
+                if (list.Any(d => d.Serial == serial)) continue;
+                list.Add(new OtgUsbDevice
+                {
+                    Serial = serial,
+                    Vid = m.Groups[2].Value.ToUpperInvariant(),
+                    Pid = m.Groups[3].Value.ToUpperInvariant(),
+                    Label = m.Groups[4].Value.Trim(),
+                });
+            }
+            return list;
+        }
+
+        // Périphériques du PC qui ne sont jamais un terminal Android.
+        private static readonly Regex NotAPhone = new Regex(
+            @"camera|webcam|cam\b|hub|keyboard|clavier|mouse|souris|bluetooth|fingerprint|empreinte|audio|headset|casque|receiver|récepteur|card reader|lecteur de carte|smart ?card|dock|ethernet|wireless|wi-?fi|unifying|touchpad|pen\b|stylet|printer|imprimante|ups\b|onduleur",
+            RegexOptions.IgnoreCase);
+
+        /// <summary>Appareils qui peuvent être le terminal : fabricant Android connu d'abord, sinon tout ce qui n'est pas un périphérique du PC.</summary>
+        public static List<OtgUsbDevice> Candidates(IEnumerable<OtgUsbDevice> devices)
+        {
+            var all = devices.ToList();
+            var known = all.Where(d => d.Brand.Length > 0).ToList();
+            if (known.Count > 0) return known;
+            return all.Where(d => !NotAPhone.IsMatch(d.Label)).ToList();
+        }
+    }
+
     public sealed class RecoveryKeyEntry
     {
         public string Brand { get; set; } = "";
