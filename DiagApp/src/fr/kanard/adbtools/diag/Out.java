@@ -102,6 +102,19 @@ final class Out {
     }
 
     /** « Envoyer au PC » d'une mesure Wi-Fi (survey) ou d'un suivi terrain (record) : ADB Tools la récupère. */
+    /**
+     * Profil DataWedge de l'appli (Zebra) supprimé : il n'existe que pendant un test du lecteur ou du RFID.
+     * Laissé en place, il resterait actif (sorties redirigées vers l'appli) et, l'appli désinstallée à la main,
+     * DataWedge garderait un profil sans appli. Sans effet sur un terminal sans DataWedge.
+     */
+    static void releaseDataWedge(android.content.Context c) {
+        try {
+            android.content.Intent i = new android.content.Intent("com.symbol.datawedge.api.ACTION");
+            i.putExtra("com.symbol.datawedge.api.DELETE_PROFILE", "ADBToolsDiag");
+            c.sendBroadcast(i);
+        } catch (Exception ignored) { }
+    }
+
     static void export(String kind) {
         Log.i(TAG, "EXPORT\t" + kind);
     }

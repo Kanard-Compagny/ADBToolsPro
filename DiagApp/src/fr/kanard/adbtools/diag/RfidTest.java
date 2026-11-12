@@ -155,7 +155,7 @@ final class RfidTest implements DiagTest {
         if (registered) {
             try { a.unregisterReceiver(receiver); } catch (Exception ignored) { }
             registered = false;
-            configure(false);
+            Out.releaseDataWedge(a);
         }
     }
 
@@ -195,6 +195,7 @@ final class RfidTest implements DiagTest {
             a.sendBroadcast(i);
             if (rfid) a.runLater(new Runnable() {
                 @Override public void run() {
+                    if (!registered) return;   // test déjà fini : le profil vient d'être supprimé
                     Intent sw = new Intent("com.symbol.datawedge.api.ACTION");
                     sw.putExtra("com.symbol.datawedge.api.SWITCH_TO_PROFILE", DW_PROFILE);
                     a.sendBroadcast(sw);

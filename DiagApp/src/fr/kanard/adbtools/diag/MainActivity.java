@@ -213,6 +213,7 @@ public class MainActivity extends Activity implements Out.Sink {
         if (launch != null) L.apply(this, launch.getStringExtra("lang"), launch.getStringExtra("theme"));
         buildUi();
         Out.sink = this;
+        Out.releaseDataWedge(this);   // profil laissé par une version précédente
         Log.i(Out.TAG, "READY\t" + Build.MANUFACTURER + "\t" + Build.MODEL + "\t" + Build.VERSION.RELEASE);
         pendingCmd = launch == null ? null : launch.getStringExtra("cmd");
         pendingExtras = launch == null ? null : launch.getExtras();
@@ -984,6 +985,7 @@ public class MainActivity extends Activity implements Out.Sink {
         LinearLayout foot = new LinearLayout(this);
         foot.setOrientation(LinearLayout.VERTICAL);
         foot.setPadding(dp(8), dp(4), dp(8), dp(10));
+        foot.addView(drawerItem("remove", "ic_remove", L.t("Retirer l'appli", "Remove the app"), false));
         foot.addView(drawerItem("about", "ic_info", L.t("À propos", "About"), false));
         panel.addView(foot);
 
@@ -1026,6 +1028,7 @@ public class MainActivity extends Activity implements Out.Sink {
             @Override public void onClick(View v) {
                 closeDrawer();
                 if ("about".equals(id)) { showAbout(); return; }
+                if ("remove".equals(id)) { askRemove(); return; }
                 if (S_TEST.equals(screen)) leaveTest();
                 show(id);
             }
@@ -1054,6 +1057,42 @@ public class MainActivity extends Activity implements Out.Sink {
                                 + "No data is sent over the Internet."))
                 .setPositiveButton("OK", null)
                 .show();
+    }
+
+    /**
+     * Désinstallation propre depuis le terminal (client, technicien sans PC) : tâches de fond arrêtées, profil
+     * DataWedge supprimé, puis la fenêtre de désinstallation d'Android.
+     */
+    private void askRemove() {
+        boolean pending = hasFiles("surveys", ".jsonl") || hasDirs("recordings", "rec_");
+        boolean running = SurveyService.running != null || RecorderService.running != null;
+        String msg = L.t("ADB Tools Diag va être désinstallée de ce terminal. Les résultats gardés dans l'appli seront effacés.",
+                "ADB Tools Diag will be uninstalled from this device. Results kept in the app will be erased.");
+        if (running || pending) msg += L.t("\n\n⚠ Une mesure Wi-Fi ou un suivi terrain " + (running ? "est en cours" : "n'a pas été envoyé au PC") + " : il sera perdu.",
+                "\n\n⚠ A Wi-Fi survey or field monitoring " + (running ? "is running" : "has not been sent to the PC") + ": it will be lost.");
+        dialog().setTitle(L.t("Retirer l'appli", "Remove the app"))
+                .setMessage(msg)
+                .setPositiveButton(L.t("Retirer", "Remove"), new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) { removeApp(); }
+                })
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
+    }
+
+    private void removeApp() {
+        stopCurrent();
+        setScanMode(false);
+        try { stopService(new Intent(this, SurveyService.class)); } catch (Exception ignored) { }
+        try { stopService(new Intent(this, RecorderService.class)); } catch (Exception ignored) { }
+        Out.releaseDataWedge(this);
+        try {
+            Intent del = new Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:" + getPackageName()));
+            del.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(del);
+        } catch (Exception e) {
+            dialog().setMessage(L.t("Ouvrez Paramètres ▸ Applications ▸ ADB Tools Diag ▸ Désinstaller.",
+                    "Open Settings ▸ Apps ▸ ADB Tools Diag ▸ Uninstall.")).setPositiveButton("OK", null).show();
+        }
     }
 
     private AlertDialog.Builder dialog() {
@@ -1584,6 +1623,7 @@ public class MainActivity extends Activity implements Out.Sink {
             receiverRegistered = false;
         }
         releaseHoneywell();
+        Out.releaseDataWedge(this);
     }
 
     private void flushKeyboardInput() {
@@ -1680,6 +1720,7 @@ public class MainActivity extends Activity implements Out.Sink {
             sendBroadcast(config);
             handler.postDelayed(new Runnable() {
                 @Override public void run() {
+                    if (!scanMode || !resumed) return;   // lecteur déjà quitté : le profil vient d'être supprimé
                     Intent sw = new Intent("com.symbol.datawedge.api.ACTION");
                     sw.putExtra("com.symbol.datawedge.api.SWITCH_TO_PROFILE", DW_PROFILE);
                     sendBroadcast(sw);

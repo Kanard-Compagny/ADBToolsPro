@@ -294,9 +294,12 @@ namespace ADBToolsNew
                 return;
             try
             {
-                await _adbManager.ExecuteAsync($"-s {serial} shell am force-stop {DiagApp.Package}");
-                await _adbManager.ExecuteAsync($"-s {serial} uninstall {DiagApp.Package}");
+                // Profil DataWedge retiré avant l'appli (sinon DataWedge garde un profil actif sans appli), puis
+                // réglages d'énergie remis par défaut.
                 await _adbManager.ExecuteAsync($"-s {serial} shell am broadcast -a com.symbol.datawedge.api.ACTION --es com.symbol.datawedge.api.DELETE_PROFILE {DiagApp.DataWedgeProfile}");
+                await _adbManager.ExecuteAsync($"-s {serial} shell am force-stop {DiagApp.Package}");
+                await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys deviceidle whitelist -{DiagApp.Package}");
+                await _adbManager.ExecuteAsync($"-s {serial} uninstall {DiagApp.Package}");
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📱 ADB Tools Diag retirée de {1}.", DateTime.Now, serial));
             }
             catch { /* terminal débranché entre-temps */ }
