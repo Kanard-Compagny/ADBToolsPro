@@ -92,10 +92,7 @@ namespace ADBToolsNew
             get
             {
                 bool p = !string.IsNullOrWhiteSpace(PcDetails), t = !string.IsNullOrWhiteSpace(TerminalDetails);
-                if (p && t) return PcDetails.TrimEnd() + "
-
---- SUR LE TERMINAL ---
-" + TerminalDetails;
+                if (p && t) return PcDetails.TrimEnd() + "\n\n--- SUR LE TERMINAL ---\n" + TerminalDetails;
                 return t ? TerminalDetails : (PcDetails ?? "");
             }
             set => PcDetails = value ?? "";
