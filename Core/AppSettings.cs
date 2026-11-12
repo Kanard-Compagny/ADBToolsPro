@@ -67,6 +67,10 @@ namespace ADBToolsNew.Core
 
         private static AppSettings _current;
 
+        /// <summary>Aucun réglage enregistré sur ce poste : nouvelle installation (premier lancement).</summary>
+        [XmlIgnore]
+        public static bool IsNewInstall { get; private set; }
+
         /// <summary>Réglages en cours (chargés au premier accès).</summary>
         public static AppSettings Current => _current ?? (_current = Load());
 
@@ -88,6 +92,7 @@ namespace ADBToolsNew.Core
                 // Fichier abîmé : on repart des valeurs par défaut (il sera réécrit au prochain changement).
             }
             var d = new AppSettings();
+            try { IsNewInstall = !File.Exists(FilePath); } catch { }
             MigrateOldFiles(d);
             return d;
         }
@@ -134,5 +139,38 @@ namespace ADBToolsNew.Core
 
         /// <summary>Supprime les réglages de ce poste (désinstallation).</summary>
         public static void ResetForUninstall() => _current = new AppSettings();
+    }
+
+    /// <summary>
+    /// Taille d'interface conseillée selon la place disponible à l'écran (en points Windows, zoom de Windows déjà
+    /// compris). L'interface est pensée pour 1400 × 800 à 100 % ; au-delà de 100 %, on garde de la marge.
+    /// </summary>
+    public static class UiScaleAdvisor
+    {
+        public const double DesignWidth = 1400;
+        public const double DesignHeight = 800;
+        public static readonly double[] Choices = { 0.8, 0.9, 1.0, 1.15, 1.3 };
+
+        /// <summary>Place occupée par l'interface complète à cette taille, en part de l'écran (1 = tout l'écran).</summary>
+        public static (double W, double H) Footprint(double scale, double areaWidth, double areaHeight) =>
+            (areaWidth <= 0 ? 1 : DesignWidth * scale / areaWidth, areaHeight <= 0 ? 1 : DesignHeight * scale / areaHeight);
+
+        public static bool Fits(double scale, double areaWidth, double areaHeight)
+        {
+            var f = Footprint(scale, areaWidth, areaHeight);
+            return f.W <= 1.0001 && f.H <= 1.0001;
+        }
+
+        public static double Recommend(double areaWidth, double areaHeight)
+        {
+            if (areaWidth <= 0 || areaHeight <= 0) return 1.0;
+            double best = Choices[0];
+            foreach (var s in Choices)
+            {
+                double margin = s > 1.0 ? 1.25 : 1.0;   // agrandir seulement si l'écran est nettement plus grand
+                if (DesignWidth * s * margin <= areaWidth + 0.5 && DesignHeight * s * margin <= areaHeight + 0.5) best = s;
+            }
+            return best;
+        }
     }
 }

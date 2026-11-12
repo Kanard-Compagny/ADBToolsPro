@@ -53,6 +53,43 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Choix du premier lancement (langue, taille, thème) -->
+        <Style x:Key="SplashPill" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource SideInk}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{DynamicResource SideHoverBg}" BorderBrush="{DynamicResource SideActiveBg}" BorderThickness="1" CornerRadius="16" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SideMuted}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Action}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Action}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Action}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource OnAction}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -78,6 +115,55 @@
                 <ProgressBar x:Name="ProgBar" Height="4" Width="320" IsIndeterminate="True" Foreground="{DynamicResource Action}" Background="{DynamicResource SideHoverBg}" BorderThickness="0" Margin="0,0,0,12"/>
 
                 <TextBlock x:Name="TxtStatus" Text="Initialisation des composants..." FontSize="12" Foreground="{DynamicResource SideInk}" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="440"/>
+            </StackPanel>
+
+            <!-- Premier lancement : langue, taille de l'interface, thème (textes posés par le code, dans la langue choisie) -->
+            <StackPanel x:Name="SetupPanel" Grid.Row="0" VerticalAlignment="Center" Visibility="Collapsed">
+                <TextBlock x:Name="TxtSetupTitle" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource SideInk}" FontFamily="{DynamicResource FontDisplay}"/>
+                <TextBlock x:Name="TxtSetupIntro" FontSize="12.5" Foreground="{DynamicResource SideMuted}" TextWrapping="Wrap" Margin="0,4,0,18"/>
+
+                <TextBlock x:Name="TxtSetupLang" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SideInk}" Margin="0,0,0,8"/>
+                <WrapPanel x:Name="SetupLangChoices" Margin="0,0,0,10">
+                    <RadioButton GroupName="SetupLang" Tag="fr" Content="Français" Style="{StaticResource SplashPill}" Checked="SetupLang_Checked"/>
+                    <RadioButton GroupName="SetupLang" Tag="en" Content="English" Style="{StaticResource SplashPill}" Checked="SetupLang_Checked"/>
+                </WrapPanel>
+
+                <TextBlock x:Name="TxtSetupSize" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SideInk}" Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <WrapPanel x:Name="SetupScaleChoices">
+                            <RadioButton GroupName="SetupScale" Tag="0.8" Content="80 %" Style="{StaticResource SplashPill}" Checked="SetupScale_Checked"/>
+                            <RadioButton GroupName="SetupScale" Tag="0.9" Content="90 %" Style="{StaticResource SplashPill}" Checked="SetupScale_Checked"/>
+                            <RadioButton GroupName="SetupScale" Tag="1" Content="100 %" Style="{StaticResource SplashPill}" Checked="SetupScale_Checked"/>
+                            <RadioButton GroupName="SetupScale" Tag="1.15" Content="115 %" Style="{StaticResource SplashPill}" Checked="SetupScale_Checked"/>
+                            <RadioButton GroupName="SetupScale" Tag="1.3" Content="130 %" Style="{StaticResource SplashPill}" Checked="SetupScale_Checked"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="TxtSetupScreen" FontSize="12" Foreground="{DynamicResource SideMuted}" TextWrapping="Wrap" Margin="0,2,0,2"/>
+                        <TextBlock x:Name="TxtSetupFit" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <!-- Aperçu : l'écran, et la place que prend l'interface à la taille choisie -->
+                    <Border x:Name="SetupScreenBox" Grid.Column="1" Width="150" Height="90" Margin="16,0,0,0" VerticalAlignment="Top"
+                            BorderBrush="{DynamicResource SideMuted}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource SideHoverBg}">
+                        <Border x:Name="SetupAppBox" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="2" BorderThickness="1.5"
+                                Background="{DynamicResource SideActiveBg}" BorderBrush="{DynamicResource BrandText}"/>
+                    </Border>
+                </Grid>
+
+                <TextBlock x:Name="TxtSetupTheme" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SideInk}" Margin="0,0,0,8"/>
+                <WrapPanel x:Name="SetupThemeChoices" Margin="0,0,0,14">
+                    <RadioButton GroupName="SetupTheme" Tag="System" Style="{StaticResource SplashPill}" Checked="SetupTheme_Checked"/>
+                    <RadioButton GroupName="SetupTheme" Tag="Light" Style="{StaticResource SplashPill}" Checked="SetupTheme_Checked"/>
+                    <RadioButton GroupName="SetupTheme" Tag="Dark" Style="{StaticResource SplashPill}" Checked="SetupTheme_Checked"/>
+                </WrapPanel>
+
+                <Grid>
+                    <TextBlock x:Name="TxtSetupNote" FontSize="11.5" Foreground="{DynamicResource SideMuted}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,140,0"/>
+                    <Button x:Name="BtnSetupContinue" Style="{StaticResource SplashPrimaryButton}" HorizontalAlignment="Right" Click="BtnSetupContinue_Click"/>
+                </Grid>
             </StackPanel>
 
             <!-- Question / message (premier lancement, erreur de téléchargement) dans la même fenêtre -->

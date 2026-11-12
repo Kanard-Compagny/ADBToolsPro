@@ -71,6 +71,11 @@ namespace ADBToolsNew
                 foreach (var child in UiScaleChoices.Children)
                     if (child is RadioButton rb) rb.IsChecked = Math.Abs(ParseScale(rb.Tag) - AppSettings.Current.UiScale) < 0.01;
                 ChkConsoleAtStartup.IsChecked = AppSettings.Current.ConsoleExpandedAtStartup;
+                var area = SystemParameters.WorkArea;
+                double rec = UiScaleAdvisor.Recommend(area.Width, area.Height);
+                TxtUiScaleAdvice.Text = UiScaleAdvisor.Fits(AppSettings.Current.UiScale, area.Width, area.Height)
+                    ? Loc.F("Conseillé pour cet écran : {0} %.", (int)Math.Round(rec * 100))
+                    : Loc.F("Conseillé pour cet écran : {0} %. La taille actuelle est trop grande : l'affichage est à l'étroit.", (int)Math.Round(rec * 100));
                 foreach (var child in LanguageChoices.Children)
                     if (child is RadioButton rb) rb.IsChecked = (rb.Tag as string) == (AppSettings.Current.Language == "en" ? "en" : "fr");
             }
@@ -116,6 +121,7 @@ namespace ADBToolsNew
             AppSettings.Current.UiScale = ParseScale(rb.Tag);
             AppSettings.Save();
             ApplyUiScale(AppSettings.Current.UiScale);
+            UpdateGeneralUi();   // conseil de taille mis à jour
         }
 
         private void ChkConsoleAtStartup_Changed(object sender, RoutedEventArgs e)

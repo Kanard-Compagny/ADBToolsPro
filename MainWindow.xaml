@@ -3180,6 +3180,7 @@
                                                 <RadioButton GroupName="UiScale" Tag="1.15" Content="115 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
                                                 <RadioButton GroupName="UiScale" Tag="1.3" Content="130 %" Style="{StaticResource SettingsPillStyle}" Checked="UiScale_Checked"/>
                                             </WrapPanel>
+                                            <TextBlock x:Name="TxtUiScaleAdvice" Text="" FontSize="11.5" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4"/>
                                             <CheckBox x:Name="ChkConsoleAtStartup" Content="Console dépliée au démarrage" Style="{StaticResource ModernCheckBoxStyle}" Checked="ChkConsoleAtStartup_Changed" Unchecked="ChkConsoleAtStartup_Changed" Margin="0,6,0,0"/>
                                         </StackPanel>
                                     </Border>
@@ -5000,13 +5001,7 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="APPARENCE" Style="{StaticResource SettingsGroupLabelStyle}" Margin="0,0,0,8"/>
-                        <WrapPanel x:Name="WelcomeThemeChoices" Margin="0,0,0,10">
-                            <RadioButton GroupName="WelcomeTheme" Tag="System" Content="Comme Windows" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
-                            <RadioButton GroupName="WelcomeTheme" Tag="Light" Content="Clair" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
-                            <RadioButton GroupName="WelcomeTheme" Tag="Dark" Content="Sombre" Style="{StaticResource SettingsPillStyle}" Checked="WelcomeTheme_Checked"/>
-                        </WrapPanel>
-                        <TextBlock Text="Tout se passe sur ce PC : aucune donnée de terminal n'est envoyée sur Internet. Ces réglages, et bien d'autres, se retrouvent dans Paramètres (en bas du menu)."
+                        <TextBlock Text="Tout se passe sur ce PC : aucune donnée de terminal n'est envoyée sur Internet. Langue, taille de l'interface, thème et bien d'autres réglages se retrouvent dans Paramètres (en bas du menu)."
                                    FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="Visite guidée" Click="BtnWelcomeTour_Click" Style="{StaticResource OutlineButtonStyle}" Height="36" Padding="18,0" Margin="0,0,10,0"/>

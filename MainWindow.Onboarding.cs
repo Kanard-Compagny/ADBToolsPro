@@ -24,7 +24,6 @@ namespace ADBToolsNew
 
         private List<TourStep> _tourSteps;
         private int _tourIndex;
-        private bool _updatingWelcomeUi;
 
         // --------------------------------------------------------------- Accueil
 
@@ -36,13 +35,6 @@ namespace ADBToolsNew
 
         private void ShowWelcome()
         {
-            _updatingWelcomeUi = true;
-            try
-            {
-                foreach (var child in WelcomeThemeChoices.Children)
-                    if (child is RadioButton rb) rb.IsChecked = (rb.Tag as string) == ThemeManager.Mode.ToString();
-            }
-            finally { _updatingWelcomeUi = false; }
             WelcomeOverlay.Visibility = Visibility.Visible;
         }
 
@@ -53,16 +45,6 @@ namespace ADBToolsNew
             {
                 AppSettings.Current.WelcomeShown = true;
                 AppSettings.Save();
-            }
-        }
-
-        private void WelcomeTheme_Checked(object sender, RoutedEventArgs e)
-        {
-            if (_updatingWelcomeUi || !(sender is RadioButton rb)) return;
-            if (Enum.TryParse(rb.Tag as string, out AppThemeMode mode) && mode != ThemeManager.Mode)
-            {
-                ThemeManager.SetMode(mode);
-                UpdateThemeUi();
             }
         }
 
