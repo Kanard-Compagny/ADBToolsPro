@@ -265,7 +265,7 @@ namespace ADBToolsNew
                     else if (ModifiedLines.Contains(n)) dc.DrawRectangle(Modified, null, new Rect(0, top, 4, h));
                     if (n == ErrorLine)
                     {
-                        double y = top + h - 1.5, w = Math.Max(40, vl.WidthIncludingTrailingWhitespace - textView.HorizontalOffset);
+                        double y = top + h - 1.5, w = Math.Max(40, vl.TextLines.Max(tl => tl.WidthIncludingTrailingWhitespace) - textView.HorizontalOffset);
                         var pen = new Pen(Error, 1.4);
                         var g = new StreamGeometry();
                         using (var ctx = g.Open())
