@@ -166,26 +166,45 @@ public class SurveyService extends Service {
         }
     }
 
-    /** Ping ICMP (commande système ping, 1 s au plus), sinon test d'accessibilité Java. Null si perdu. */
-    private static Double ping(String host) {
+    /** Dernière raison d'échec du ping (affichée dans l'appli et notée dans la mesure). */
+    volatile String pingError = "";
+    private boolean pingErrorNoted;
+
+    /**
+     * Ping ICMP (commande système ping, 1 s au plus) ; si elle ne répond pas ou est refusée à l'appli, test
+     * d'accessibilité d'Android (ICMP lui aussi). Null si perdu.
+     */
+    private Double ping(String host) {
         Process p = null;
+        String err = "";
         try {
             p = Runtime.getRuntime().exec(new String[]{host.indexOf(':') >= 0 ? "ping6" : "ping", "-c", "1", "-W", "1", host});
             BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line;
             while ((line = r.readLine()) != null) {
                 Matcher m = PING_TIME.matcher(line);
-                if (m.find()) return Double.parseDouble(m.group(1));
+                if (m.find()) { pingError = ""; return Double.parseDouble(m.group(1)); }
             }
-            return null;
+            BufferedReader e = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            String el = e.readLine();
+            if (el != null) err = el.trim();
         } catch (Exception e) {
-            try {
-                long t = System.nanoTime();
-                return InetAddress.getByName(host).isReachable(1000) ? (System.nanoTime() - t) / 1e6 : null;
-            } catch (Exception e2) { return null; }
+            err = String.valueOf(e.getMessage());
         } finally {
             if (p != null) p.destroy();
         }
+        try {
+            long t = System.nanoTime();
+            if (InetAddress.getByName(host).isReachable(1000)) { pingError = ""; return (System.nanoTime() - t) / 1e6; }
+        } catch (Exception e2) {
+            if (err.length() == 0) err = String.valueOf(e2.getMessage());
+        }
+        pingError = err.length() > 0 ? err : "pas de réponse de " + host;
+        if (!pingErrorNoted && err.length() > 0) {
+            pingErrorNoted = true;
+            write(Out.obj("type", "error", "t", System.currentTimeMillis(), "message", "ping " + host + " : " + err));
+        }
+        return null;
     }
 
     /** Repère posé par le technicien (« Quai 3 », « Bureau »…), avec le signal à cet instant. */

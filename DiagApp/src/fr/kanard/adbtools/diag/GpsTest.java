@@ -31,10 +31,11 @@ final class GpsTest implements DiagTest, LocationListener {
     @SuppressWarnings("MissingPermission")
     public void start() {
         lm = (LocationManager) a.getSystemService(Context.LOCATION_SERVICE);
-        if (lm == null || lm.getProvider(LocationManager.GPS_PROVIDER) == null) {
+        // Absent seulement si le terminal n'a pas de GPS : localisation coupée = « désactivé » (à activer).
+        if (lm == null || !a.getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_LOCATION_GPS)) {
             Out.result(id(), "na", Out.obj("reason", "absent")); a.testFinished(this); return;
         }
-        if (!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        if (lm.getProvider(LocationManager.GPS_PROVIDER) == null || !lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             Out.result(id(), "warn", Out.obj("reason", "disabled")); a.testFinished(this); return;
         }
         a.setMessage(L.t("Placez le terminal près d'une fenêtre ou dehors (2 min au plus).", "Place the device near a window or outside (2 min at most)."));

@@ -25,6 +25,7 @@ final class Out {
     interface Sink {
         void onResult(String test, String status, JSONObject json);
         void onVerdict(String test, String status);
+        void onLive(String test, JSONObject json);
     }
 
     static volatile Sink sink;
@@ -43,6 +44,8 @@ final class Out {
 
     static void live(String test, JSONObject json) {
         Log.i(TAG, "LIVE\t" + test + "\t" + b64(json.toString()));
+        Sink s = sink;
+        if (s != null) s.onLive(test, json);
     }
 
     static void result(String test, String status, JSONObject json) {

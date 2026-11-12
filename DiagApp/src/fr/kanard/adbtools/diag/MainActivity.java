@@ -112,7 +112,8 @@ public class MainActivity extends Activity implements Out.Sink {
     private String stepText = "";
     private TextureView preview;
     private FrameLayout previewBox;
-    private TextView testMessage, testStatus, testAuto, testBanner;
+    private TextView testMessage, testStatus, testAuto, testBanner, testDetail;
+    private LinearLayout testLive;
     private Button testRestart;
 
     // Accueil
@@ -357,6 +358,8 @@ public class MainActivity extends Activity implements Out.Sink {
         show(S_TEST);
         testMessage.setText("");
         testAuto.setVisibility(View.GONE);
+        testDetail.setText("");
+        testLive.removeAllViews();
         testRestart.setVisibility(View.GONE);
         setTestStatus(L.t("En cours…", "Running…"), L.brandText);
         current = t;
@@ -436,8 +439,177 @@ public class MainActivity extends Activity implements Out.Sink {
                     testAuto.setText(L.t("Mesure automatique : ", "Automatic check: ") + statusLabel(st));
                     styleStatus(testAuto, st);
                     testAuto.setVisibility(View.VISIBLE);
+                    testDetail.setText(describeResult(test, st, json));
+                    if (!"sensors".equals(test)) testLive.removeAllViews();
                 }
                 refreshLists();
+            }
+        }, 0);
+    }
+
+    @Override
+    public void onLive(final String test, final JSONObject json) {
+        runLater(new Runnable() {
+            @Override public void run() { if (test.equals(activeTestId) && S_TEST.equals(screen) && testLive != null) renderLive(test, json); }
+        }, 0);
+    }
+
+    /** Valeurs en direct pendant un test : le technicien voit ce qui est mesuré et ce qu'il reste à faire. */
+    private void renderLive(String test, JSONObject j) {
+        testLive.removeAllViews();
+        switch (test) {
+            case "microphone": {
+                double level = j.optDouble("level_db", -90), peak = j.optDouble("peak_db", -90);
+                testLive.addView(meter(L.t("Niveau", "Level"), Math.round(level) + " dB", (level + 60) / 60.0, level >= -25 ? L.okFg : level >= -45 ? L.warnFg : L.muted));
+                testLive.addView(meter(L.t("Crête", "Peak"), Math.round(peak) + " dB", (peak + 60) / 60.0, peak >= -25 ? L.okFg : peak >= -45 ? L.warnFg : L.muted));
+                TextView hint = text(peak >= -25 ? L.t("Le micro capte bien le son.", "The microphone picks up sound well.")
+                        : L.t("Parlez plus fort ou tapez des mains : la crête doit dépasser −25 dB.", "Speak louder or clap: the peak must go above −25 dB."), 13, L.muted, false);
+                hint.setPadding(0, dp(6), 0, 0);
+                testLive.addView(hint);
+                break;
+            }
+            case "sensors": {
+                java.util.Iterator<String> it = j.keys();
+                while (it.hasNext()) {
+                    String k = it.next();
+                    JSONObject o = j.optJSONObject(k);
+                    if (o == null) continue;
+                    boolean ok = o.optBoolean("reacted");
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(dp(12), dp(8), dp(12), dp(8));
+                    row.setBackground(rounded(L.surface, 0, 8));
+                    LinearLayout names = new LinearLayout(this);
+                    names.setOrientation(LinearLayout.VERTICAL);
+                    names.addView(text(sensorLabel(k), 14, L.ink, true));
+                    names.addView(text(ok ? L.t("Réagit", "Reacting") + " · " + o.optDouble("value") : sensorHint(k), 12, L.muted, false));
+                    row.addView(names, new LinearLayout.LayoutParams(0, -2, 1f));
+                    TextView mark = text(ok ? "✔" : "…", 18, ok ? L.okFg : L.muted, true);
+                    row.addView(mark);
+                    testLive.addView(row, lpMatch(testLive.getChildCount() == 0 ? 0 : 6));
+                }
+                break;
+            }
+            case "gps":
+                testLive.addView(text(L.t("Satellites vus : ", "Satellites in view: ") + j.optInt("satellites") + L.t("  ·  utilisés : ", "  ·  used: ") + j.optInt("used")
+                        + "\n" + L.t("Meilleur signal : ", "Best signal: ") + j.optLong("best_cn0") + " dB-Hz  ·  " + j.optLong("seconds") + " s", 15, L.ink, false));
+                break;
+            case "bluetooth":
+                testLive.addView(text(L.t("Appareils trouvés : ", "Devices found: ") + j.optInt("devices")
+                        + (j.has("best_rssi") && !j.isNull("best_rssi") ? L.t("  ·  meilleur signal : ", "  ·  best signal: ") + j.opt("best_rssi") + " dBm" : ""), 15, L.ink, false));
+                break;
+            case "storage_speed":
+                testLive.addView(meter(L.t("Écriture", "Writing"), j.optInt("mb") + " / " + j.optInt("total") + " Mo", j.optInt("mb") / (double) Math.max(1, j.optInt("total")), L.brandText));
+                break;
+        }
+    }
+
+    /** Jauge horizontale : libellé, valeur, barre remplie à fraction (0 à 1). */
+    private View meter(String label, String value, double fraction, int color) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(0, dp(4), 0, dp(4));
+        LinearLayout line = new LinearLayout(this);
+        line.addView(text(label, 13, L.muted, false), new LinearLayout.LayoutParams(0, -2, 1f));
+        line.addView(text(value, 13, L.ink, true));
+        box.addView(line);
+        FrameLayout bar = new FrameLayout(this);
+        bar.setBackground(rounded(L.surface2, 0, 5));
+        View fill = new View(this);
+        fill.setBackground(rounded(color, 0, 5));
+        int full = getResources().getDisplayMetrics().widthPixels - dp(32);
+        bar.addView(fill, new FrameLayout.LayoutParams((int) Math.round(full * Math.max(0, Math.min(1, fraction))), dp(12)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(12));
+        lp.topMargin = dp(4);
+        box.addView(bar, lp);
+        return box;
+    }
+
+    private static String sensorLabel(String k) {
+        switch (k) {
+            case "accelerometer": return L.t("Accéléromètre", "Accelerometer");
+            case "gyroscope": return L.t("Gyroscope", "Gyroscope");
+            case "compass": return L.t("Boussole", "Compass");
+            case "light": return L.t("Capteur de lumière", "Light sensor");
+            case "proximity": return L.t("Capteur de proximité", "Proximity sensor");
+            case "pressure": return L.t("Baromètre", "Barometer");
+            default: return k;
+        }
+    }
+
+    private static String sensorHint(String k) {
+        switch (k) {
+            case "accelerometer": return L.t("Secouez ou retournez le terminal", "Shake or flip the device");
+            case "gyroscope": return L.t("Faites pivoter le terminal", "Rotate the device");
+            case "compass": return L.t("Tournez le terminal à plat sur lui-même", "Turn the device around while flat");
+            case "light": return L.t("Couvrez puis découvrez le haut de l'écran", "Cover then uncover the top of the screen");
+            case "proximity": return L.t("Passez la main devant le haut de l'écran", "Wave your hand over the top of the screen");
+            case "pressure": return L.t("Lecture de la pression en cours", "Reading the pressure");
+            default: return L.t("En attente", "Waiting");
+        }
+    }
+
+    /** Résultat automatique en clair : valeurs mesurées ou raison. */
+    private static String describeResult(String test, String st, JSONObject j) {
+        if (j == null) j = new JSONObject();
+        String reason = j.optString("reason", "");
+        if (reason.length() > 0) {
+            switch (reason) {
+                case "absent": return L.t("Matériel absent sur ce terminal.", "No such hardware on this device.");
+                case "disabled":
+                    return "gps".equals(test) ? L.t("Localisation désactivée : activez-la dans les réglages, puis relancez le test.", "Location is off: turn it on in settings, then run the test again.")
+                            : L.t("Désactivé dans les réglages : activez-le, puis relancez le test.", "Turned off in settings: turn it on, then run the test again.");
+                case "permission": return L.t("Autorisation refusée : réinstallez l'appli depuis ADB Tools (bouton « Appli Diag »).", "Permission denied: reinstall the app from ADB Tools (\"Diag app\" button).");
+                case "timeout":
+                    return "gps".equals(test) ? L.t("Pas de position obtenue : " + j.optInt("satellites") + " satellite(s) vu(s).", "No position fix: " + j.optInt("satellites") + " satellite(s) in view.")
+                            : L.t("Rien détecté dans le temps imparti.", "Nothing detected in time.");
+                default: return L.t("Erreur : ", "Error: ") + reason + (j.has("message") ? " — " + j.optString("message") : "");
+            }
+        }
+        switch (test) {
+            case "storage_speed":
+                return L.t("Écriture : " + j.optDouble("write_mbs") + " Mo/s  ·  lecture : " + j.optDouble("read_mbs") + " Mo/s (" + j.optInt("size_mb") + " Mo). La vitesse d'écriture décide du résultat.",
+                        "Write: " + j.optDouble("write_mbs") + " MB/s  ·  read: " + j.optDouble("read_mbs") + " MB/s (" + j.optInt("size_mb") + " MB). The write speed decides the result.");
+            case "microphone": return L.t("Crête mesurée : ", "Measured peak: ") + Math.round(j.optDouble("peak_db", -90)) + " dB";
+            case "camera_back": case "camera_front":
+                return L.t("Photo " + j.optInt("width") + "×" + j.optInt("height") + " · luminosité " + j.optLong("brightness") + " · contraste " + j.optLong("contrast"),
+                        "Photo " + j.optInt("width") + "×" + j.optInt("height") + " · brightness " + j.optLong("brightness") + " · contrast " + j.optLong("contrast"));
+            case "bluetooth": return L.t("Appareils trouvés : ", "Devices found: ") + j.optInt("devices");
+            case "gps": return L.t("Position obtenue en " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) utilisé(s).", "Position fixed in " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) used.");
+            case "nfc": return L.t("Badge lu : ", "Tag read: ") + j.optString("uid");
+            case "sensors": {
+                StringBuilder sb = new StringBuilder();
+                java.util.Iterator<String> it = j.keys();
+                while (it.hasNext()) {
+                    String k = it.next();
+                    JSONObject o = j.optJSONObject(k);
+                    if (o == null) continue;
+                    if (sb.length() > 0) sb.append("\n");
+                    sb.append(sensorLabel(k)).append(" : ").append(statusLabel(o.optString("status")));
+                }
+                return sb.toString();
+            }
+            case "speaker": case "earpiece": case "flash": case "vibrator":
+                return L.t("À vous de confirmer ce que vous avez vu ou entendu.", "Confirm what you saw or heard.");
+            default: return "";
+        }
+    }
+
+    /** Aperçu caméra aux proportions de l'image (sinon elle était écrasée). */
+    void setPreviewAspect(final int bufW, final int bufH, final int sensorOrientation) {
+        runLater(new Runnable() {
+            @Override public void run() {
+                if (previewBox == null || bufW <= 0 || bufH <= 0) return;
+                boolean rotated = sensorOrientation == 90 || sensorOrientation == 270;
+                double ratio = rotated ? bufW / (double) bufH : bufH / (double) bufW;   // hauteur / largeur à l'écran
+                int availW = getResources().getDisplayMetrics().widthPixels - dp(32);
+                int maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.45);
+                int w = availW, h = (int) Math.round(availW * ratio);
+                if (h > maxH) { h = maxH; w = (int) Math.round(h / ratio); }
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+                lp.gravity = Gravity.CENTER_HORIZONTAL;
+                previewBox.setLayoutParams(lp);
             }
         }, 0);
     }
@@ -1012,12 +1184,18 @@ public class MainActivity extends Activity implements Out.Sink {
         testStatus = text("", 14, L.brandText, false);
         testStatus.setPadding(0, dp(8), 0, 0);
         p.addView(testStatus);
+        testLive = new LinearLayout(this);
+        testLive.setOrientation(LinearLayout.VERTICAL);
+        p.addView(testLive, lpMatch(10));
         testAuto = text("", 13, L.okFg, true);
         testAuto.setPadding(dp(12), dp(6), dp(12), dp(6));
         testAuto.setVisibility(View.GONE);
         LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(-2, -2);
         alp.topMargin = dp(10);
         p.addView(testAuto, alp);
+        testDetail = text("", 13, L.ink, false);
+        testDetail.setPadding(0, dp(8), 0, 0);
+        p.addView(testDetail);
         outer.addView(scroll(p), new LinearLayout.LayoutParams(-1, 0, 1f));
         outer.addView(verdictArea(true));
         return outer;
@@ -1499,7 +1677,10 @@ public class MainActivity extends Activity implements Out.Sink {
                 L.t("pertes", "loss"), lossPct,
                 L.t(s.samples + " mesures · " + s.roams + " changements de borne · " + s.disconnects + " coupures · " + s.marks + " repères",
                     s.samples + " samples · " + s.roams + " roams · " + s.disconnects + " drops · " + s.marks + " markers")));
-        wifiEvents.setText(s.recentText());
+        String events = s.recentText();
+        if ("—".equals(s.lastPing) && nz(s.pingError).length() > 0)
+            events = L.t("Ping vers ", "Ping to ") + nz(s.target) + " : " + s.pingError + (events.length() > 0 ? "\n\n" + events : "");
+        wifiEvents.setText(events);
     }
 
     private void askMark() {

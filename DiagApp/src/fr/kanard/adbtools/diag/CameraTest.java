@@ -86,6 +86,7 @@ final class CameraTest implements DiagTest {
             StreamConfigurationMap map = ch.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             Size jpeg = pick(map.getOutputSizes(ImageFormat.JPEG), 2048);
             Size prev = pick(map.getOutputSizes(SurfaceTexture.class), 1280);
+            a.setPreviewAspect(prev.getWidth(), prev.getHeight(), sensorOrientation);
             texture.setDefaultBufferSize(prev.getWidth(), prev.getHeight());
             previewSurface = new Surface(texture);
             reader = ImageReader.newInstance(jpeg.getWidth(), jpeg.getHeight(), ImageFormat.JPEG, 2);
