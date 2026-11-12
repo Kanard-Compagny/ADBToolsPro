@@ -146,12 +146,20 @@ public class MainActivity extends Activity implements Out.Sink {
 
     // Mesure Wi-Fi
     private TextView wifiBig, wifiQuality, wifiDetail, wifiEvents, wifiIdle;
-    private LinearLayout wifiRunning, wifiStopped;
+    private LinearLayout wifiRunning, wifiStopped, wifiLast;
+    private TextView wifiLastText;
+    private Button wifiSend;
+    private String lastSurveySummary = null;
     private long surveyStartRequestedAt;
 
     // Suivi terrain
     private TextView fieldBig, fieldDetail, fieldEvents, fieldIdle;
-    private LinearLayout fieldRunning, fieldStopped;
+    private LinearLayout fieldRunning, fieldStopped, fieldLast;
+    private TextView fieldLastText;
+    private Button fieldSend;
+    private String lastFieldSummary = null;
+
+    private android.content.SharedPreferences prefs() { return getSharedPreferences("diag", MODE_PRIVATE); }
     private long recorderStartRequestedAt;
 
     // Touches
@@ -1852,9 +1860,17 @@ public class MainActivity extends Activity implements Out.Sink {
         wifiStopped.setOrientation(LinearLayout.VERTICAL);
         wifiIdle = text("", 15, L.ink, false);
         wifiStopped.addView(wifiIdle);
-        Button start = actionButton(L.t("Démarrer une mesure", "Start a survey"));
+        wifiLast = card();
+        wifiLastText = text("", 13, L.ink, false);
+        wifiLast.addView(wifiLastText);
+        wifiLast.setVisibility(View.GONE);
+        wifiStopped.addView(wifiLast, lpMatch(12));
+        wifiSend = actionButton(L.t("Envoyer au PC", "Send to the PC"));
+        wifiSend.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendToPc("survey"); } });
+        wifiStopped.addView(wifiSend, lpButton(wifiSend, 52, 16));
+        Button start = secondaryButton(L.t("Démarrer une mesure", "Start a survey"));
         start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askSurveyTarget(); } });
-        wifiStopped.addView(start, lpButton(start, 52, 16));
+        wifiStopped.addView(start, lpButton(start, 48, 10));
         p.addView(wifiStopped);
         return scroll(p);
     }
@@ -1936,9 +1952,14 @@ public class MainActivity extends Activity implements Out.Sink {
             return;
         }
         if (s == null) {
-            wifiIdle.setText(surveyStartRequestedAt > 0
-                    ? L.t("Mesure terminée. Rebranchez le terminal au PC et récupérez-la dans ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble).",
-                          "Survey finished. Plug the device back into the PC and retrieve it in ADB Tools (Wi-Fi Analysis ▸ Cable-free survey).")
+            boolean pending = hasFiles("surveys", ".jsonl");
+            if (lastSurveySummary == null) lastSurveySummary = prefs().getString("last_survey", "");
+            wifiLast.setVisibility(lastSurveySummary.length() > 0 ? View.VISIBLE : View.GONE);
+            wifiLastText.setText(L.t("Dernière mesure\n", "Last survey\n") + lastSurveySummary);
+            wifiSend.setVisibility(pending ? View.VISIBLE : View.GONE);
+            wifiIdle.setText(pending
+                    ? L.t("Une mesure est prête sur le terminal. Branchez-le au PC avec ADB Tools ouvert, puis « Envoyer au PC » : elle s'ouvre dans l'analyse Wi-Fi.",
+                          "A survey is ready on the device. Plug it into the PC with ADB Tools open, then \"Send to the PC\": it opens in the Wi-Fi analysis.")
                     : L.t("Mesure le signal Wi-Fi en vous déplaçant, terminal débranché : force du signal, changements de borne, coupures. "
                           + "La mesure se récupère ensuite dans ADB Tools (Analyse Wi-Fi ▸ Mesure sans câble), qui peut aussi la lancer.",
                           "Measures the Wi-Fi signal while you walk around with the device unplugged: signal strength, roaming, drops. "
@@ -1965,6 +1986,8 @@ public class MainActivity extends Activity implements Out.Sink {
         if ("—".equals(s.lastPing) && nz(s.pingError).length() > 0)
             events = L.t("Ping vers ", "Ping to ") + nz(s.target) + " : " + s.pingError + (events.length() > 0 ? "\n\n" + events : "");
         wifiEvents.setText(events);
+        lastSurveySummary = wifiDetail.getText().toString().replaceFirst("^[●○] ", "");
+        prefs().edit().putString("last_survey", lastSurveySummary).apply();
     }
 
     private void askMark() {
@@ -2031,9 +2054,17 @@ public class MainActivity extends Activity implements Out.Sink {
         fieldStopped.setOrientation(LinearLayout.VERTICAL);
         fieldIdle = text("", 15, L.ink, false);
         fieldStopped.addView(fieldIdle);
-        Button start = actionButton(L.t("Démarrer le suivi", "Start monitoring"));
+        fieldLast = card();
+        fieldLastText = text("", 13, L.ink, false);
+        fieldLast.addView(fieldLastText);
+        fieldLast.setVisibility(View.GONE);
+        fieldStopped.addView(fieldLast, lpMatch(12));
+        fieldSend = actionButton(L.t("Envoyer au PC", "Send to the PC"));
+        fieldSend.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sendToPc("record"); } });
+        fieldStopped.addView(fieldSend, lpButton(fieldSend, 52, 16));
+        Button start = secondaryButton(L.t("Démarrer le suivi", "Start monitoring"));
         start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askRecorderTarget(); } });
-        fieldStopped.addView(start, lpButton(start, 52, 16));
+        fieldStopped.addView(start, lpButton(start, 48, 10));
         p.addView(fieldStopped);
         return scroll(p);
     }
@@ -2058,9 +2089,14 @@ public class MainActivity extends Activity implements Out.Sink {
         fieldStopped.setVisibility(s != null || starting ? View.GONE : View.VISIBLE);
         if (starting) { fieldBig.setText("…"); fieldDetail.setText(L.t("Démarrage du suivi…", "Starting…")); return; }
         if (s == null) {
-            fieldIdle.setText(recorderStartRequestedAt > 0
-                    ? L.t("Suivi terminé. Rebranchez le terminal au PC et récupérez-le dans ADB Tools (Analyse de fichiers ▸ Suivi terrain).",
-                          "Monitoring finished. Plug the device back into the PC and retrieve it in ADB Tools (File analysis ▸ Field monitoring).")
+            boolean pending = hasDirs("recordings", "rec_");
+            if (lastFieldSummary == null) lastFieldSummary = prefs().getString("last_field", "");
+            fieldLast.setVisibility(lastFieldSummary.length() > 0 ? View.VISIBLE : View.GONE);
+            fieldLastText.setText(L.t("Dernier suivi\n", "Last monitoring\n") + lastFieldSummary);
+            fieldSend.setVisibility(pending ? View.VISIBLE : View.GONE);
+            fieldIdle.setText(pending
+                    ? L.t("Un suivi est prêt sur le terminal. Branchez-le au PC avec ADB Tools ouvert, puis « Envoyer au PC » : il s'ouvre dans l'analyse de fichiers.",
+                          "A monitoring record is ready on the device. Plug it into the PC with ADB Tools open, then \"Send to the PC\": it opens in the file analysis.")
                     : L.t("Le suivi terrain confie le terminal à un utilisateur pendant plusieurs heures : il note le journal Android, la batterie, "
                           + "le Wi-Fi, les coupures et les incidents signalés d'un bouton. Au retour, ADB Tools le récupère et l'ouvre sur les incidents.",
                           "Field monitoring hands the device to a user for several hours: it records the Android log, battery, Wi-Fi, drops "
@@ -2084,6 +2120,8 @@ public class MainActivity extends Activity implements Out.Sink {
         if (nz(s.lastWifi).length() > 0) d.append("\nWi-Fi : ").append(s.lastWifi);
         fieldDetail.setText(d.toString());
         fieldEvents.setText(s.recentText());
+        lastFieldSummary = fieldBig.getText() + "\n" + d.toString().replaceFirst("^[●○] ", "");
+        prefs().edit().putString("last_field", lastFieldSummary).apply();
     }
 
     /** Suivi lancé depuis l'appli : appli métier à suivre (facultatif), puis durée. */
@@ -2185,6 +2223,31 @@ public class MainActivity extends Activity implements Out.Sink {
                 })
                 .setNegativeButton(L.t("Continuer", "Keep going"), null)
                 .show();
+    }
+
+    /** Fichiers prêts à récupérer (mesures Wi-Fi, suivis terrain) dans le dossier de l'appli. */
+    private boolean hasFiles(String dir, String ext) {
+        java.io.File base = getExternalFilesDir(null);
+        java.io.File[] f = base == null ? null : new java.io.File(base, dir).listFiles();
+        if (f != null) for (java.io.File x : f) if (x.getName().endsWith(ext) && x.length() > 0) return true;
+        return false;
+    }
+
+    private boolean hasDirs(String dir, String prefix) {
+        java.io.File base = getExternalFilesDir(null);
+        java.io.File[] f = base == null ? null : new java.io.File(base, dir).listFiles();
+        if (f != null) for (java.io.File x : f) if (x.isDirectory() && x.getName().startsWith(prefix)) return true;
+        return false;
+    }
+
+    private void sendToPc(String kind) {
+        Out.export(kind);
+        dialog().setTitle(L.t("Envoyer au PC", "Send to the PC"))
+                .setMessage(L.t("Si le terminal est branché au PC avec ADB Tools ouvert, la récupération démarre sur le PC.\n\n"
+                                + "Sinon, branchez-le et appuyez de nouveau, ou utilisez le bouton « Appli Diag » en haut d'ADB Tools.",
+                        "If the device is plugged into the PC with ADB Tools open, retrieval starts on the PC.\n\n"
+                                + "Otherwise, plug it in and tap again, or use the \"Diag app\" button at the top of ADB Tools."))
+                .setPositiveButton("OK", null).show();
     }
 
     // ------------------------------------------------------------------ Résultats

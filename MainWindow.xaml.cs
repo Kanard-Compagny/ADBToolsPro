@@ -114,6 +114,8 @@ namespace ADBToolsNew
         public bool PcCheck { get; set; }
         /// <summary>Test en direct depuis le PC : « getevent » (touches, tactile), « screen » (mire), « scan » (lectures).</summary>
         public string PcLive { get; set; }
+        /// <summary>Dernier résultat brut de l'appli (JSON) : aperçu de la grille tactile ou des touches.</summary>
+        public string TerminalJson { get; set; }
         /// <summary>Matériel absent sur ce terminal : ligne grisée, hors rapport.</summary>
         public bool Unavailable { get; set; }
         /// <summary>Statut avant un test en cours (rétabli si le test est arrêté sans résultat).</summary>

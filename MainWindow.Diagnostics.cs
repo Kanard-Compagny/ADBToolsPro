@@ -297,6 +297,7 @@ namespace ADBToolsNew
                 ToggleLabListen.Content = Loc.T("Démarrer l'écoute");
                 StopGetEventLab();
             }
+            RefreshDiagDetail();
         }
 
         private async void StartGetEventLab(string serial)

@@ -125,4 +125,33 @@ namespace ADBToolsNew.Core
 
         public static bool IsDone(string icon) => icon == "✅" || icon == "⚠️" || icon == "❌";
     }
+
+    /// <summary>Grille tactile balayée dans l'appli : « grid » = une case par zone, ligne par ligne (1 = touchée).</summary>
+    public sealed class TouchMap
+    {
+        public int Cols { get; private set; }
+        public int Rows { get; private set; }
+        public string Map { get; private set; }
+        public int Covered => Map.Count(c => c == '1');
+        public bool Touched(int index) => index >= 0 && index < Map.Length && Map[index] == '1';
+
+        /// <summary>Résultat « touch » de l'appli → grille ; null si le résultat n'en contient pas (anciennes versions).</summary>
+        public static TouchMap Parse(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            try
+            {
+                using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                {
+                    var r = doc.RootElement;
+                    if (!r.TryGetProperty("cols", out var c) || !c.TryGetInt32(out int cols)) return null;
+                    if (!r.TryGetProperty("rows", out var rw) || !rw.TryGetInt32(out int rows)) return null;
+                    string map = r.TryGetProperty("grid", out var g) ? g.GetString() ?? "" : "";
+                    if (cols <= 0 || rows <= 0 || cols > 50 || rows > 100 || map.Length != cols * rows) return null;
+                    return new TouchMap { Cols = cols, Rows = rows, Map = map };
+                }
+            }
+            catch { return null; }
+        }
+    }
 }

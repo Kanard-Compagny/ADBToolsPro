@@ -10,6 +10,15 @@ namespace ADBToolsNew.Tests
     public class DiagAppTests
     {
         [TestMethod]
+        public void ExportSaysWhatToRetrieve()
+        {
+            Assert.AreEqual("survey", DiagMessage.Parse("I/ADBToolsDiag( 12): EXPORT\tsurvey").Test);
+            Assert.AreEqual("record", DiagMessage.Parse("I/ADBToolsDiag( 12): EXPORT\trecord").Test);
+            Assert.AreEqual("tests", DiagMessage.Parse("I/ADBToolsDiag( 12): EXPORT\ttests\t5").Test);
+            Assert.AreEqual("tests", DiagMessage.Parse("I/ADBToolsDiag( 12): EXPORT\t5").Test, "ancienne appli");
+        }
+
+        [TestMethod]
         public void ParseInstalledVersion_ReadsDumpsys()
         {
             string dump = "Packages:\n  Package [fr.kanard.adbtools.diag] (a1b2c3):\n    userId=10234\n    versionCode=6 minSdk=21 targetSdk=30\n    versionName=5.0";

@@ -39,7 +39,7 @@ namespace ADBToolsNew
                 _diagWatch.Start(_adbExePath, DiagApp.LogcatArgs(serial), line =>
                 {
                     var m = DiagMessage.Parse(line);
-                    if (m != null && m.Type == "EXPORT") Dispatcher.InvokeAsync(() => OnDiagAppExport(serial));
+                    if (m != null && m.Type == "EXPORT") Dispatcher.InvokeAsync(() => OnDiagAppExport(serial, m.Test));
                 });
             }
             catch { _diagWatchSerial = null; }
@@ -164,6 +164,17 @@ namespace ADBToolsNew
                 BtnDiagApp.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "Action");
             }
             else TxtDiagAppButton.Text = Loc.T("Appli Diag ✓");
+            if (v > 0)
+            {
+                // Mesure Wi-Fi ou suivi terrain fini sur le terminal, pas encore récupéré : on le signale (orange).
+                int pending = (await HasPendingSurveyAsync(serial) ? 1 : 0) + (await HasPendingRecordingAsync(serial) ? 1 : 0);
+                if (CurrentSerial() != serial) return;
+                if (pending > 0)
+                {
+                    TxtDiagAppButton.Text = Loc.F("Appli Diag · {0} à récupérer", pending);
+                    BtnDiagApp.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "Action");
+                }
+            }
         }
 
         private async void BtnDiagApp_Click(object sender, RoutedEventArgs e)
@@ -175,6 +186,9 @@ namespace ADBToolsNew
             BtnDiagAppInstall.Visibility = Visibility.Collapsed;
             BtnDiagAppOpen.Visibility = Visibility.Collapsed;
             BtnDiagAppRemove.Visibility = Visibility.Collapsed;
+            BtnDiagAppFetchSurvey.Visibility = Visibility.Collapsed;
+            BtnDiagAppFetchRecord.Visibility = Visibility.Collapsed;
+            BtnDiagAppFetchTests.Visibility = Visibility.Collapsed;
             DiagAppPopup.IsOpen = true;
             await RefreshDiagAppButtonAsync();
             int v = _diagAppInstalledVersion;
@@ -187,6 +201,49 @@ namespace ADBToolsNew
             BtnDiagAppInstall.Visibility = !installed || outdated ? Visibility.Visible : Visibility.Collapsed;
             BtnDiagAppOpen.Visibility = installed ? Visibility.Visible : Visibility.Collapsed;
             BtnDiagAppRemove.Visibility = installed ? Visibility.Visible : Visibility.Collapsed;
+            if (installed)
+            {
+                // Tout ce que l'appli a produit se récupère ici, au même endroit.
+                BtnDiagAppFetchSurvey.Visibility = await HasPendingSurveyAsync(serial) ? Visibility.Visible : Visibility.Collapsed;
+                BtnDiagAppFetchRecord.Visibility = await HasPendingRecordingAsync(serial) ? Visibility.Visible : Visibility.Collapsed;
+                BtnDiagAppFetchTests.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void BtnDiagAppFetchSurvey_Click(object sender, RoutedEventArgs e)
+        {
+            DiagAppPopup.IsOpen = false;
+            FetchSurveyFromApp();
+        }
+
+        private void BtnDiagAppFetchRecord_Click(object sender, RoutedEventArgs e)
+        {
+            DiagAppPopup.IsOpen = false;
+            FetchRecordingFromApp();
+        }
+
+        private async void BtnDiagAppFetchTests_Click(object sender, RoutedEventArgs e)
+        {
+            DiagAppPopup.IsOpen = false;
+            string serial = CurrentSerial();
+            if (serial == null) return;
+            NavDiag_Click(null, null);
+            await ShowDiagImportAsync(serial);
+        }
+
+        /// <summary>Mesure Wi-Fi sans câble : ouverte dans l'Analyse Wi-Fi (fenêtre de suivi de la copie).</summary>
+        private void FetchSurveyFromApp()
+        {
+            NavRadar_Click(null, null);
+            WifiSurveyOverlay.Visibility = Visibility.Visible;
+            BtnSurveyFetch_Click(null, null);
+        }
+
+        /// <summary>Suivi terrain : copié puis ouvert dans l'Analyse de fichiers.</summary>
+        private void FetchRecordingFromApp()
+        {
+            RecorderOverlay.Visibility = Visibility.Visible;
+            BtnRecorderFetch_Click(null, null);
         }
 
         private void DiagAppPopup_Closed(object sender, EventArgs e) => _diagAppPopupLastClosed = DateTime.Now;

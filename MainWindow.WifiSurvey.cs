@@ -133,6 +133,7 @@ namespace ADBToolsNew
                 _diagAppUsers.Add("survey");
                 if (_diagAppSerial == null) _diagAppSerial = serial;
                 await ReleaseDiagAppAsync("survey");
+                _ = RefreshDiagAppButtonAsync();
 
                 var survey = WifiSurvey.Load(last);
                 ImportWifiSurvey(survey, serial);

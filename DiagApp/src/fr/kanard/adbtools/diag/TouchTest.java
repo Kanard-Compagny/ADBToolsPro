@@ -42,7 +42,9 @@ final class TouchTest implements DiagTest, MainActivity.OverlayTest {
         int covered = grid == null ? 0 : grid.covered(), total = grid == null ? 0 : grid.total();
         a.hideOverlay();
         int pct = total == 0 ? 0 : Math.round(100f * covered / total);
-        Out.result(id(), covered == total && total > 0 ? "ok" : "warn", Out.obj("covered", covered, "total", total, "percent", pct));
+        // Carte des zones (1 = touchée), ligne par ligne : ADB Tools la redessine dans sa fiche et le rapport.
+        Out.result(id(), covered == total && total > 0 ? "ok" : "warn", Out.obj("covered", covered, "total", total, "percent", pct,
+                "cols", COLS, "rows", grid == null ? 0 : grid.rows, "grid", grid == null ? "" : grid.map()));
         a.testFinished(this);
     }
 
@@ -68,6 +70,11 @@ final class TouchTest implements DiagTest, MainActivity.OverlayTest {
         }
 
         int covered() { return count; }
+        String map() {
+            StringBuilder sb = new StringBuilder();
+            if (hit != null) for (boolean b : hit) sb.append(b ? '1' : '0');
+            return sb.toString();
+        }
         int total() { return hit == null ? 0 : hit.length; }
 
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {

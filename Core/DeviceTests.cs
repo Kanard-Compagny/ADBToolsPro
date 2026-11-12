@@ -17,7 +17,7 @@ namespace ADBToolsNew.Core
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
         /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
-        public const int VersionCode = 12;
+        public const int VersionCode = 13;
 
         /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
         public static int ParseInstalledVersion(string dumpsys)
@@ -96,7 +96,12 @@ namespace ADBToolsNew.Core
                 case "LIVE": m.Test = Get(p, 1); m.SetJson(Get(p, 2)); break;
                 case "RESULT": m.Test = Get(p, 1); m.Status = Get(p, 2); m.SetJson(Get(p, 3)); break;
                 case "VERDICT": m.Test = Get(p, 1); m.Status = Get(p, 2); break;
-                case "READY": case "SCAN": case "INFO": case "EXPORT": break;
+                case "EXPORT":
+                    // « EXPORT \t tests|survey|record » (anciennes versions : « EXPORT \t nombre » = résultats des tests).
+                    m.Test = Get(p, 1);
+                    if (m.Test != "survey" && m.Test != "record") m.Test = "tests";
+                    break;
+                case "READY": case "SCAN": case "INFO": break;
                 default: return null;
             }
             return m;
@@ -254,6 +259,8 @@ namespace ADBToolsNew.Core
         /// <summary>Résultat choisi par le technicien pendant le test : un résultat arrivé ensuite ne l'écrase pas.</summary>
         public bool ManualVerdict { get; set; }
         public string Live { get; set; } = "";
+        /// <summary>Dernier résultat brut de l'appli (JSON) : aperçu dans la fiche (grille tactile, touches).</summary>
+        public string ResultJson { get; set; }
 
         public double Opacity => Available ? 1.0 : 0.45;
         public string SubText
@@ -373,6 +380,7 @@ namespace ADBToolsNew.Core
                 case "speaker": return ok ? Loc.T("Les 3 bips étaient audibles et nets.") : defect;
                 case "earpiece": return ok ? Loc.T("Les 3 bips étaient audibles dans l'écouteur.") : defect;
                 case "vibrator": return ok ? Loc.T("Les 3 vibrations ont été ressenties.") : defect;
+                case "screen": return ok ? Loc.T("Aucun pixel mort, tache ni trace de brûlure constaté.") : Loc.T("Pixels morts, taches ou traces constatés (voir commentaire).");
                 case "keys":
                     // Liste des touches gardée, sans la question finale.
                     var lines = details.Replace("\r", "").Split('\n').Where(l => l.Length > 0 && l != Loc.T("Toutes les touches du clavier sont-elles dans la liste ?")).ToList();

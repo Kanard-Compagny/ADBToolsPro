@@ -1072,6 +1072,12 @@
                                            FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                                 <Button x:Name="BtnDiagAppInstall" Content="Installer sur le terminal" Click="BtnDiagAppInstall_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0,0,0,6"/>
                                 <Button x:Name="BtnDiagAppOpen" Content="Ouvrir sur le terminal" Click="BtnDiagAppOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,0,6"/>
+                                <Button x:Name="BtnDiagAppFetchSurvey" Content="📶 Récupérer la mesure Wi-Fi" Click="BtnDiagAppFetchSurvey_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0,0,0,6" Visibility="Collapsed"
+                                        ToolTip="Mesure sans câble terminée sur le terminal : copiée sur le PC et ouverte dans l'Analyse Wi-Fi."/>
+                                <Button x:Name="BtnDiagAppFetchRecord" Content="📈 Récupérer le suivi terrain" Click="BtnDiagAppFetchRecord_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0,0,0,6" Visibility="Collapsed"
+                                        ToolTip="Suivi terrain terminé sur le terminal : copié sur le PC et ouvert dans l'Analyse de fichiers."/>
+                                <Button x:Name="BtnDiagAppFetchTests" Content="🩺 Récupérer les tests" Click="BtnDiagAppFetchTests_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,0,6" Visibility="Collapsed"
+                                        ToolTip="Résultats des tests faits dans l'appli : repris dans la fiche Diagnostics SAV."/>
                                 <Button x:Name="BtnDiagAppRemove" Content="Retirer du terminal" Click="BtnDiagAppRemove_Click" Style="{StaticResource DangerButtonStyle}" Height="32"/>
                             </StackPanel>
                         </Border>
@@ -2620,7 +2626,7 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
 
-                                                    <Border Grid.Column="0" Background="{DynamicResource Surface2}" CornerRadius="8" Padding="15">
+                                                    <Border x:Name="KeysLabCard" Grid.Column="0" Background="{DynamicResource Surface2}" CornerRadius="8" Padding="15">
                                                         <Grid>
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="Auto"/>
@@ -2719,6 +2725,16 @@
                                                         <Button x:Name="BtnScreenTestCleanup" Content="🗑️ Nettoyer" Click="BtnScreenTestCleanup_Click" Style="{StaticResource DangerButtonStyle}" Width="110" Height="32" ToolTip="Supprime les images de test envoyées sur le terminal"/>
                                                     </StackPanel>
                                                 </StackPanel>
+                                                <Border x:Name="DiagTerminalPreview" Visibility="Collapsed" Background="{DynamicResource Surface2}" CornerRadius="8" Padding="15" Margin="0,0,0,12">
+                                                    <StackPanel>
+                                                        <TextBlock x:Name="TxtDiagTerminalPreviewTitle" Text="Relevé sur le terminal" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
+                                                        <Viewbox x:Name="DiagTerminalGridBox" Stretch="Uniform" MaxHeight="220" HorizontalAlignment="Center" Visibility="Collapsed">
+                                                            <UniformGrid x:Name="DiagTerminalGrid"/>
+                                                        </Viewbox>
+                                                        <WrapPanel x:Name="DiagTerminalKeys" Visibility="Collapsed"/>
+                                                        <TextBlock x:Name="TxtDiagTerminalPreviewNote" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
                                                 <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
                                                     <TextBlock x:Name="TxtDiagDetails" Text="Aucune donnée pour l'instant." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                                 </Border>

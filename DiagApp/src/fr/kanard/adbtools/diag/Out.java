@@ -98,7 +98,12 @@ final class Out {
 
     /** « Envoyer au PC » : ADB Tools, s'il écoute, ouvre la fenêtre de récupération. */
     static void export() {
-        Log.i(TAG, "EXPORT\t" + saved().length());
+        Log.i(TAG, "EXPORT\ttests\t" + saved().length());
+    }
+
+    /** « Envoyer au PC » d'une mesure Wi-Fi (survey) ou d'un suivi terrain (record) : ADB Tools la récupère. */
+    static void export(String kind) {
+        Log.i(TAG, "EXPORT\t" + kind);
     }
 
     static String b64(String s) {

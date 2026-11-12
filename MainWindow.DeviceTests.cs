@@ -194,6 +194,7 @@ namespace ADBToolsNew
                 {
                     item.Status = DeviceTestText.StatusIcon(m.Status);
                     item.Details = DeviceTestText.Result(m);
+                    item.ResultJson = m.HasJson ? m.Json.GetRawText() : null;
                     item.ManualVerdict = false;
                     if (m.Status == "na") item.Available = false;
                     string remote = m.Str("file");
@@ -230,7 +231,14 @@ namespace ADBToolsNew
         }
 
         /// <summary>« Envoyer au PC » dans l'appli : la fenêtre des tests s'ouvre avec les résultats du terminal.</summary>
-        private async void OnDiagAppExport(string serial) => await ShowDiagImportAsync(serial);
+        /// <summary>« Envoyer au PC » touché dans l'appli : chaque contenu s'ouvre là où il s'exploite.</summary>
+        private async void OnDiagAppExport(string serial, string kind)
+        {
+            if (CurrentSerial() != serial) return;
+            if (kind == "survey") { FetchSurveyFromApp(); return; }
+            if (kind == "record") { FetchRecordingFromApp(); return; }
+            await ShowDiagImportAsync(serial);
+        }
 
         private void StopDeviceTestsOnExit()
         {
@@ -286,6 +294,7 @@ namespace ADBToolsNew
                 {
                     var item = _devItems.FirstOrDefault(i => i.Id == m.Test);
                     if (item == null) break;
+                    item.ResultJson = m.HasJson ? m.Json.GetRawText() : null;
                     if (item.ManualVerdict)
                     {
                         // Le technicien a déjà tranché (clic un peu avant la fin du test) : on garde son choix,

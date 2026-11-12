@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace ADBToolsNew
 {
@@ -25,6 +27,9 @@ namespace ADBToolsNew
         private static void AddDiagHistory(DiagComponent line, string text)
         {
             if (line == null || string.IsNullOrEmpty(text)) return;
+            // Même entrée que la précédente (reprise du terminal en deux temps) : pas de doublon.
+            string last = line.History.Count > 0 ? line.History[line.History.Count - 1] : null;
+            if (last != null && last.Length > 8 && last.Substring(8) == text) return;
             line.History.Add($"{DateTime.Now:HH:mm} · {text}");
         }
 
@@ -61,6 +66,16 @@ namespace ADBToolsNew
             else line.StatusIcon = it.Status;
 
             if (it.Status != "⏳") line.TerminalDetails = it.Details ?? "";
+            if (it.Status != "⏳" && !string.IsNullOrEmpty(it.ResultJson) && it.ResultJson != line.TerminalJson)
+            {
+                line.TerminalJson = it.ResultJson;
+                // Grille faite sur le terminal : image pour la fiche et le rapport Word.
+                if (line.SystemId == "touch")
+                {
+                    var map = TouchMap.Parse(it.ResultJson);
+                    if (map != null) { string png = SaveTouchMapPng(map); if (png != null) line.ImagePath = png; }
+                }
+            }
             string file = it.LocalFile;
             if (file != null && file.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)) line.ImagePath = file;
             if (file != null && file.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)) line.AudioPath = file;
@@ -102,7 +117,7 @@ namespace ADBToolsNew
                 TxtDiagTitle.Text = Loc.T("Choisissez un élément dans la liste");
                 DiagSourceBadge.Visibility = Visibility.Collapsed;
                 TxtDiagInstruction.Text = Loc.T("Chaque ligne indique qui fait le test : le PC, l'appli sur le terminal, ou les deux au choix. Le résultat retenu et le commentaire restent modifiables à tout moment, même après une récupération.");
-                DiagActions.Visibility = DiagLiveBox.Visibility = LabBodyGetEvent.Visibility = LabBodyScreenTest.Visibility = DiagMediaPanel.Visibility = Visibility.Collapsed;
+                DiagActions.Visibility = DiagLiveBox.Visibility = LabBodyGetEvent.Visibility = LabBodyScreenTest.Visibility = DiagMediaPanel.Visibility = DiagTerminalPreview.Visibility = Visibility.Collapsed;
                 GridDiagValidation.Visibility = Visibility.Collapsed;
                 TxtDiagDetails.Text = Loc.T("Aucune donnée pour l'instant.");
                 return;
@@ -126,7 +141,17 @@ namespace ADBToolsNew
             BtnDiagScanPc.Visibility = item.PcLive == "scan" ? Visibility.Visible : Visibility.Collapsed;
             DiagActions.Visibility = new UIElement[] { BtnDiagRunTerminal, BtnDiagRunPc, ToggleLabListen, BtnDiagScanPc }.Any(b => b.Visibility == Visibility.Visible)
                 ? Visibility.Visible : Visibility.Collapsed;
-            LabBodyGetEvent.Visibility = item.PcLive == "getevent" ? Visibility.Visible : Visibility.Collapsed;
+            // Cartes de l'écoute du PC : seulement celle de la ligne, et seulement si l'écoute tourne ou a déjà relevé quelque chose.
+            bool listening = ToggleLabListen.IsChecked == true;
+            bool showKeys = item.SystemId == "keys" && (listening || _keyPressHistory.Entries.Count > 0);
+            bool showTouch = item.SystemId == "touch" && (listening || (_touchZoneGrid != null && _touchZoneGrid.TouchedCount > 0));
+            KeysLabCard.Visibility = showKeys ? Visibility.Visible : Visibility.Collapsed;
+            TouchLabCard.Visibility = showTouch ? Visibility.Visible : Visibility.Collapsed;
+            Grid.SetColumn(TouchLabCard, showTouch && !showKeys ? 0 : 2);
+            Grid.SetColumnSpan(KeysLabCard, showKeys && !showTouch ? 3 : 1);
+            Grid.SetColumnSpan(TouchLabCard, showTouch && !showKeys ? 3 : 1);
+            LabBodyGetEvent.Visibility = showKeys || showTouch ? Visibility.Visible : Visibility.Collapsed;
+            RefreshDiagTerminalPreview(item);
             LabBodyScreenTest.Visibility = item.PcLive == "screen" ? Visibility.Visible : Visibility.Collapsed;
             if (!running) DiagLiveBox.Visibility = Visibility.Collapsed;
 
@@ -151,6 +176,113 @@ namespace ADBToolsNew
             if (!TxtDiagComment.IsKeyboardFocusWithin) TxtDiagComment.Text = item.Comment ?? "";
             DiagHistoryList.ItemsSource = null;
             DiagHistoryList.ItemsSource = item.History.Count == 0 ? new List<string> { Loc.T("Aucun résultat pour l'instant.") } : item.History.AsEnumerable().Reverse().ToList();
+        }
+
+        /// <summary>Aperçu du relevé fait dans l'appli : grille tactile (zones touchées) ou touches pressées.</summary>
+        private void RefreshDiagTerminalPreview(DiagComponent item)
+        {
+            DiagTerminalPreview.Visibility = DiagTerminalGridBox.Visibility = DiagTerminalKeys.Visibility = Visibility.Collapsed;
+            if (string.IsNullOrEmpty(item.TerminalJson) || item.StatusIcon == "⏳") return;
+            if (item.SystemId == "touch")
+            {
+                var map = TouchMap.Parse(item.TerminalJson);
+                if (map == null) return;
+                DiagTerminalGrid.Children.Clear();
+                DiagTerminalGrid.Columns = map.Cols;
+                DiagTerminalGrid.Rows = map.Rows;
+                DiagTerminalGrid.Width = map.Cols * 22;
+                DiagTerminalGrid.Height = map.Rows * 22;
+                for (int i = 0; i < map.Cols * map.Rows; i++)
+                    DiagTerminalGrid.Children.Add(new Border
+                    {
+                        Background = map.Touched(i) ? TouchCellTouchedBrush : TouchCellUntouchedBrush,
+                        BorderBrush = (Brush)FindResource("BorderColor"),
+                        BorderThickness = new Thickness(0.5),
+                        Margin = new Thickness(0.5),
+                    });
+                TxtDiagTerminalPreviewTitle.Text = Loc.T("Grille balayée sur le terminal");
+                TxtDiagTerminalPreviewNote.Text = Loc.F("Zones touchées : {0} / {1}", map.Covered, map.Cols * map.Rows);
+                DiagTerminalGridBox.Visibility = Visibility.Visible;
+                DiagTerminalPreview.Visibility = Visibility.Visible;
+                // L'image de la grille sert déjà d'aperçu : pas de doublon dans le bloc des fichiers.
+                if (item.ImagePath != null && item.ImagePath.Contains("Diag_touchapp_")) DiagPhoto.Visibility = Visibility.Collapsed;
+            }
+            else if (item.SystemId == "keys")
+            {
+                var keys = TerminalKeys(item.TerminalJson);
+                if (keys.Count == 0) return;
+                DiagTerminalKeys.Children.Clear();
+                foreach (var k in keys)
+                    DiagTerminalKeys.Children.Add(new Border
+                    {
+                        Background = (Brush)FindResource("Surface"),
+                        BorderBrush = (Brush)FindResource("BorderColor"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10, 5, 10, 5),
+                        Margin = new Thickness(0, 0, 6, 6),
+                        Child = new TextBlock
+                        {
+                            Text = k.Count > 1 ? $"{k.Key}  ×{k.Count}" : k.Key,
+                            Foreground = (Brush)FindResource("Ink"),
+                            FontWeight = FontWeights.SemiBold,
+                        },
+                    });
+                TxtDiagTerminalPreviewTitle.Text = Loc.T("Touches pressées sur le terminal");
+                TxtDiagTerminalPreviewNote.Text = Loc.F("{0} touche(s) différente(s) détectée(s).", keys.Count);
+                DiagTerminalKeys.Visibility = Visibility.Visible;
+                DiagTerminalPreview.Visibility = Visibility.Visible;
+            }
+        }
+
+        private static List<KeyValuePair<string, int>> TerminalKeys(string json)
+        {
+            var list = new List<KeyValuePair<string, int>>();
+            try
+            {
+                using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                {
+                    if (!doc.RootElement.TryGetProperty("keys", out var arr) || arr.ValueKind != System.Text.Json.JsonValueKind.Array) return list;
+                    foreach (var k in arr.EnumerateArray())
+                    {
+                        string name = k.TryGetProperty("key", out var n) ? n.ToString() : "";
+                        int count = k.TryGetProperty("count", out var c) && c.TryGetInt32(out int v) ? v : 1;
+                        if (name.Length > 0) list.Add(new KeyValuePair<string, int>(name, count));
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        /// <summary>Grille du terminal dessinée en PNG (sans passer par l'écran) pour le rapport.</summary>
+        private string SaveTouchMapPng(TouchMap map)
+        {
+            try
+            {
+                const int cell = 22;
+                var visual = new DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                {
+                    var pen = new Pen((Brush)FindResource("BorderColor"), 0.5);
+                    for (int r = 0; r < map.Rows; r++)
+                        for (int c = 0; c < map.Cols; c++)
+                            dc.DrawRectangle(map.Touched(r * map.Cols + c) ? TouchCellTouchedBrush : TouchCellUntouchedBrush, pen,
+                                new Rect(c * cell + 0.5, r * cell + 0.5, cell - 1, cell - 1));
+                }
+                var bmp = new RenderTargetBitmap(map.Cols * cell, map.Rows * cell, 96, 96, PixelFormats.Pbgra32);
+                bmp.Render(visual);
+                var enc = new PngBitmapEncoder();
+                enc.Frames.Add(BitmapFrame.Create(bmp));
+                string path = Path.Combine(GetCaptureFolderPath(), $"Diag_touchapp_{FileNameHelper.Sanitize(GetDiagReportSerial())}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                using (var fs = new FileStream(path, FileMode.Create)) enc.Save(fs);
+                return path;
+            }
+            catch (Exception ex)
+            {
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ Image de la grille tactile impossible : {1}", DateTime.Now, ex.Message));
+                return null;
+            }
         }
 
         private void TxtDiagComment_LostFocus(object sender, RoutedEventArgs e)

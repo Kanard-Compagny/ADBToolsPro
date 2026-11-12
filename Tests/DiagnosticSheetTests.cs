@@ -8,6 +8,19 @@ namespace ADBToolsNew.Tests
     public class DiagnosticSheetTests
     {
         [TestMethod]
+        public void TouchMapReadsTheAppGrid()
+        {
+            var m = TouchMap.Parse("{\"covered\":3,\"total\":4,\"percent\":75,\"cols\":2,\"rows\":2,\"grid\":\"1101\"}");
+            Assert.IsNotNull(m);
+            Assert.AreEqual(2, m.Cols);
+            Assert.AreEqual(3, m.Covered);
+            Assert.IsTrue(m.Touched(0));
+            Assert.IsFalse(m.Touched(2));
+            Assert.IsNull(TouchMap.Parse("{\"covered\":3,\"total\":4}"), "ancienne appli : pas de grille");
+            Assert.IsNull(TouchMap.Parse("{\"cols\":2,\"rows\":2,\"grid\":\"110\"}"), "grille incomplète");
+        }
+
+        [TestMethod]
         public void EveryAppTestHasExactlyOneLine()
         {
             var ids = DiagnosticSheet.Lines.Select(l => l.Id).ToList();

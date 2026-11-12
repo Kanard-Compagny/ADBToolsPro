@@ -167,6 +167,7 @@ namespace ADBToolsNew
                 _diagAppUsers.Add("record");
                 if (_diagAppSerial == null) _diagAppSerial = serial;
                 await ReleaseDiagAppAsync("record");
+                _ = RefreshDiagAppButtonAsync();
 
                 TxtRecorderStatus.Text = Loc.F("✅ {0} enregistrement(s) copié(s) dans {1}.", dirs.Count, root);
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📈 Enregistrement récupéré : {1}", DateTime.Now, last));
