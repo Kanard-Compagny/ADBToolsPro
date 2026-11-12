@@ -467,6 +467,7 @@ namespace ADBToolsNew
 
             DepContent.Children.Add(DepHeading(Loc.T("Prendre la main en clavier et souris par le câble")));
             DepContent.Children.Add(DepText(Loc.T("Le PC se fait passer pour un clavier et une souris branchés sur le terminal (mode OTG de scrcpy) : pas besoin du débogage USB. Il n'y a pas d'image sur le PC : regardez l'écran du terminal (s'il affiche encore quelque chose) et déplacez le pointeur avec la souris. Idéal quand le tactile est mort ou pour accepter « Autoriser le débogage USB »."), false));
+            DepContent.Children.Add(DepText(Loc.T("Sous Windows, si le débogage USB est coupé, cette prise en main demande en plus de changer le pilote USB du terminal : la page vous l'explique si c'est le cas."), true));
             DepContent.Children.Add(DepSteps(new[]
             {
                 Loc.T("Branchez le terminal en USB (un seul terminal à la fois, de préférence)."),
@@ -474,11 +475,10 @@ namespace ADBToolsNew
                 Loc.T("Une petite fenêtre s'ouvre : cliquez dedans, puis utilisez la souris et le clavier comme s'ils étaient branchés sur le terminal. Fermez-la pour terminer."),
             }));
             var status = DepText("", false);
-            var choices = new WrapPanel();
+            var choices = new StackPanel();
             DepContent.Children.Add(DepButtons(DepButton(Loc.T("🖱️ Prendre la main (clavier et souris)"), async () => await DepStartOtgAsync(status, choices, null))));
             DepContent.Children.Add(status);
             DepContent.Children.Add(choices);
-            DepContent.Children.Add(DepText(Loc.T("Selon le terminal et le pilote USB de Windows, le mode OTG peut être refusé : le message de scrcpy s'affiche alors dans la console.")));
 
             DepContent.Children.Add(DepHeading(Loc.T("Activer le débogage USB (toutes marques)")));
             DepContent.Children.Add(DepSteps(new[]
@@ -496,7 +496,7 @@ namespace ADBToolsNew
         /// Lance scrcpy en mode OTG. serial : numéro USB du terminal ; vide = on le cherche (Windows, puis liste de scrcpy).
         /// Plusieurs appareils USB (webcam, clavier…) : scrcpy refuse de choisir, on garde le terminal ou on demande lequel.
         /// </summary>
-        private async Task DepStartOtgAsync(TextBlock status, WrapPanel choices, string serial)
+        private async Task DepStartOtgAsync(TextBlock status, StackPanel choices, string serial)
         {
             if (_depOtgProcess != null && !_depOtgProcess.HasExited) { status.Text = Loc.T("La prise en main est déjà ouverte."); return; }
             choices.Children.Clear();
@@ -507,6 +507,7 @@ namespace ADBToolsNew
                 _ = OfferToInstallToolAsync(ToolComponent.Scrcpy, "scrcpy sert à prendre la main sur le terminal en clavier et souris.");
                 return;
             }
+            UsbAndroidDevice seenByWindows = null;
             if (string.IsNullOrEmpty(serial))
             {
                 // Un seul terminal d'un fabricant connu vu par Windows : on le désigne d'emblée.
@@ -515,6 +516,7 @@ namespace ADBToolsNew
                     var usb = await Task.Run(() => UsbDeviceScanner.Scan());
                     var phones = usb.Where(d => d.Serial.Length > 0 && d.Brand.Length > 0).ToList();
                     if (phones.Count == 1) serial = phones[0].Serial;
+                    seenByWindows = usb.FirstOrDefault(d => d.Brand.Length > 0) ?? usb.FirstOrDefault();
                 }
                 catch { }
             }
@@ -544,7 +546,16 @@ namespace ADBToolsNew
                     string text; lock (log) text = log.ToString().Trim();
                     _depOtgProcess = null;
                     if (text.Length > 0) AppendConsole("\n[scrcpy --otg] " + text);
-                    if (p.ExitCode != 0 && !hadSerial && ScrcpyOtg.NeedsSerial(text))
+                    if (p.ExitCode != 0 && ScrcpyOtg.TerminalNotReachable(text, hadSerial ? serial : ""))
+                    {
+                        // Sans débogage USB, Windows ne donne au terminal que le pilote MTP : scrcpy ne peut pas l'ouvrir.
+                        string who = seenByWindows == null ? "" : (seenByWindows.DisplayName ?? "").IndexOf(seenByWindows.Brand, StringComparison.OrdinalIgnoreCase) >= 0 ? seenByWindows.DisplayName : (seenByWindows.Brand + " " + seenByWindows.DisplayName);
+                        status.Text = who.Trim().Length > 0
+                            ? Loc.F("Windows voit le terminal ({0}), mais la prise en main par le câble ne peut pas l'ouvrir.", who.Trim())
+                            : Loc.T("La prise en main par le câble ne trouve pas le terminal.");
+                        choices.Children.Add(DepOtgDriverCard());
+                    }
+                    else if (p.ExitCode != 0 && !hadSerial && ScrcpyOtg.NeedsSerial(text))
                     {
                         var all = ScrcpyOtg.ParseDevices(text);
                         var cand = ScrcpyOtg.Candidates(all);
@@ -556,11 +567,13 @@ namespace ADBToolsNew
                         status.Text = cand.Count > 1
                             ? Loc.T("Plusieurs appareils USB sont branchés : choisissez le terminal.")
                             : Loc.T("Plusieurs appareils USB sont branchés et aucun ne ressemble à un terminal : vérifiez que le câble transfère les données, puis choisissez le terminal dans la liste.");
+                        var buttons = new WrapPanel { Margin = new Thickness(0, 6, 0, 2) };
+                        choices.Children.Add(buttons);
                         foreach (var d in (cand.Count > 0 ? cand : all))
                         {
                             string label = (d.Brand.Length > 0 ? d.Brand + " · " : "") + (d.Label.Length > 0 ? d.Label + " · " : "") + d.Serial;
                             string sn = d.Serial;
-                            choices.Children.Add(DepButton("🖱️ " + label, async () => await DepStartOtgAsync(status, choices, sn),
+                            buttons.Children.Add(DepButton("🖱️ " + label, async () => await DepStartOtgAsync(status, choices, sn),
                                 Loc.F("Identifiant USB {0}:{1}", d.Vid, d.Pid)));
                         }
                     }
@@ -580,6 +593,23 @@ namespace ADBToolsNew
                 status.Text = Loc.F("La prise en main n'a pas pu démarrer : {0}", ex.Message);
                 await _adbManager.ExecuteAsync("start-server", TimeSpan.FromSeconds(30));
             }
+        }
+
+        /// <summary>Pourquoi la prise en main par le câble échoue sans débogage USB sous Windows, et quoi faire à la place.</summary>
+        private Border DepOtgDriverCard()
+        {
+            var card = DepCard("warn", Loc.T("Sans débogage USB, Windows bloque la prise en main par le câble"),
+                Loc.T("Débogage USB coupé, le terminal ne se présente au PC qu'en transfert de fichiers (pilote MTP de Windows). La prise en main a besoin d'un autre pilote, WinUSB, que Windows n'installe pas de lui-même. C'est une limite de Windows, pas du terminal ni d'ADB Tools Pro."),
+                DepButton(Loc.T("Ouvrir le Gestionnaire de périphériques"), () => { try { Process.Start("devmgmt.msc"); } catch { } }));
+            var p = (StackPanel)card.Child;
+            p.Children.Insert(2, DepText(Loc.T("Solutions, de la plus simple à la plus technique :"), false));
+            p.Children.Insert(3, DepSteps(new[]
+            {
+                Loc.T("Brancher un vrai clavier et une vraie souris sur le terminal : adaptateur OTG (USB-C vers USB-A) ou socle avec ports USB. Aucun pilote ni débogage USB n'est nécessaire."),
+                Loc.T("Activer le débogage USB par code-barres de configuration, si le fabricant le propose et que le terminal scanne encore (ex. Zebra StageNow)."),
+                Loc.T("Donner le pilote WinUSB au terminal avec l'outil libre Zadig (droits administrateur), puis relancer la prise en main. Pour revenir au transfert de fichiers : Gestionnaire de périphériques > clic droit sur le terminal > Désinstaller l'appareil (en supprimant le pilote), puis rebrancher."),
+            }));
+            return card;
         }
 
         // ------------------------------------------------------------------ 5. Recovery, réinitialisation, fastboot

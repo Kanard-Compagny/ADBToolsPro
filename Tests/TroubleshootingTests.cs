@@ -142,6 +142,18 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void ScrcpyOtg_TerminalNotReachableWithoutUsbDebugging()
+        {
+            // Débogage USB coupé : le terminal (pilote MTP) n'est pas dans la liste de scrcpy.
+            string output = "ERROR: Could not find USB device 21345678\n    03604459A011   (0b0e:1113)  GN Audio A/S Jabra Engage 75\n    0001           (0408:5483)  Quanta HP HD Camera";
+            Assert.IsTrue(ScrcpyOtg.TerminalNotReachable(output, "21345678"));
+            string multi = "ERROR: Multiple (2) USB devices:\n    -->  03604459A011   (0b0e:1113)  GN Audio A/S Jabra Engage 75\n    -->  0001           (0408:5483)  Quanta HP HD Camera\nERROR: Select a device via -s (--serial)";
+            Assert.IsTrue(ScrcpyOtg.TerminalNotReachable(multi, ""));
+            string ok = "ERROR: Multiple (2) USB devices:\n    -->  21345678   (05e0:2101)  Zebra TC53\n    -->  0001   (0408:5483)  Quanta HP HD Camera\nERROR: Select a device via -s (--serial)";
+            Assert.IsFalse(ScrcpyOtg.TerminalNotReachable(ok, ""));
+        }
+
+        [TestMethod]
         public void ScrcpyOtg_UnknownBrandKeptWebcamDropped()
         {
             string output = "    -->  ABC123   (2a45:0c02)  Acme Rugged Phone\n    -->  0001     (0408:5483)  Quanta HP HD Camera\n    -->  X        (046d:c52b)  Logitech USB Receiver";

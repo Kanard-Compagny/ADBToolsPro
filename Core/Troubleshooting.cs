@@ -165,6 +165,21 @@ namespace ADBToolsNew.Core
             @"camera|webcam|cam\b|hub|keyboard|clavier|mouse|souris|bluetooth|fingerprint|empreinte|audio|headset|casque|receiver|récepteur|card reader|lecteur de carte|smart ?card|dock|ethernet|wireless|wi-?fi|unifying|touchpad|pen\b|stylet|printer|imprimante|ups\b|onduleur",
             RegexOptions.IgnoreCase);
 
+        /// <summary>
+        /// scrcpy ne trouve pas le terminal parmi les appareils USB qu'il sait ouvrir. Sous Windows, c'est le cas quand le
+        /// débogage USB est coupé : le terminal n'a que le pilote MTP, que scrcpy (libusb) ne peut pas ouvrir (il faut WinUSB).
+        /// serial : numéro USB demandé à scrcpy, ou vide.
+        /// </summary>
+        public static bool TerminalNotReachable(string output, string serial)
+        {
+            string o = output ?? "";
+            if (Regex.IsMatch(o, @"Could not find (any )?USB device", RegexOptions.IgnoreCase)) return true;
+            var all = ParseDevices(o);
+            if (!string.IsNullOrEmpty(serial))
+                return all.Count > 0 && !all.Any(d => d.Serial.Equals(serial, StringComparison.OrdinalIgnoreCase));
+            return NeedsSerial(o) && Candidates(all).Count == 0;
+        }
+
         /// <summary>Appareils qui peuvent être le terminal : fabricant Android connu d'abord, sinon tout ce qui n'est pas un périphérique du PC.</summary>
         public static List<OtgUsbDevice> Candidates(IEnumerable<OtgUsbDevice> devices)
         {
