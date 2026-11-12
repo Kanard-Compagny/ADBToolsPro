@@ -223,7 +223,7 @@ namespace ADBToolsNew
                         Margin = new Thickness(0, 0, 6, 6),
                         Child = new TextBlock
                         {
-                            Text = k.Count > 1 ? $"{k.Key}  ×{k.Count}" : k.Key,
+                            Text = k.Value > 1 ? $"{k.Key}  ×{k.Value}" : k.Key,
                             Foreground = (Brush)FindResource("Ink"),
                             FontWeight = FontWeights.SemiBold,
                         },
