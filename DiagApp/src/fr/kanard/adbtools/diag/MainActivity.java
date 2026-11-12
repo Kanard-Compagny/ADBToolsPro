@@ -75,11 +75,14 @@ public class MainActivity extends Activity implements Out.Sink {
     static final int C_BRAND = Color.rgb(0x1F, 0x74, 0x54);
 
     /** Tests du diagnostic, dans l'ordre de l'enchaînement « Tout tester ». */
-    private static final String[] ALL_TESTS = { "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone",
-            "vibrator", "sensors", "nfc", "gps", "bluetooth", "keys", "rfid", "storage_speed" };
+    private static final String[] ALL_TESTS = { "screen", "touch", "camera_back", "camera_front", "flash", "speaker", "earpiece",
+            "microphone", "vibrator", "sensors", "nfc", "gps", "bluetooth", "keys", "scanner", "rfid", "storage_speed" };
+
+    /** Test qui occupe tout l'écran (couleurs, grille tactile) : la touche Retour l'arrête. */
+    interface OverlayTest { void onBack(); }
 
     private static final String S_HOME = "home", S_DIAG = "diag", S_TEST = "test", S_SCAN = "scan", S_WIFI = "wifi",
-            S_KEYS = "keys", S_FIELD = "field", S_RESULTS = "results";
+            S_KEYS = "keys", S_FIELD = "field", S_RESULTS = "results", S_DONE = "done";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean resumed;
@@ -261,6 +264,10 @@ public class MainActivity extends Activity implements Out.Sink {
 
     @Override
     public void onBackPressed() {
+        if (overlay != null && overlay.getVisibility() == View.VISIBLE) {
+            if (current instanceof OverlayTest) ((OverlayTest) current).onBack(); else hideOverlay();
+            return;
+        }
         if (drawer != null && drawer.getVisibility() == View.VISIBLE) { closeDrawer(); return; }
         if (S_TEST.equals(screen)) { leaveTest(); show(S_DIAG); return; }
         if (!S_HOME.equals(screen)) { show(S_HOME); return; }
@@ -297,8 +304,8 @@ public class MainActivity extends Activity implements Out.Sink {
                 if (S_TEST.equals(screen) || S_SCAN.equals(screen) || S_KEYS.equals(screen)) show(S_DIAG);
                 return;
             case "scan":
-                leaveTest();
-                show(S_SCAN);
+                runAll = false;
+                startTest("scanner", true);
                 return;
         }
         if (!known(cmd)) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
@@ -352,6 +359,9 @@ public class MainActivity extends Activity implements Out.Sink {
             boolean ok;
             switch (id) {
                 case "keys": case "storage_speed": ok = true; break;
+                case "screen": ok = true; break;
+                case "touch": ok = getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN); break;
+                case "scanner": ok = f.optString("scanner", "").length() > 0; break;
                 case "sensors": { JSONArray a = f.optJSONArray("sensors"); ok = a != null && a.length() > 0; break; }
                 default: ok = f.optBoolean(id, true);
             }
@@ -374,6 +384,8 @@ public class MainActivity extends Activity implements Out.Sink {
             case "gps": return new GpsTest(this);
             case "bluetooth": return new BluetoothTest(this);
             case "storage_speed": return new StorageTest(this);
+            case "screen": return new ScreenTest(this);
+            case "touch": return new TouchTest(this);
             case "rfid": return rfidMode.length() > 0 ? new RfidTest(this, rfidMode) : null;
             default: return null;
         }
@@ -394,6 +406,9 @@ public class MainActivity extends Activity implements Out.Sink {
             case "bluetooth": return "Bluetooth";
             case "keys": return L.t("Touches", "Keys");
             case "rfid": return "RFID";
+            case "screen": return L.t("Écran", "Screen");
+            case "touch": return L.t("Dalle tactile", "Touchscreen");
+            case "scanner": return L.t("Lecteur code-barres", "Barcode scanner");
             case "storage_speed": return L.t("Mémoire", "Storage");
             default: return cmd;
         }
@@ -405,6 +420,7 @@ public class MainActivity extends Activity implements Out.Sink {
         pcDriven = fromPc;
         activeTestId = id;
         if ("keys".equals(id)) { show(S_KEYS); return; }
+        if ("scanner".equals(id)) { resetScanSession(); show(S_SCAN); return; }
         DiagTest t = create(id);
         if (t == null) { Out.result(id, "na", Out.obj("reason", "absent")); return; }
         show(S_TEST);
@@ -458,6 +474,7 @@ public class MainActivity extends Activity implements Out.Sink {
     private void sendVerdict(String verdict) {
         String id = activeTestId;
         if (id == null) return;
+        if ("scanner".equals(id) && !"skip".equals(verdict)) emitScannerResult();
         stopCurrent();
         Out.verdict(id, verdict);
         activeTestId = null;
@@ -470,6 +487,8 @@ public class MainActivity extends Activity implements Out.Sink {
             String next = nextUntested(id);
             if (next != null) { startTest(next, false); return; }
             runAll = false;
+            show(S_DONE);
+            return;
         }
         show(S_DIAG);
     }
@@ -560,6 +579,9 @@ public class MainActivity extends Activity implements Out.Sink {
                     testLive.addView(last);
                 }
                 break;
+            case "touch":
+                testLive.addView(meter(L.t("Zones touchées", "Zones touched"), j.optInt("covered") + " / " + j.optInt("total"), j.optInt("covered") / (double) Math.max(1, j.optInt("total")), L.brandText));
+                break;
             case "storage_speed":
                 testLive.addView(meter(L.t("Écriture", "Writing"), j.optInt("mb") + " / " + j.optInt("total") + " Mo", j.optInt("mb") / (double) Math.max(1, j.optInt("total")), L.brandText));
                 break;
@@ -642,6 +664,9 @@ public class MainActivity extends Activity implements Out.Sink {
             case "gps": return L.t("Position obtenue en " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) utilisé(s).", "Position fixed in " + j.optDouble("ttff_s") + " s · " + j.optInt("used") + " satellite(s) used.");
             case "nfc": return L.t("Badge lu : ", "Tag read: ") + j.optString("uid");
             case "rfid": return L.t("Tags RFID lus : ", "RFID tags read: ") + j.optInt("tags");
+            case "scanner": return L.t(j.optInt("reads") + " lecture(s), " + j.optInt("distinct") + " code(s) différent(s).", j.optInt("reads") + " read(s), " + j.optInt("distinct") + " distinct code(s).");
+            case "touch": return L.t(j.optInt("covered") + " zone(s) sur " + j.optInt("total") + " ont réagi (" + j.optInt("percent") + " %).", j.optInt("covered") + " of " + j.optInt("total") + " zones reacted (" + j.optInt("percent") + " %).");
+            case "screen": return L.t("Avez-vous vu des pixels morts, taches ou traces ? Choisissez le résultat.", "Did you see dead pixels, spots or burn-in? Choose the result.");
             case "sensors": {
                 StringBuilder sb = new StringBuilder();
                 java.util.Iterator<String> it = j.keys();
@@ -709,6 +734,100 @@ public class MainActivity extends Activity implements Out.Sink {
         }, 0);
     }
 
+    // ------------------------------------------------------------------ Plein écran (tests Écran et Tactile)
+
+    private FrameLayout overlay;
+
+    @SuppressWarnings("deprecation")
+    void showOverlay(final View v) {
+        runLater(new Runnable() {
+            @Override public void run() {
+                overlay.removeAllViews();
+                overlay.addView(v, new FrameLayout.LayoutParams(-1, -1));
+                overlay.setVisibility(View.VISIBLE);
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+            }
+        }, 0);
+    }
+
+    @SuppressWarnings("deprecation")
+    void hideOverlay() {
+        runLater(new Runnable() {
+            @Override public void run() {
+                if (overlay == null) return;
+                overlay.removeAllViews();
+                overlay.setVisibility(View.GONE);
+                getWindow().getDecorView().setSystemUiVisibility(0);
+            }
+        }, 0);
+    }
+
+    // ------------------------------------------------------------------ Fin de la batterie de tests
+
+    private TextView doneTitle, doneOk, doneWarn, doneBad, doneReview;
+
+    private View buildDone() {
+        LinearLayout p = page();
+        LinearLayout c = card();
+        doneTitle = text("", 15, L.ink, true);
+        c.addView(doneTitle);
+        LinearLayout row = new LinearLayout(this);
+        row.setPadding(0, dp(12), 0, 0);
+        doneOk = doneBox(row, L.okBg, L.okFg, "OK", false);
+        doneWarn = doneBox(row, L.warnBg, L.warnFg, L.t("À surveiller", "To monitor"), true);
+        doneBad = doneBox(row, L.badBg, L.badFg, "KO", true);
+        c.addView(row);
+        doneReview = text("", 13, L.muted, false);
+        doneReview.setPadding(0, dp(12), 0, 0);
+        c.addView(doneReview);
+        p.addView(c);
+        Button results = actionButton(L.t("Voir les résultats", "View the results"));
+        results.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { show(S_RESULTS); } });
+        p.addView(results, lpButton(results, 54, 20));
+        TextView note = text(L.t("Dans Résultats : envoyer au PC, refaire un test ou changer un résultat.",
+                "In Results: send to the PC, run a test again or change a result."), 12, L.muted, false);
+        note.setGravity(Gravity.CENTER_HORIZONTAL);
+        note.setPadding(0, dp(8), 0, 0);
+        p.addView(note);
+        Button home = secondaryButton(L.t("Retour à l'accueil", "Back to home"));
+        home.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { show(S_HOME); } });
+        p.addView(home, lpButton(home, 48, 16));
+        return scroll(p);
+    }
+
+    private TextView doneBox(LinearLayout row, int bg, int fg, String label, boolean gap) {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setGravity(Gravity.CENTER_HORIZONTAL);
+        b.setPadding(dp(6), dp(10), dp(6), dp(10));
+        b.setBackground(rounded(bg, 0, 8));
+        TextView n = text("0", 22, fg, true);
+        b.addView(n);
+        b.addView(text(label, 12, fg, false));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        if (gap) lp.leftMargin = dp(8);
+        row.addView(b, lp);
+        return n;
+    }
+
+    private void refreshDone() {
+        int[] c = counts();
+        doneTitle.setText(L.t(c[3] + " tests faits sur " + tests.length, c[3] + " of " + tests.length + " tests done"));
+        doneOk.setText(String.valueOf(c[0]));
+        doneWarn.setText(String.valueOf(c[1]));
+        doneBad.setText(String.valueOf(c[2]));
+        StringBuilder sb = new StringBuilder();
+        for (String id : tests) {
+            String st = status.get(id);
+            if ("warn".equals(st) || "bad".equals(st)) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(label(id)).append(" (").append(statusLabel(st)).append(")");
+            }
+        }
+        doneReview.setText(sb.length() == 0 ? L.t("Rien à revoir.", "Nothing to review.") : L.t("À revoir : ", "To review: ") + sb);
+    }
+
     // ------------------------------------------------------------------ Construction de l'écran
 
     private void buildUi() {
@@ -738,10 +857,14 @@ public class MainActivity extends Activity implements Out.Sink {
         screens.put(S_KEYS, buildKeys());
         screens.put(S_FIELD, buildField());
         screens.put(S_RESULTS, buildResults());
+        screens.put(S_DONE, buildDone());
         for (View v : screens.values()) { v.setVisibility(View.GONE); contentHost.addView(v, new FrameLayout.LayoutParams(-1, -1)); }
 
         drawer = buildDrawer();
         rootFrame.addView(drawer, new FrameLayout.LayoutParams(-1, -1));
+        overlay = new FrameLayout(this);
+        overlay.setVisibility(View.GONE);
+        rootFrame.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
         setContentView(rootFrame);
         updatePill();
         show(screen);
@@ -944,7 +1067,11 @@ public class MainActivity extends Activity implements Out.Sink {
                         : activeTestId != null ? L.t("Test " + (indexOf(activeTestId) + 1) + " sur " + tests.length, "Test " + (indexOf(activeTestId) + 1) + " of " + tests.length) : "";
                 testBanner.setVisibility(pcDriven ? View.VISIBLE : View.GONE);
                 break;
-            case S_SCAN: titleView.setText(L.t("Lecteur", "Scanner")); setScanMode(true); break;
+            case S_SCAN:
+                titleView.setText(L.t("Lecteur", "Scanner")); setScanMode(true);
+                if (!"scanner".equals(activeTestId)) { activeTestId = "scanner"; pcDriven = false; }
+                break;
+            case S_DONE: titleView.setText(L.t("Diagnostic terminé", "Diagnostics complete")); refreshDone(); break;
             case S_WIFI: titleView.setText(L.t("Mesure Wi-Fi", "Wi-Fi survey")); refreshSurvey(); break;
             case S_KEYS: titleView.setText(L.t("Touches", "Keys")); startKeys(); break;
             case S_FIELD: titleView.setText(L.t("Suivi terrain", "Field monitoring")); refreshRecorder(); break;
@@ -952,7 +1079,8 @@ public class MainActivity extends Activity implements Out.Sink {
         }
         subtitleView.setText(sub);
         subtitleView.setVisibility(sub.length() > 0 ? View.VISIBLE : View.GONE);
-        keepVisibleWhenLocked(S_WIFI.equals(id) && SurveyService.running != null || S_FIELD.equals(id) && RecorderService.running != null);
+        keepVisibleWhenLocked(S_WIFI.equals(id) && SurveyService.running != null || S_FIELD.equals(id) && RecorderService.running != null
+                || S_KEYS.equals(id));
         refreshBackground();
     }
 
@@ -1328,6 +1456,8 @@ public class MainActivity extends Activity implements Out.Sink {
     // ------------------------------------------------------------------ Lecteur code-barres
 
     private View buildScan() {
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
         LinearLayout p = page();
         LinearLayout last = card();
         last.setBackground(rounded(L.surface, L.sideActive, 12));
@@ -1380,7 +1510,31 @@ public class MainActivity extends Activity implements Out.Sink {
         hint.setGravity(Gravity.CENTER_HORIZONTAL);
         hint.setPadding(0, dp(12), 0, 0);
         p.addView(hint);
-        return scroll(p);
+        outer.addView(scroll(p), new LinearLayout.LayoutParams(-1, 0, 1f));
+        outer.addView(verdictArea(false));
+        return outer;
+    }
+
+    /** Nouvelle session de lecture (test « Lecteur code-barres » lancé). */
+    private void resetScanSession() {
+        scanCount = 0;
+        scanDistinct.clear();
+        scanRecent.clear();
+        if (scanLastData != null) {
+            scanLastData.setText(L.t("Scannez un code-barres", "Scan a barcode"));
+            scanLastLabel.setText(L.t("Dernière lecture", "Last read"));
+            scanLastInfo.setText("");
+        }
+        refreshScan();
+    }
+
+    /** Bilan des lectures, envoyé avec le verdict du technicien (gardé dans les résultats). */
+    private void emitScannerResult() {
+        JSONArray sources = new JSONArray();
+        HashSet<String> seen = new HashSet<String>();
+        for (String[] r : scanRecent) if (seen.add(r[2])) sources.put(r[2]);
+        Out.result("scanner", scanCount > 0 ? "ok" : "warn", Out.obj("reads", scanCount, "distinct", scanDistinct.size(), "sources", sources,
+                "last", scanRecent.isEmpty() ? "" : scanRecent.get(0)[0], "symbology", scanRecent.isEmpty() ? "" : scanRecent.get(0)[1]));
     }
 
     private void setScanMode(boolean on) {
@@ -1561,8 +1715,8 @@ public class MainActivity extends Activity implements Out.Sink {
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
         LinearLayout p = page();
-        TextView help = text(L.t("Appuyez sur chaque touche du terminal : son nom s'affiche. La touche Retour quitte ce test.",
-                "Press every key on the device: its name is shown. The Back key leaves this test."), 15, L.ink, true);
+        TextView help = text(L.t("Appuyez sur chaque touche du terminal : son nom s'affiche. Marche : appuyez une fois (l'écran s'éteint), puis rallumez. La touche Retour quitte ce test.",
+                "Press every key on the device: its name is shown. Power: press it once (the screen turns off), then turn it back on. The Back key leaves this test."), 15, L.ink, true);
         p.addView(help);
         LinearLayout c = card();
         keysBig = text("—", 34, L.brandText, true);
@@ -1582,10 +1736,34 @@ public class MainActivity extends Activity implements Out.Sink {
         return outer;
     }
 
+    // La touche Marche n'arrive jamais à une appli : on la reconnaît à l'extinction de l'écran pendant le test.
+    private final BroadcastReceiver powerReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (!keysMode || !Intent.ACTION_SCREEN_OFF.equals(i.getAction())) return;
+            Integer n = keys.get("POWER");
+            keys.put("POWER", n == null ? 1 : n + 1);
+            Out.live("keys", Out.obj("key", "POWER", "distinct", keys.size()));
+            refreshKeys("POWER");
+        }
+    };
+    private boolean powerRegistered;
+
+    private void refreshKeys(String last) {
+        keysBig.setText(last);
+        keysCount.setText(L.t(keys.size() + " touche(s) différente(s)", keys.size() + " distinct key(s)"));
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Integer> e : keys.entrySet()) sb.append(e.getKey()).append(" ×").append(e.getValue()).append("   ");
+        keysList.setText(sb.toString().trim());
+    }
+
     private void startKeys() {
         if (keysMode) return;
         keysMode = true;
         keys.clear();
+        if (!powerRegistered) {
+            registerReceiver(powerReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF));
+            powerRegistered = true;
+        }
         if (!"keys".equals(activeTestId)) { activeTestId = "keys"; pcDriven = false; }
         keysBig.setText("—");
         keysCount.setText(L.t("Aucune touche pour l'instant", "No key yet"));
@@ -1596,6 +1774,7 @@ public class MainActivity extends Activity implements Out.Sink {
     private void finishKeys() {
         if (!keysMode) return;
         keysMode = false;
+        if (powerRegistered) { try { unregisterReceiver(powerReceiver); } catch (Exception ignored) { } powerRegistered = false; }
         // Simple visite de l'écran Touches sans rien presser : pas de résultat.
         if (keys.isEmpty() && !pcDriven) { Out.state("keys", "stopped"); return; }
         JSONArray list = new JSONArray();
@@ -1612,11 +1791,7 @@ public class MainActivity extends Activity implements Out.Sink {
                 String name = KeyEvent.keyCodeToString(event.getKeyCode()).replace("KEYCODE_", "");
                 Integer n = keys.get(name);
                 keys.put(name, n == null ? 1 : n + 1);
-                keysBig.setText(name);
-                keysCount.setText(L.t(keys.size() + " touche(s) différente(s)", keys.size() + " distinct key(s)"));
-                StringBuilder sb = new StringBuilder();
-                for (Map.Entry<String, Integer> e : keys.entrySet()) sb.append(e.getKey()).append(" ×").append(e.getValue()).append("   ");
-                keysList.setText(sb.toString().trim());
+                refreshKeys(name);
                 Out.live("keys", Out.obj("key", name, "distinct", keys.size()));
             }
             // Retour et accueil gardent leur rôle ; les autres touches restent dans le test.

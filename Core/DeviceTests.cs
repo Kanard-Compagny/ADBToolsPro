@@ -17,7 +17,7 @@ namespace ADBToolsNew.Core
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
         /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
-        public const int VersionCode = 10;
+        public const int VersionCode = 11;
 
         /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
         public static int ParseInstalledVersion(string dumpsys)
@@ -182,6 +182,10 @@ namespace ADBToolsNew.Core
     {
         public static readonly List<DeviceTestDef> All = new List<DeviceTestDef>
         {
+            new DeviceTestDef { Id = "screen", Icon = "🖥️", Name = "Écran (couleurs)", NeedsConfirmation = true,
+                Instruction = "Le terminal affiche des couleurs unies en plein écran ; touchez l'écran pour passer à la suivante. Cherchez pixels morts, taches ou traces, puis donnez le résultat." },
+            new DeviceTestDef { Id = "touch", Icon = "👆", Name = "Dalle tactile (grille)",
+                Instruction = "Balayez tout l'écran du terminal du doigt : chaque case touchée devient verte. Réussi quand toutes les cases ont réagi." },
             new DeviceTestDef { Id = "camera_back", Icon = "📷", Name = "Caméra arrière", Feature = "camera_back",
                 Instruction = "Visez un objet avec le terminal : l'aperçu s'affiche, puis une photo est prise et affichée ici." },
             new DeviceTestDef { Id = "camera_front", Icon = "🤳", Name = "Caméra avant", Feature = "camera_front",
@@ -219,7 +223,7 @@ namespace ADBToolsNew.Core
         /// <summary>Ordre de l'enchaînement : tests courts d'abord, GPS (jusqu'à 2 min) en dernier.</summary>
         public static readonly string[] ChainOrder =
         {
-            "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone", "vibrator",
+            "screen", "touch", "camera_back", "camera_front", "flash", "speaker", "earpiece", "microphone", "vibrator",
             "sensors", "nfc", "bluetooth", "keys", "rfid", "storage_speed", "gps",
         };
         public const string SystemIdPrefix = "dev_";
@@ -347,6 +351,9 @@ namespace ADBToolsNew.Core
                     return Loc.F("Touches détectées ({0}) : {1}", keys.GetArrayLength(), string.Join(", ", list)) + "\n" + Loc.T("Toutes les touches du clavier sont-elles dans la liste ?");
                 case "sensors":
                     return Sensors(m);
+                case "screen": return Loc.T("Couleurs affichées : des pixels morts, taches ou traces ont-ils été vus ?");
+                case "touch": return Loc.F("{0} zone(s) sur {1} ont réagi ({2} %).", m.Str("covered"), m.Str("total"), m.Str("percent"));
+                case "scanner": return Loc.F("{0} lecture(s), {1} code(s) différent(s) sur le terminal.", m.Str("reads"), m.Str("distinct"));
             }
             return m.Status == "bad" ? Loc.F("Échec du test ({0}).", reason) : "";
         }
@@ -416,6 +423,8 @@ namespace ADBToolsNew.Core
                 case "gps": return Loc.F("{0} s — {1} satellite(s) vu(s), {2} utilisé(s), meilleur signal {3} dB-Hz", m.Str("seconds"), m.Str("satellites"), m.Str("used"), m.Str("best_cn0"));
                 case "bluetooth": return Loc.F("{0} appareil(s) trouvé(s), meilleur signal {1} dBm", m.Str("devices"), m.Str("best_rssi"));
                 case "keys": return Loc.F("Dernière touche : {0} — {1} touche(s) différente(s)", m.Str("key"), m.Str("distinct"));
+                case "touch": return Loc.F("Zones touchées : {0} / {1}", m.Str("covered"), m.Str("total"));
+                case "screen": return Loc.F("Couleur {0} / {1}", m.Str("color"), m.Str("total"));
                 case "storage_speed": return Loc.F("Écriture : {0} / {1} Mo", m.Str("mb"), m.Str("total"));
                 case "sensors":
                     if (!m.HasJson || m.Json.ValueKind != JsonValueKind.Object) return "";
