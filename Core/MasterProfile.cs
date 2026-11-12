@@ -41,6 +41,8 @@ namespace ADBToolsNew.Core
         /// <summary>Ce qui ne se réinjecte pas par ADB (compte Google, Wi-Fi d'entreprise, certificat…) : étapes à faire à la main,
         /// rappelées dans le bilan, avec l'écran du terminal ouvert au bon endroit.</summary>
         public List<MasterStep> Steps { get; set; } = new List<MasterStep>();
+        /// <summary>Réglages constructeur (profil StageNow Zebra…), appliqués seulement sur les terminaux de la marque.</summary>
+        public List<MasterVendorBlock> Vendor { get; set; } = new List<MasterVendorBlock>();
 
         public const string ManifestName = "master.xml";
         public const string FileExtension = ".adbmaster";

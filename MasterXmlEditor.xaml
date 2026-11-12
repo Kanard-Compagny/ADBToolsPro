@@ -1,0 +1,167 @@
+<Window x:Class="ADBToolsNew.MasterXmlEditor"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="http://icsharpcode.net/sharpdevelop/avalonedit"
+        Title="XML du profil — ADB Tools" Width="1240" Height="780" MinWidth="760" MinHeight="420"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
+        WindowStyle="None" ResizeMode="CanResize"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
+        FontFamily="{DynamicResource FontUi}" Icon="app_icon.ico">
+    <!-- Éditeur du XML d'un profil constructeur (StageNow…), fenêtre séparée qu'on garde à côté du Master :
+         vérifié à chaque frappe, le Master suit tant que le XML est valide. Même barre de titre que DocumentWindow. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <Style x:Key="XmlTitleButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TitleInk}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource TitleHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="XmlCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource XmlTitleButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#C42B1C"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="XmlToolButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="RootBorder" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="38"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="30"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Background="{DynamicResource TitleBg}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Image Source="/Resources/logo_adbtools.png" Width="18" Height="18" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock x:Name="TxtWindowTitle" Text="XML du profil" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TitleInk}" VerticalAlignment="Center"/>
+                    <TextBlock Text="ADB Tools" FontSize="12" Foreground="{DynamicResource TitleMuted}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="&#xE921;" Click="BtnMin_Click" Style="{StaticResource XmlTitleButtonStyle}"/>
+                    <Button x:Name="BtnMax" Content="&#xE922;" Click="BtnMax_Click" Style="{StaticResource XmlTitleButtonStyle}"/>
+                    <Button Content="&#xE8BB;" Click="BtnClose_Click" Style="{StaticResource XmlCloseButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1" Background="{DynamicResource ToolbarBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,9">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Button x:Name="BtnFind" Content="🔍 Rechercher (Ctrl+F)" Click="BtnFind_Click" Style="{StaticResource XmlToolButtonStyle}" Margin="0"/>
+                        <Button x:Name="BtnChanges" Content="Voir les changements" Click="BtnChanges_Click" Style="{StaticResource XmlToolButtonStyle}"/>
+                        <Button x:Name="BtnRevert" Content="Revenir à l'original" Click="BtnRevert_Click" Style="{StaticResource XmlToolButtonStyle}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Ellipse x:Name="DotState" Width="8" Height="8" Fill="{DynamicResource OkFg}" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtState" Text="XML valide · synchronisé avec le Master" Foreground="{DynamicResource OkFg}" FontSize="12.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <Border x:Name="ErrorBar" Grid.Row="2" Background="{DynamicResource BadBg}" Padding="14,7" Visibility="Collapsed">
+                <TextBlock x:Name="TxtError" Foreground="{DynamicResource BadFg}" FontSize="12.5" TextWrapping="Wrap"/>
+            </Border>
+
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="330"/>
+                </Grid.ColumnDefinitions>
+                <ae:TextEditor x:Name="Editor" Grid.Column="0" FontFamily="Consolas" FontSize="13" ShowLineNumbers="True"
+                               Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}" LineNumbersForeground="{DynamicResource Muted}"
+                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Padding="6,6,0,0"/>
+                <Border Grid.Column="1" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0" Padding="14,12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Étapes lues" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock DockPanel.Dock="Top" Text="Cliquez une étape pour aller à sa ligne. Le Master suit en direct." Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,8"/>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Rectangle Width="10" Height="10" Fill="{DynamicResource Accent}" Margin="0,0,6,0"/>
+                                <TextBlock Text="ligne modifiée" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Rectangle Width="10" Height="10" Fill="{DynamicResource Action}" Margin="0,0,6,0"/>
+                                <TextBlock Text="étape sensible" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="StepsHost"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="4" Background="{DynamicResource ToolbarBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="14,0">
+                <DockPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtSaved" DockPanel.Dock="Right" Text="Enregistré avec le Master" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="TxtCaret" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,18,0"/>
+                        <TextBlock x:Name="TxtCount" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,18,0"/>
+                        <TextBlock Text="Original gardé dans le Master" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

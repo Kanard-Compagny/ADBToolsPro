@@ -38,6 +38,10 @@ namespace ADBToolsNew
             public string Model = "";
             public string Android = "";
             public int Sdk;
+            /// <summary>Fabricant (ro.product.manufacturer) et marque reconnue (réglages constructeur), version MX (Zebra).</summary>
+            public string Manufacturer = "";
+            public string Brand = "";
+            public string MxVersion = "";
             public string Outcome = "";
             public string Message = "";
             public readonly List<MasterResult> Results = new List<MasterResult>();
@@ -95,8 +99,10 @@ namespace ADBToolsNew
                 {
                     try
                     {
-                        var s = await _adbManager.RunShellSectionsAsync(t.Serial, TimeSpan.FromSeconds(10), "getprop ro.product.model", "getprop ro.build.version.release", "getprop ro.build.version.sdk");
+                        var s = await _adbManager.RunShellSectionsAsync(t.Serial, TimeSpan.FromSeconds(10), "getprop ro.product.model", "getprop ro.build.version.release", "getprop ro.build.version.sdk", "getprop ro.product.manufacturer", "getprop ro.product.brand");
                         t.Model = s[0]; t.Android = s[1]; int.TryParse(s[2], out t.Sdk);
+                        t.Manufacturer = s.Length > 3 ? s[3] : "";
+                        t.Brand = VendorModules.BrandOf(t.Manufacturer, s.Length > 4 ? s[4] : "");
                     }
                     catch { }
                 }));
@@ -230,6 +236,8 @@ namespace ADBToolsNew
                 if (list.Count == 0) list = MasterProfile.ParsePackagesWithVersion((await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm list packages", TimeSpan.FromSeconds(30))).StandardOutput);
                 t.Installed.Clear();
                 foreach (var p in list) t.Installed[p.Key] = p.Value;
+                if (t.Brand == VendorModules.Zebra && m.Vendor.Any())
+                    t.MxVersion = VendorModules.ParseMxVersion((await _adbManager.ExecuteAsync($"-s {t.Serial} shell dumpsys package com.symbol.mxmf", TimeSpan.FromSeconds(20))).StandardOutput);
                 t.AnalyzedMaster = m;
                 ShowMasterTargetPlan(t);
             }
@@ -256,7 +264,18 @@ namespace ADBToolsNew
             string text = apps.Count == 0 ? Loc.T("Analysé : aucune appli à installer")
                 : Loc.F("Analysé : {0} à installer, {1} à mettre à jour, {2} déjà à jour", install, update, same)
                   + (newer > 0 ? Loc.F(", {0} plus récente(s) sur ce terminal", newer) : "");
+            // Réglages constructeur : ignorés sur une autre marque (information), MX plus ancien que le profil (à surveiller).
+            string vendorInfo = "";
+            foreach (var b in m.Vendor.Where(x => x.Include))
+            {
+                var vp = VendorProfile(b);
+                if (!vp.Ok || !vp.Steps.Any(b.IsChecked)) continue;
+                if (b.Brand != t.Brand) vendorInfo = Loc.F("réglages {0} ignorés (autre marque)", b.Brand);
+                else if (vp.MinVersion.Length > 0 && t.MxVersion.Length > 0 && VendorModules.CompareVersions(t.MxVersion, vp.MinVersion) < 0)
+                    notes.Add(Loc.F("profil fait pour MX {0}, terminal en MX {1} : certaines étapes peuvent être refusées", vp.MinVersion, t.MxVersion));
+            }
             if (notes.Count > 0) text += " · ⚠ " + string.Join(" · ", notes);
+            if (vendorInfo.Length > 0) text += " · " + vendorInfo;
             MasterStatus(t, (newer > 0 || notes.Count > 0 ? "⚠ " : "✅ ") + text, newer > 0 || notes.Count > 0 ? "WarnFg" : "OkFg");
 
             t.PlanPanel.Children.Clear();
@@ -492,7 +511,7 @@ namespace ADBToolsNew
         private StackPanel _masterViewHost;
 
         // Catégories du contenu, dans l'ordre des onglets.
-        private static readonly string[] MasterViews = { "steps", "apps", "settings", "wifi", "home", "files", "commands" };
+        private static readonly string[] MasterViews = { "steps", "apps", "settings", "wifi", "home", "files", "vendor", "commands" };
 
         /// <summary>Ce qui reste à compléter avant l'envoi (mots de passe Wi-Fi, APK non récupérés…), pour le bandeau et la confirmation.</summary>
         private List<string> MasterPendingItems()
@@ -505,6 +524,9 @@ namespace ADBToolsNew
             if (apk > 0) list.Add(Loc.F("{0} appli(s) non récupérée(s) (APK à ajouter depuis le PC)", apk));
             int steps = _master.Steps.Count(s => s.Include);
             if (steps > 0) list.Add(Loc.F("{0} étape(s) à faire à la main sur chaque terminal", steps));
+            int vendorFiles = VendorMissingFiles();
+            if (vendorFiles > 0) list.Add(Loc.F("{0} fichier(s) du profil constructeur à joindre", vendorFiles));
+            if (VendorHasInvalidXml()) list.Add(Loc.T("XML constructeur invalide"));
             return list;
         }
 
@@ -552,6 +574,7 @@ namespace ADBToolsNew
                 case "wifi": return Loc.F("📶 Wi-Fi · {0}", m.WifiNetworks.Count(x => x.Include)) + (MasterMissingPasswords() > 0 ? " ⚠" : "");
                 case "home": return Loc.T("🏠 Lanceur et MDM");
                 case "files": return Loc.F("📁 Fichiers · {0}", m.Files.Count(x => x.Include));
+                case "vendor": return Loc.F("🏭 Constructeur · {0}", VendorCheckedCount()) + (VendorMissingFiles() > 0 || VendorHasInvalidXml() ? " ⚠" : "");
                 default: return Loc.F("⌨️ Commandes · {0}", m.Commands.Count);
             }
         }
@@ -564,6 +587,7 @@ namespace ADBToolsNew
             {
                 case "wifi": return MasterMissingPasswords() > 0;
                 case "apps": return _master.Apps.Any(a => a.Files.Count == 0);
+                case "vendor": return VendorMissingFiles() > 0 || VendorHasInvalidXml();
                 default: return false;
             }
         }
@@ -756,6 +780,10 @@ namespace ADBToolsNew
                         }).ToList(),
                         () => { BtnMasterAddFile_Click(null, null); return Task.CompletedTask; }, Loc.T("＋ Fichier du PC"),
                         CmbMasterSource.Items.Count > 0 ? (Func<Task>)(() => { BtnMasterAddFolder_Click(null, null); return Task.CompletedTask; }) : null, Loc.T("＋ Dossier du terminal"));
+                    break;
+
+                case "vendor":
+                    RenderMasterVendorView();
                     break;
 
                 default:
@@ -1680,6 +1708,7 @@ namespace ADBToolsNew
                     Loc.F("« {0} » va être appliqué à {1} terminal(aux) : {2} application(s), {3} réglage(s), Wi-Fi, fichiers et commandes cochés.{4}\n\nLes terminaux ne sont pas effacés : ce qui existe déjà est mis à jour ou laissé tel quel. Continuer ?",
                         m.Name, targets.Count, apps, settings, ownerNote), Loc.T("Appliquer"), Loc.T("Annuler"), false))
                 return;
+            if (!await ConfirmVendorSensitiveAsync()) return;
 
             _masterBusy = true;
             UpdateMasterApplyButton();
@@ -1740,6 +1769,9 @@ namespace ADBToolsNew
             t.PlanPanel.Visibility = Visibility.Collapsed;
             t.HelperVersion = 0;
             if (t.AnalyzedMaster != m) await AnalyzeMasterTargetAsync(t);
+            // Réglages constructeur à appliquer ici : la mini appli (version EMDK) est mise en place avant le Wi-Fi, pour
+            // qu'un remplacement de l'ancienne version ne retire pas les réseaux enregistrés juste après.
+            if (VendorAppliesTo(t, m)) await EnsureMasterHelperAsync(t, MasterHelperApp.MxMinVersion);
             var apps = m.Apps.Where(a => a.Include && a.Files.Count > 0).ToList();
             int total = apps.Count + 6 + m.Files.Count(f => f.Include) + m.Commands.Count, step = 0;
             void Advance() => t.Bar.Value = Math.Min(100, ++step * 100.0 / Math.Max(1, total));
@@ -1940,6 +1972,9 @@ namespace ADBToolsNew
                     Advance();
                 }
 
+                // 7 bis. Réglages constructeur (profil StageNow…), étapes ordinaires.
+                await ApplyVendorAsync(t, m, false);
+
                 // 8. Commandes libres.
                 foreach (var c in m.Commands)
                 {
@@ -1964,6 +1999,9 @@ namespace ADBToolsNew
                     MasterAdd(t, catSteps, st.Title + (st.Detail.Length > 0 ? " — " + st.Detail : ""), "todo",
                         screenOpened == st.Title ? Loc.T("écran ouvert sur le terminal") : "");
                 }
+
+                // 10. Étapes constructeur sensibles (remise à zéro, débogage USB…), confirmées : tout à la fin.
+                await ApplyVendorAsync(t, m, true);
 
                 int ko = t.Results.Count(r => r.Status == "ko"), todo = steps.Count;
                 t.Outcome = ko == 0 && todo == 0 ? "ok" : "warn";

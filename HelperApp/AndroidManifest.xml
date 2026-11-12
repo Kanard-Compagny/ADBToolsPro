@@ -2,14 +2,16 @@
 <!-- Mini appli « ADB Tools Helper », installée par le Master d'ADB Tools pour ce qu'ADB seul ne peut plus faire :
      - enregistrer un réseau Wi-Fi (depuis Android 11, « cmd wifi connect-network » est réservé aux terminaux rootés ;
        une appli visant Android 9, targetSdkVersion 28, peut encore le faire) ;
-     - changer la langue du système (autorisation CHANGE_CONFIGURATION, accordée par ADB avec « pm grant »).
-     Pas d'icône, pas d'écran : deux récepteurs réservés à ADB (autorisation DUMP, que seuls le shell ADB et le
+     - changer la langue du système (autorisation CHANGE_CONFIGURATION, accordée par ADB avec « pm grant ») ;
+     - appliquer les réglages constructeur Zebra (étapes MX d'un profil StageNow) par EMDK, l'interface officielle de
+       Zebra pour les applis ; facultative (required="false") : l'appli s'installe aussi sur les autres marques.
+     Pas d'icône, pas d'écran : des récepteurs réservés à ADB (autorisation DUMP, que seuls le shell ADB et le
      système possèdent). Elle reste installée : Android retire les réseaux d'une appli quand on la désinstalle.
      Aucune donnée n'est envoyée ailleurs. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.helper"
-    android:versionCode="3"
-    android:versionName="1.2">
+    android:versionCode="4"
+    android:versionName="1.3">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="28" />
 
@@ -18,9 +20,13 @@
     <uses-permission android:name="android.permission.CHANGE_CONFIGURATION" />
     <!-- Exigée par Android 14 pour changer la langue (« modifier les paramètres système »), accordée par « appops set ». -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!-- Zebra : accès à EMDK (réglages MX). Ignorée sur les autres marques. -->
+    <uses-permission android:name="com.symbol.emdk.permission.EMDK" />
 
     <application android:label="ADB Tools Helper" android:allowBackup="false">
+        <uses-library android:name="com.symbol.emdk" android:required="false" />
         <receiver android:name=".AddNetwork" android:exported="true" android:permission="android.permission.DUMP" />
         <receiver android:name=".SetLocale" android:exported="true" android:permission="android.permission.DUMP" />
+        <receiver android:name=".ApplyMx" android:exported="true" android:permission="android.permission.DUMP" />
     </application>
 </manifest>

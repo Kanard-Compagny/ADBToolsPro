@@ -12,16 +12,22 @@ namespace ADBToolsNew.Core
     {
         public const string Package = "fr.kanard.adbtools.helper";
         /// <summary>versionCode de l'appli livrée (HelperApp/AndroidManifest.xml) : une version plus ancienne sur le terminal est remplacée.</summary>
-        public const int VersionCode = 3;
+        public const int VersionCode = 4;
         /// <summary>Version minimale par opération : Wi-Fi depuis la 1, langue depuis la 3 (déclaration de WRITE_SETTINGS).</summary>
         public const int WifiMinVersion = 1;
         public const int LocaleMinVersion = 3;
+        /// <summary>Réglages constructeur Zebra (EMDK) depuis la 4.</summary>
+        public const int MxMinVersion = 4;
         public static string ApkPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HelperApp", "ADBToolsHelper.apk");
 
         /// <summary>Arguments de « adb shell » pour enregistrer un réseau Wi-Fi.</summary>
         public static string AddNetworkCommand(string ssid, string type, string password, bool hidden) =>
             $"am broadcast -f 32 -n {Package}/.AddNetwork --es ssid {MasterProfile.ShellQuote(ssid)} --es type {type} " +
             $"--es pass {MasterProfile.ShellQuote(password ?? "")} --ez hidden {(hidden ? "true" : "false")}";
+
+        /// <summary>Arguments de « adb shell » pour appliquer une étape MX (Zebra) : XML en Base64 (voir ApplyMx.java).</summary>
+        public static string ApplyMxCommand(string xml64) =>
+            $"am broadcast -f 32 -n {Package}/.ApplyMx --es name ADBTools --es xml64 {xml64}";
 
         /// <summary>Arguments de « adb shell » pour changer la langue du système (ex. fr-FR).</summary>
         public static string SetLocaleCommand(string locale) =>

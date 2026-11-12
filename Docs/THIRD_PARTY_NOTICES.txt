@@ -120,7 +120,20 @@ Utilisé pour afficher les QR codes Wi-Fi du Master, à scanner depuis le
 terminal quand un réseau ne peut pas être enregistré automatiquement.
 
 Licence disponible intégralement à l'adresse :
-https://github.com/Live-Charts/Live-Charts/blob/master/LICENSE.TXT
+https://github.com/codebude/QRCoder/blob/master/LICENSE.txt
+
+--------------------------------------------------------------------------------
+9. AvalonEdit (assemblage embarqué dans l'application)
+--------------------------------------------------------------------------------
+Éditeur    : AvalonEdit Contributors (projet ICSharpCode / ILSpy)
+Licence    : MIT License
+Source     : https://github.com/icsharpcode/AvalonEdit
+
+Utilisé pour l'éditeur XML des réglages constructeur du Master (coloration,
+numéros de ligne, recherche).
+
+Licence disponible intégralement à l'adresse :
+https://github.com/icsharpcode/AvalonEdit/blob/master/LICENSE
 
 --------------------------------------------------------------------------------
 8. Bibliothèques .NET (System.Text.Json et dépendances)

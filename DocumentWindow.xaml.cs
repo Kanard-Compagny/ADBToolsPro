@@ -88,6 +88,7 @@ namespace ADBToolsNew
                 new[] { "FFmpeg", "https://ffmpeg.org/", V(ToolComponent.FFmpeg), "Filigrane des vidéos (facultatif)", "GPL v3 (build gyan.dev)" },
                 new[] { "DocumentFormat.OpenXml", "https://github.com/dotnet/Open-XML-SDK", "2.20.0", "Génération des rapports Word", "MIT" },
                 new[] { "LiveCharts", "https://github.com/Live-Charts/Live-Charts", "0.9.7", "Graphiques de l'Analyse Wi-Fi", "MIT" },
+                new[] { "AvalonEdit", "https://github.com/icsharpcode/AvalonEdit", "6.3.0.90", "Éditeur XML des réglages constructeur (Master)", "MIT" },
                 new[] { "System.Text.Json et bibliothèques .NET", "https://github.com/dotnet/runtime", "10.0.12", "Lecture des données (JSON), compatibilité .NET", "MIT" }
             };
             w.ContentHost.Children.Add(BuildTable(new[] { "Composant", "Version", "Usage", "Licence" }, rows));
