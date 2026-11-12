@@ -195,6 +195,8 @@ public class MainActivity extends Activity implements Out.Sink {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         L.load(this);
+        Out.init(new java.io.File(getExternalFilesDir(null) != null ? getExternalFilesDir(null) : getFilesDir(), "results"));
+        restoreResults();
         Intent launch = getIntent();
         if (launch != null) L.apply(this, launch.getStringExtra("lang"), launch.getStringExtra("theme"));
         buildUi();
@@ -301,6 +303,27 @@ public class MainActivity extends Activity implements Out.Sink {
         if (indexOf(cmd) < 0) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
         runAll = false;
         startTest(cmd, true);
+    }
+
+    /** Résultats gardés sur le terminal : relus au démarrage (le verdict du technicien prime sur la mesure). */
+    private void restoreResults() {
+        JSONObject all = Out.saved();
+        java.util.Iterator<String> it = all.keys();
+        while (it.hasNext()) {
+            String id = it.next();
+            JSONObject e = all.optJSONObject(id);
+            if (e == null || indexOf(id) < 0) continue;
+            String st = field(e.optString("verdict", ""), 2);
+            if (st.length() == 0) st = field(e.optString("result", ""), 2);
+            if (st.length() == 0) continue;
+            status.put(id, st);
+            statusAt.put(id, e.optLong("at", System.currentTimeMillis()));
+        }
+    }
+
+    private static String field(String line, int i) {
+        String[] p = line.split("\t");
+        return i < p.length ? p[i].trim() : "";
     }
 
     // ------------------------------------------------------------------ Tests
@@ -1011,7 +1034,7 @@ public class MainActivity extends Activity implements Out.Sink {
 
     /** « Tout tester » : reprend au premier test non fait (ou recommence tout si reset). */
     private void startAll(boolean reset) {
-        if (reset) { status.clear(); statusAt.clear(); }
+        if (reset) { status.clear(); statusAt.clear(); Out.clearResults(); }
         String next = nextUntested(null);
         if (next == null) { show(S_DIAG); return; }
         runAll = true;
@@ -1112,7 +1135,11 @@ public class MainActivity extends Activity implements Out.Sink {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(dp(14), 0, dp(14), 0);
-                row.setBackground(rounded(L.surface, 0, 10));
+                row.setFocusable(true);
+                row.setClickable(true);
+                row.setBackground(selector(L.surface, 0, L.surface2, 10));
+                final String tid = id;
+                row.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { runAll = false; startTest(tid, false); } });
                 row.addView(text(label(id), 15, L.ink, false), new LinearLayout.LayoutParams(0, -2, 1f));
                 Long at = statusAt.get(id);
                 if (at != null) { TextView tm = text(f.format(new Date(at)), 12, L.muted, false); tm.setPadding(0, 0, dp(10), 0); row.addView(tm); }
@@ -1604,10 +1631,45 @@ public class MainActivity extends Activity implements Out.Sink {
         wifiIdle = text("", 15, L.ink, false);
         wifiStopped.addView(wifiIdle);
         Button start = actionButton(L.t("Démarrer une mesure", "Start a survey"));
-        start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startSurvey(null); } });
+        start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askSurveyTarget(); } });
         wifiStopped.addView(start, lpButton(start, 52, 16));
         p.addView(wifiStopped);
         return scroll(p);
+    }
+
+    /** Mesure lancée depuis l'appli : cible du ping (passerelle, serveur public ou adresse au choix). */
+    private void askSurveyTarget() {
+        final String[] targets = { "", "8.8.8.8", "1.1.1.1", null };
+        String[] labels = { L.t("Passerelle du réseau (automatique)", "Network gateway (automatic)"), "8.8.8.8 (Google)", "1.1.1.1 (Cloudflare)",
+                L.t("Autre adresse…", "Other address…") };
+        dialog().setTitle(L.t("Cible du ping", "Ping target"))
+                .setItems(labels, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        if (targets[which] != null) { startSurveyTo(targets[which]); return; }
+                        final EditText addr = new EditText(MainActivity.this);
+                        addr.setHint(L.t("Adresse IP ou nom de serveur", "IP address or server name"));
+                        addr.setSingleLine(true);
+                        dialog().setTitle(L.t("Cible du ping", "Ping target"))
+                                .setView(addr)
+                                .setPositiveButton(L.t("Démarrer", "Start"), new android.content.DialogInterface.OnClickListener() {
+                                    @Override public void onClick(android.content.DialogInterface d2, int w) {
+                                        String a = addr.getText().toString().trim();
+                                        startSurveyTo(a.matches("[A-Za-z0-9.\\-:]+") ? a : "");
+                                    }
+                                })
+                                .setNegativeButton(L.t("Annuler", "Cancel"), null).show();
+                    }
+                })
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
+    }
+
+    private void startSurveyTo(String target) {
+        Bundle b = new Bundle();
+        b.putString(SurveyService.EXTRA_TARGET, target);
+        b.putInt(SurveyService.EXTRA_INTERVAL, 1000);
+        b.putInt(SurveyService.EXTRA_DURATION, 0);
+        startSurvey(b);
     }
 
     private void startSurvey(Bundle extras) {
@@ -1907,13 +1969,26 @@ public class MainActivity extends Activity implements Out.Sink {
 
     private View buildResults() {
         LinearLayout p = page();
-        TextView intro = text(L.t("Résultats de cette session. Reliée au PC, l'appli les envoie aussi à ADB Tools au fil des tests.",
-                "Results of this session. When linked to the PC, the app also sends them to ADB Tools as tests go."), 13, L.muted, false);
+        TextView intro = text(L.t("Résultats gardés sur le terminal. Appuyez sur un test pour le refaire ou changer son résultat.",
+                "Results kept on the device. Tap a test to run it again or change its result."), 13, L.muted, false);
         intro.setPadding(0, 0, 0, dp(12));
         p.addView(intro);
         resultsList = new LinearLayout(this);
         resultsList.setOrientation(LinearLayout.VERTICAL);
         p.addView(resultsList);
+        Button send = actionButton(L.t("Envoyer au PC", "Send to the PC"));
+        send.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Out.export();
+                dialog().setTitle(L.t("Envoyer au PC", "Send to the PC"))
+                        .setMessage(L.t("Si le terminal est branché au PC avec ADB Tools ouvert, la fenêtre de récupération s'ouvre sur le PC.\n\n"
+                                        + "Sinon, branchez-le et appuyez de nouveau, ou utilisez « Récupérer du terminal » dans Diagnostics SAV ▸ Tests du terminal.",
+                                "If the device is plugged into the PC with ADB Tools open, the retrieval window opens on the PC.\n\n"
+                                        + "Otherwise, plug it in and tap again, or use \"Retrieve from the device\" in SAV Diagnostics ▸ Device tests."))
+                        .setPositiveButton("OK", null).show();
+            }
+        });
+        p.addView(send, lpButton(send, 52, 16));
         return scroll(p);
     }
 

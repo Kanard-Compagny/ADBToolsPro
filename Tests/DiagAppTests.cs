@@ -34,5 +34,22 @@ namespace ADBToolsNew.Tests
             Assert.IsTrue(m.Success);
             Assert.AreEqual(int.Parse(m.Groups[1].Value), DiagApp.VersionCode);
         }
+
+        [TestMethod]
+        public void ParseSavedResults_ResultThenVerdict()
+        {
+            string json = "{\"version\":1,\"tests\":{\"storage_speed\":{\"result\":\"RESULT\\tstorage_speed\\tok\\teyJ3cml0ZV9tYnMiOjEyMC41LCJyZWFkX21icyI6ODAwLCJzaXplX21iIjo2NH0=\",\"at\":1762945200000},"
+                        + "\"speaker\":{\"result\":\"RESULT\\tspeaker\\tconfirm\\te30=\",\"verdict\":\"VERDICT\\tspeaker\\tok\",\"at\":1762945300000}}}";
+            var list = DiagApp.ParseSavedResults(json);
+            Assert.AreEqual(3, list.Count);
+            var storage = list.Find(x => x.Message.Test == "storage_speed").Message;
+            Assert.AreEqual("RESULT", storage.Type);
+            Assert.AreEqual("ok", storage.Status);
+            Assert.AreEqual("120.5", storage.Str("write_mbs"));
+            var verdict = list.Find(x => x.Message.Type == "VERDICT").Message;
+            Assert.AreEqual("speaker", verdict.Test);
+            Assert.AreEqual("ok", verdict.Status);
+            Assert.AreEqual(0, DiagApp.ParseSavedResults("cat: No such file or directory").Count);
+        }
     }
 }

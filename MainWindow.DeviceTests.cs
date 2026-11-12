@@ -70,6 +70,9 @@ namespace ADBToolsNew
                 _devSerial = dev.Serial;
                 _devSession = true;
                 RememberDiagnosedDevice(dev.Serial);
+                // Tests déjà faits dans l'appli (utilisée seule) : ils complètent les tests vides.
+                var imp = await ImportTerminalResultsAsync(dev.Serial, false);
+                _devImportNote = imp.Imported > 0 ? " " + Loc.F("{0} test(s) déjà fait(s) sur le terminal repris.", imp.Imported) : "";
 
                 _devLogProcess.Start(_adbExePath, DiagApp.LogcatArgs(dev.Serial), line =>
                 {
@@ -118,12 +121,97 @@ namespace ADBToolsNew
             foreach (var it in _devItems.Where(i => i.Status == "⏳")) it.Status = "⚪";
             BtnDevTestsStop.IsEnabled = false;
             BtnDevTestsStart.IsEnabled = true;
-            SetDevStatus(Loc.T("Tests terminés : l'appli de diagnostic a été retirée du terminal. Les résultats restent ci-dessous."));
+            SetDevStatus(Loc.T("Tests terminés : les résultats restent ci-dessous. L'appli reste sur le terminal."));
             RefreshDevTestPanel();
+        }
+
+        private string _devImportNote = "";
+
+        /// <summary>
+        /// Tests faits dans l'appli ADB Tools Diag (gardés sur le terminal) : repris dans la liste. Un test déjà fait ici est
+        /// gardé, sauf si <paramref name="replaceMeasured"/> et qu'il n'a qu'une mesure automatique (pas de choix du technicien).
+        /// </summary>
+        private async Task<(int Imported, int Kept)> ImportTerminalResultsAsync(string serial, bool replaceMeasured)
+        {
+            string json;
+            try
+            {
+                var res = await _adbManager.ExecuteAsync($"-s {serial} shell cat {DiagApp.ResultsRemotePath}", TimeSpan.FromSeconds(15));
+                json = res.StandardOutput ?? "";
+            }
+            catch { return (0, 0); }
+            var msgs = DiagApp.ParseSavedResults(json);
+            if (msgs.Count == 0) return (0, 0);
+            if (_devItems.Count == 0)
+                foreach (var def in DeviceTestCatalog.All) _devItems.Add(new DeviceTestItem(def));
+            if (_devSerial != serial)
+            {
+                foreach (var it in _devItems) { it.Status = "⚪"; it.Details = ""; it.Comment = ""; it.LocalFile = null; it.Available = true; it.ManualVerdict = false; }
+                _devSerial = serial;
+            }
+            int imported = 0, kept = 0;
+            foreach (var g in msgs.GroupBy(x => x.Message.Test))
+            {
+                var item = _devItems.FirstOrDefault(i => i.Id == g.Key);
+                if (item == null) continue;
+                bool empty = item.Status == "⚪" || item.Status == "⏳";
+                if (!empty && !(replaceMeasured && !item.ManualVerdict)) { kept++; continue; }
+                foreach (var (m, at) in g)
+                {
+                    if (m.Type == "RESULT")
+                    {
+                        item.Status = DeviceTestText.StatusIcon(m.Status);
+                        item.Details = DeviceTestText.Result(m);
+                        item.ManualVerdict = false;
+                        if (m.Status == "na") item.Available = false;
+                        string remote = m.Str("file");
+                        if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
+                    }
+                    else if (m.Type == "VERDICT")
+                    {
+                        string icon = DeviceTestText.StatusIcon(m.Status);
+                        item.Status = icon;
+                        item.ManualVerdict = icon != "⚪";
+                        if (icon == "⚪") { item.Details = ""; item.LocalFile = null; }
+                        else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
+                    }
+                }
+                imported++;
+            }
+            RefreshDevSummary();
+            RefreshDevTestPanel();
+            return (imported, kept);
+        }
+
+        private async void BtnDevTestsImport_Click(object sender, RoutedEventArgs e)
+        {
+            var dev = DeviceComboBox.SelectedItem as AndroidDevice;
+            if (dev == null || dev.State != "device")
+            {
+                await ShowCustomDialogAsync(Loc.T("🧪 Tests du terminal"), Loc.T("Connectez d'abord un terminal (ADB autorisé)."), Loc.T("OK"), "", false);
+                return;
+            }
+            BtnDevTestsImport.IsEnabled = false;
+            try { ShowImportStatus(await ImportTerminalResultsAsync(dev.Serial, false)); }
+            finally { BtnDevTestsImport.IsEnabled = true; }
+        }
+
+        private void ShowImportStatus((int Imported, int Kept) r)
+        {
+            SetDevStatus(r.Imported + r.Kept == 0 ? Loc.T("Aucun test enregistré dans l'appli sur ce terminal.")
+                : Loc.F("{0} test(s) récupéré(s) du terminal ; {1} déjà fait(s) ici, gardé(s).", r.Imported, r.Kept));
+        }
+
+        /// <summary>« Envoyer au PC » dans l'appli : la fenêtre des tests s'ouvre avec les résultats du terminal.</summary>
+        private async void OnDiagAppExport(string serial)
+        {
+            BtnOpenDeviceTests_Click(null, null);
+            ShowImportStatus(await ImportTerminalResultsAsync(serial, true));
         }
 
         private void StopDeviceTestsOnExit()
         {
+            try { _diagWatch.Stop(); } catch { }
             _devSession = false;
             try { _devLogProcess.Stop(); } catch { }
         }
@@ -150,7 +238,7 @@ namespace ADBToolsNew
                     string model = string.Join(" ", new[] { _devFeatures.Manufacturer, _devFeatures.Model }.Where(x => !string.IsNullOrWhiteSpace(x)));
                     int count = _devItems.Count(i => i.Available);
                     SetDevStatus(Loc.F("Prêt : {0} (Android {1}) — {2} test(s) possible(s). Choisissez un test dans la liste.", model, _devFeatures.Android, count)
-                                 + (string.IsNullOrEmpty(_devFeatures.Scanner) ? "" : " " + Loc.F("Lecteur détecté : {0}.", _devFeatures.Scanner)));
+                                 + (string.IsNullOrEmpty(_devFeatures.Scanner) ? "" : " " + Loc.F("Lecteur détecté : {0}.", _devFeatures.Scanner)) + _devImportNote);
                     BtnDevTestsStart.IsEnabled = false;
                     if (DevTestsList.SelectedIndex < 0) DevTestsList.SelectedItem = _devItems.FirstOrDefault(i => i.Available);
                     RefreshDevTestPanel();

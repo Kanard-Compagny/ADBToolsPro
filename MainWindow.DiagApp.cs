@@ -20,6 +20,31 @@ namespace ADBToolsNew
         private DateTime _diagAppPopupLastClosed;
         private int _diagAppInstalledVersion = -1;
 
+        // Écoute de l'appli sur le terminal sélectionné : « Envoyer au PC » ouvre la fenêtre de récupération.
+        private readonly AdbStreamProcess _diagWatch = new AdbStreamProcess();
+        private string _diagWatchSerial;
+
+        private void UpdateDiagWatch(string serial, bool installed)
+        {
+            if (serial == null || !installed)
+            {
+                try { _diagWatch.Stop(); } catch { }
+                _diagWatchSerial = null;
+                return;
+            }
+            if (_diagWatchSerial == serial && _diagWatch.IsRunning) return;
+            _diagWatchSerial = serial;
+            try
+            {
+                _diagWatch.Start(_adbExePath, DiagApp.LogcatArgs(serial), line =>
+                {
+                    var m = DiagMessage.Parse(line);
+                    if (m != null && m.Type == "EXPORT") Dispatcher.InvokeAsync(() => OnDiagAppExport(serial));
+                });
+            }
+            catch { _diagWatchSerial = null; }
+        }
+
         /// <summary>Version installée sur le terminal (0 : absente, -1 : illisible).</summary>
         private async Task<int> GetDiagAppVersionAsync(string serial)
         {
@@ -127,10 +152,11 @@ namespace ADBToolsNew
             string serial = CurrentSerial();
             BtnDiagApp.IsEnabled = serial != null;
             BtnDiagApp.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
-            if (serial == null) { TxtDiagAppButton.Text = Loc.T("Appli Diag"); _diagAppInstalledVersion = -1; return; }
+            if (serial == null) { TxtDiagAppButton.Text = Loc.T("Appli Diag"); _diagAppInstalledVersion = -1; UpdateDiagWatch(null, false); return; }
             int v = await GetDiagAppVersionAsync(serial);
             if (CurrentSerial() != serial) return; // terminal changé entre-temps
             _diagAppInstalledVersion = v;
+            UpdateDiagWatch(serial, v > 0);
             if (v == 0) TxtDiagAppButton.Text = Loc.T("Installer l'appli Diag");
             else if (v > 0 && v < DiagApp.VersionCode)
             {

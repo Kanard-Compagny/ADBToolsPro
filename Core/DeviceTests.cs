@@ -17,7 +17,7 @@ namespace ADBToolsNew.Core
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
         /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
-        public const int VersionCode = 8;
+        public const int VersionCode = 9;
 
         /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
         public static int ParseInstalledVersion(string dumpsys)
@@ -33,6 +33,39 @@ namespace ADBToolsNew.Core
         /// du programme : l'appli s'affiche comme lui.</summary>
         public static string CommandArgs(string serial, string cmd) =>
             $"-s {serial} shell am start -n {Activity} -e cmd {cmd} -e lang {(Loc.IsEnglish ? "en" : "fr")} -e theme {(ThemeManager.Current == AppTheme.Light ? "light" : "dark")}";
+
+        /// <summary>Résultats des tests gardés sur le terminal par l'appli (Out.java).</summary>
+        public const string ResultsRemotePath = "/sdcard/Android/data/" + Package + "/files/results/tests.json";
+
+        /// <summary>
+        /// tests.json de l'appli → messages RESULT puis VERDICT de chaque test (même format que le journal), avec l'heure.
+        /// </summary>
+        public static List<(DiagMessage Message, DateTime At)> ParseSavedResults(string json)
+        {
+            var list = new List<(DiagMessage, DateTime)>();
+            try
+            {
+                using (var doc = JsonDocument.Parse(json ?? ""))
+                {
+                    if (!doc.RootElement.TryGetProperty("tests", out var tests) || tests.ValueKind != JsonValueKind.Object) return list;
+                    foreach (var t in tests.EnumerateObject())
+                    {
+                        if (t.Value.ValueKind != JsonValueKind.Object) continue;
+                        DateTime at = DateTime.Now;
+                        if (t.Value.TryGetProperty("at", out var a) && a.TryGetInt64(out long ms))
+                            at = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime;
+                        foreach (var key in new[] { "result", "verdict" })
+                        {
+                            if (!t.Value.TryGetProperty(key, out var line) || line.ValueKind != JsonValueKind.String) continue;
+                            var m = DiagMessage.Parse(LogTag + ": " + line.GetString());
+                            if (m != null && m.Test == t.Name) list.Add((m, at));
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
 
         /// <summary>Flux du journal limité à l'appli, à partir de maintenant.</summary>
         public static string LogcatArgs(string serial) => $"-s {serial} logcat -T 1 -v brief -s {LogTag}:I";
@@ -63,7 +96,7 @@ namespace ADBToolsNew.Core
                 case "LIVE": m.Test = Get(p, 1); m.SetJson(Get(p, 2)); break;
                 case "RESULT": m.Test = Get(p, 1); m.Status = Get(p, 2); m.SetJson(Get(p, 3)); break;
                 case "VERDICT": m.Test = Get(p, 1); m.Status = Get(p, 2); break;
-                case "READY": case "SCAN": case "INFO": break;
+                case "READY": case "SCAN": case "INFO": case "EXPORT": break;
                 default: return null;
             }
             return m;
