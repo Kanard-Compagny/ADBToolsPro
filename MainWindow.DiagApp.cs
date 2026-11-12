@@ -1,22 +1,37 @@
-﻿using ADBToolsNew.Core;
+﻿﻿using ADBToolsNew.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace ADBToolsNew
 {
     /// <summary>
-    /// Appli de diagnostic sur le terminal (DiagApp\ADBToolsDiag.apk), partagée par « Tests du terminal » et
-    /// « Test du lecteur » : installée au premier besoin (autorisations accordées d'office : adb install -g),
-    /// désinstallée quand plus aucune fenêtre ne s'en sert.
+    /// Appli ADB Tools Diag sur le terminal (DiagApp\ADBToolsDiag.apk) : tests du terminal, test du lecteur, mesure
+    /// Wi-Fi, suivi terrain, pilotés par le PC ou utilisés seuls sur le terminal. Elle reste installée jusqu'à ce que
+    /// l'utilisateur la retire (bouton « Appli Diag » de la barre du haut). Installation : autorisations accordées
+    /// d'office (adb install -g), plus les droits réservés au débogage (journal Android, état du système).
     /// </summary>
     public partial class MainWindow
     {
         private string _diagAppSerial;
         private readonly HashSet<string> _diagAppUsers = new HashSet<string>();
+        private DateTime _diagAppPopupLastClosed;
+        private int _diagAppInstalledVersion = -1;
 
-        /// <summary>Installe l'appli si besoin. Faux (avec message) si l'installation est refusée.</summary>
+        /// <summary>Version installée sur le terminal (0 : absente, -1 : illisible).</summary>
+        private async Task<int> GetDiagAppVersionAsync(string serial)
+        {
+            try
+            {
+                var res = await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys package {DiagApp.Package}", TimeSpan.FromSeconds(15));
+                return DiagApp.ParseInstalledVersion(res.StandardOutput);
+            }
+            catch { return -1; }
+        }
+
+        /// <summary>Installe ou met à jour l'appli si besoin. Faux (avec message) si l'installation est refusée.</summary>
         private async Task<bool> EnsureDiagAppAsync(string serial, string user)
         {
             if (!File.Exists(DiagApp.ApkPath))
@@ -27,12 +42,29 @@ namespace ADBToolsNew
             }
             if (_diagAppSerial == serial && _diagAppUsers.Count > 0) { _diagAppUsers.Add(user); return true; }
 
+            // Déjà à jour : rien à installer (les résultats gardés sur le terminal sont conservés).
+            if (await GetDiagAppVersionAsync(serial) < DiagApp.VersionCode && !await InstallDiagAppAsync(serial))
+                return false;
+            _diagAppSerial = serial;
+            _diagAppUsers.Add(user);
+            return true;
+        }
+
+        /// <summary>Installation ou mise à jour, puis droits de débogage. Faux (avec message) en cas d'échec.</summary>
+        private async Task<bool> InstallDiagAppAsync(string serial)
+        {
+            if (!File.Exists(DiagApp.ApkPath))
+            {
+                await ShowCustomDialogAsync(Loc.T("🧪 Appli de diagnostic"),
+                    Loc.F("L'appli de diagnostic est introuvable :\n{0}\n\nElle est fournie avec les versions publiées d'ADB Tools (dossier DiagApp).", DiagApp.ApkPath), Loc.T("OK"), "", false);
+                return false;
+            }
             string apk = AdbManager.QuoteLocalArg(DiagApp.ApkPath);
             var res = await _adbManager.ExecuteAsync($"-s {serial} install -r -t -g {apk}", TimeSpan.FromSeconds(90));
             if (!(res.StandardOutput ?? "").Contains("Success"))
             {
                 // Ancienne version signée autrement (chaque compilation a sa clé) : on la retire d'abord —
-                // sauf si elle garde une mesure Wi-Fi sans câble pas encore récupérée.
+                // sauf si elle garde une mesure Wi-Fi ou un suivi terrain pas encore récupéré.
                 if (await HasPendingSurveyAsync(serial))
                 {
                     await ShowCustomDialogAsync(Loc.T("🧪 Appli de diagnostic"),
@@ -58,42 +90,134 @@ namespace ADBToolsNew
                     Loc.T("OK"), "", false);
                 return false;
             }
-            _diagAppSerial = serial;
-            _diagAppUsers.Add(user);
-            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧪 Appli de diagnostic installée sur {1}.", DateTime.Now, serial));
+            string pkg = DiagApp.Package;
+            // Journal complet et état du système (suivi terrain) : droits réservés au débogage, accordés ici par USB.
+            await _adbManager.ExecuteAsync($"-s {serial} shell pm grant {pkg} android.permission.READ_LOGS");
+            await _adbManager.ExecuteAsync($"-s {serial} shell pm grant {pkg} android.permission.DUMP");
+            // Mesure Wi-Fi et suivi terrain écran éteint : pas de mise en veille profonde ni de restriction d'arrière-plan.
+            await _adbManager.ExecuteAsync($"-s {serial} shell dumpsys deviceidle whitelist +{pkg}");
+            await _adbManager.ExecuteAsync($"-s {serial} shell cmd appops set {pkg} RUN_ANY_IN_BACKGROUND allow");
+            AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📱 ADB Tools Diag installée sur {1}.", DateTime.Now, serial));
+            if (CurrentSerial() == serial) _ = RefreshDiagAppButtonAsync();
             return true;
         }
 
         private Task SendDiagCommandAsync(string serial, string cmd) =>
             _adbManager.ExecuteAsync(DiagApp.CommandArgs(serial, cmd));
 
-        /// <summary>Plus personne ne s'en sert : l'appli est fermée et désinstallée (profil DataWedge retiré).</summary>
-        private async Task ReleaseDiagAppAsync(string user)
+        /// <summary>Plus aucune fenêtre ne s'en sert. L'appli reste sur le terminal (utilisable seule).</summary>
+        private Task ReleaseDiagAppAsync(string user)
         {
             _diagAppUsers.Remove(user);
-            if (_diagAppUsers.Count > 0 || string.IsNullOrEmpty(_diagAppSerial)) return;
-            string serial = _diagAppSerial;
-            _diagAppSerial = null;
+            if (_diagAppUsers.Count == 0) _diagAppSerial = null;
+            return Task.CompletedTask;
+        }
+
+        // ------------------------------------------------------------------ Bouton « Appli Diag » (barre du haut)
+
+        private string CurrentSerial()
+        {
+            var d = DeviceComboBox.SelectedItem as AndroidDevice;
+            return d != null && d.State == "device" ? d.Serial : null;
+        }
+
+        /// <summary>État du bouton selon le terminal sélectionné : à installer, à mettre à jour, à jour.</summary>
+        private async Task RefreshDiagAppButtonAsync()
+        {
+            string serial = CurrentSerial();
+            BtnDiagApp.IsEnabled = serial != null;
+            BtnDiagApp.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
+            if (serial == null) { TxtDiagAppButton.Text = Loc.T("Appli Diag"); _diagAppInstalledVersion = -1; return; }
+            int v = await GetDiagAppVersionAsync(serial);
+            if (CurrentSerial() != serial) return; // terminal changé entre-temps
+            _diagAppInstalledVersion = v;
+            if (v == 0) TxtDiagAppButton.Text = Loc.T("Installer l'appli Diag");
+            else if (v > 0 && v < DiagApp.VersionCode)
+            {
+                TxtDiagAppButton.Text = Loc.T("Mettre à jour l'appli Diag");
+                BtnDiagApp.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "Action");
+            }
+            else TxtDiagAppButton.Text = Loc.T("Appli Diag ✓");
+        }
+
+        private async void BtnDiagApp_Click(object sender, RoutedEventArgs e)
+        {
+            if ((DateTime.Now - _diagAppPopupLastClosed).TotalMilliseconds < 200) return;
+            string serial = CurrentSerial();
+            if (serial == null) return;
+            TxtDiagAppState.Text = Loc.T("Lecture de l'appli sur le terminal…");
+            BtnDiagAppInstall.Visibility = Visibility.Collapsed;
+            BtnDiagAppOpen.Visibility = Visibility.Collapsed;
+            BtnDiagAppRemove.Visibility = Visibility.Collapsed;
+            DiagAppPopup.IsOpen = true;
+            await RefreshDiagAppButtonAsync();
+            int v = _diagAppInstalledVersion;
+            bool installed = v > 0, outdated = v > 0 && v < DiagApp.VersionCode;
+            TxtDiagAppState.Text = v < 0 ? Loc.T("Impossible de lire l'état de l'appli sur ce terminal.")
+                : !installed ? Loc.T("L'appli n'est pas installée sur ce terminal.")
+                : outdated ? Loc.T("Une version plus ancienne est installée : mettez-la à jour.")
+                : Loc.T("L'appli est installée et à jour.");
+            BtnDiagAppInstall.Content = installed ? Loc.T("Mettre à jour (réinstaller)") : Loc.T("Installer sur le terminal");
+            BtnDiagAppInstall.Visibility = !installed || outdated ? Visibility.Visible : Visibility.Collapsed;
+            BtnDiagAppOpen.Visibility = installed ? Visibility.Visible : Visibility.Collapsed;
+            BtnDiagAppRemove.Visibility = installed ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void DiagAppPopup_Closed(object sender, EventArgs e) => _diagAppPopupLastClosed = DateTime.Now;
+
+        private async void BtnDiagAppInstall_Click(object sender, RoutedEventArgs e)
+        {
+            string serial = CurrentSerial();
+            if (serial == null) return;
+            DiagAppPopup.IsOpen = false;
+            BtnDiagApp.IsEnabled = false;
+            TxtDiagAppButton.Text = Loc.T("Installation…");
+            try
+            {
+                if (await InstallDiagAppAsync(serial))
+                    await SendDiagCommandAsync(serial, "idle");   // l'appli s'ouvre sur le terminal
+            }
+            finally { await RefreshDiagAppButtonAsync(); }
+        }
+
+        private async void BtnDiagAppOpen_Click(object sender, RoutedEventArgs e)
+        {
+            string serial = CurrentSerial();
+            DiagAppPopup.IsOpen = false;
+            if (serial != null) await SendDiagCommandAsync(serial, "idle");
+        }
+
+        private async void BtnDiagAppRemove_Click(object sender, RoutedEventArgs e)
+        {
+            string serial = CurrentSerial();
+            DiagAppPopup.IsOpen = false;
+            if (serial == null) return;
+            if (_diagAppUsers.Count > 0 && _diagAppSerial == serial)
+            {
+                await ShowCustomDialogAsync(Loc.T("📱 ADB Tools Diag"), Loc.T("L'appli est en cours d'utilisation par une fenêtre du programme (tests, lecteur, mesure Wi-Fi ou suivi terrain) : terminez-la d'abord."), Loc.T("OK"), "", false);
+                return;
+            }
             if (await HasPendingSurveyAsync(serial))
             {
-                // Une mesure Wi-Fi sans câble n'a pas été récupérée : désinstaller l'appli effacerait le relevé.
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🚶 Appli de diagnostic laissée sur {1} : une mesure Wi-Fi sans câble n'a pas encore été récupérée (Analyse Wi-Fi ▸ Mesure sans câble).", DateTime.Now, serial));
+                await ShowCustomDialogAsync(Loc.T("📱 ADB Tools Diag"), Loc.T("Une mesure Wi-Fi sans câble est encore sur le terminal : récupérez-la d'abord (Analyse Wi-Fi ▸ Mesure sans câble ▸ Récupérer les mesures)."), Loc.T("OK"), "", false);
                 return;
             }
             if (await HasPendingRecordingAsync(serial))
             {
-                // Un enregistrement terrain n'a pas été récupéré : désinstaller l'appli l'effacerait.
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📈 Appli de diagnostic laissée sur {1} : un enregistrement terrain n'a pas encore été récupéré (Analyse de fichiers ▸ Suivi terrain).", DateTime.Now, serial));
+                await ShowCustomDialogAsync(Loc.T("📱 ADB Tools Diag"), Loc.T("Un enregistrement terrain est encore sur le terminal : récupérez-le d'abord (Analyse de fichiers ▸ Suivi terrain ▸ Récupérer l'enregistrement)."), Loc.T("OK"), "", false);
                 return;
             }
+            if (!await ShowCustomDialogAsync(Loc.T("📱 ADB Tools Diag"), Loc.T("Retirer l'appli de ce terminal ? Les résultats gardés dans l'appli seront effacés."), Loc.T("Retirer"), Loc.T("Annuler"), true))
+                return;
             try
             {
                 await _adbManager.ExecuteAsync($"-s {serial} shell am force-stop {DiagApp.Package}");
                 await _adbManager.ExecuteAsync($"-s {serial} uninstall {DiagApp.Package}");
                 await _adbManager.ExecuteAsync($"-s {serial} shell am broadcast -a com.symbol.datawedge.api.ACTION --es com.symbol.datawedge.api.DELETE_PROFILE {DiagApp.DataWedgeProfile}");
-                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧪 Appli de diagnostic retirée de {1}.", DateTime.Now, serial));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📱 ADB Tools Diag retirée de {1}.", DateTime.Now, serial));
             }
             catch { /* terminal débranché entre-temps */ }
+            await RefreshDiagAppButtonAsync();
         }
     }
 }

@@ -775,6 +775,7 @@ namespace ADBToolsNew
             // Pendant la reconstruction de la liste (ItemsSource remplacé), la sélection passe brièvement à null :
             // ce n'est pas une déconnexion, on ignore cet état transitoire.
             if (selectedDevice == null && _isRefreshingDeviceList) return;
+            _ = RefreshDiagAppButtonAsync(); // bouton « Appli Diag » de la barre du haut
 
             if (selectedDevice == null || string.IsNullOrEmpty(selectedDevice.State))
             {

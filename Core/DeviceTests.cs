@@ -16,6 +16,17 @@ namespace ADBToolsNew.Core
         public const string Activity = Package + "/.MainActivity";
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
+        /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
+        public const int VersionCode = 7;
+
+        /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
+        public static int ParseInstalledVersion(string dumpsys)
+        {
+            string s = dumpsys ?? "";
+            if (s.IndexOf("Package [" + Package + "]", StringComparison.Ordinal) < 0) return 0;
+            var m = System.Text.RegularExpressions.Regex.Match(s, @"versionCode=(\d+)");
+            return m.Success && int.TryParse(m.Groups[1].Value, out int v) ? v : 0;
+        }
         public static string ApkPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DiagApp", "ADBToolsDiag.apk");
 
         /// <summary>Arguments adb pour envoyer une commande à l'appli (elle passe au premier plan), avec la langue et le thème

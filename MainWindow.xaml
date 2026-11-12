@@ -1056,6 +1056,27 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- Appli ADB Tools Diag sur le terminal sélectionné : toujours à portée (installer, mettre à jour, ouvrir, retirer). -->
+                    <Button x:Name="BtnDiagApp" Click="BtnDiagApp_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0" ToolTip="Appli ADB Tools Diag sur le terminal">
+                        <StackPanel Orientation="Horizontal" Margin="12,0">
+                            <TextBlock Text="📱" FontFamily="Segoe UI Emoji" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="TxtDiagAppButton" Text="Appli Diag" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Popup x:Name="DiagAppPopup" PlacementTarget="{Binding ElementName=BtnDiagApp}" Placement="Bottom" StaysOpen="False" Closed="DiagAppPopup_Closed">
+                        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="16" Width="330">
+                            <StackPanel>
+                                <TextBlock Text="📱 ADB Tools Diag" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource Ink}"/>
+                                <TextBlock x:Name="TxtDiagAppState" Text="" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" Margin="0,6,0,8"/>
+                                <TextBlock Text="L'appli reste sur le terminal jusqu'à ce que vous la retiriez. Elle sert aux tests du terminal, au test du lecteur, à la mesure Wi-Fi et au suivi terrain, pilotée par le PC ou utilisée seule."
+                                           FontSize="11" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                <Button x:Name="BtnDiagAppInstall" Content="Installer sur le terminal" Click="BtnDiagAppInstall_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Margin="0,0,0,6"/>
+                                <Button x:Name="BtnDiagAppOpen" Content="Ouvrir sur le terminal" Click="BtnDiagAppOpen_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,0,6"/>
+                                <Button x:Name="BtnDiagAppRemove" Content="Retirer du terminal" Click="BtnDiagAppRemove_Click" Style="{StaticResource DangerButtonStyle}" Height="32"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
                     <Button x:Name="BtnWifiPairingToggle" Click="BtnWifiPairingToggle_Click" Style="{StaticResource SidebarToggleStyle}" Height="32">
                         <StackPanel Orientation="Horizontal" Margin="10,0">
                             <TextBlock Text="📡" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
