@@ -2,6 +2,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -31,8 +32,7 @@ namespace ADBToolsNew
 
         private void BtnOpenDeviceTests_Click(object sender, RoutedEventArgs e)
         {
-            if (_devItems.Count == 0)
-                foreach (var def in DeviceTestCatalog.All) _devItems.Add(new DeviceTestItem(def));
+            EnsureDevItems();
             DevTestsList.ItemsSource = _devItems;
             DeviceTestsOverlay.Visibility = Visibility.Visible;
             RefreshDevTestPanel();
@@ -50,37 +50,50 @@ namespace ADBToolsNew
 
         private async void BtnDevTestsStart_Click(object sender, RoutedEventArgs e)
         {
-            if (_devBusy || _devSession) return;
             var dev = DeviceComboBox.SelectedItem as AndroidDevice;
             if (dev == null || dev.State != "device")
             {
                 await ShowCustomDialogAsync(Loc.T("🧪 Tests du terminal"), Loc.T("Connectez d'abord un terminal (ADB autorisé)."), Loc.T("OK"), "", false);
                 return;
             }
+            await EnsureDevSessionAsync(dev.Serial);
+        }
+
+        /// <summary>
+        /// Session avec l'appli du terminal : installée ou mise à jour si besoin, journal écouté (résultats en direct dans
+        /// la fiche), inventaire du matériel. Vrai si la session est prête (ou déjà ouverte sur ce terminal).
+        /// </summary>
+        private async Task<bool> EnsureDevSessionAsync(string serial)
+        {
+            EnsureDevItems();
+            if (_devSession && _devSerial == serial) return true;
+            if (_devBusy) return false;
+            if (_devSession) await StopDeviceTestsAsync();
             _devBusy = true;
             BtnDevTestsStart.IsEnabled = false;
             try
             {
                 // Nouveau terminal : on repart de zéro.
-                if (_devSerial != dev.Serial)
-                    foreach (var it in _devItems) { it.Status = "⚪"; it.Details = ""; it.Comment = ""; it.LocalFile = null; it.Available = true; }
+                if (_devSerial != serial)
+                    foreach (var it in _devItems) { it.Status = "⚪"; it.Details = ""; it.Comment = ""; it.LocalFile = null; it.Available = true; it.ManualVerdict = false; }
 
                 SetDevStatus(Loc.T("Installation de l'appli de diagnostic sur le terminal…"));
-                if (!await EnsureDiagAppAsync(dev.Serial, "tests")) { SetDevStatus(Loc.T("Installation de l'appli de diagnostic impossible.")); return; }
-                _devSerial = dev.Serial;
+                if (!await EnsureDiagAppAsync(serial, "tests")) { SetDevStatus(Loc.T("Installation de l'appli de diagnostic impossible.")); return false; }
+                _devSerial = serial;
                 _devSession = true;
-                RememberDiagnosedDevice(dev.Serial);
+                RememberDiagnosedDevice(serial);
                 // Tests déjà faits dans l'appli (utilisée seule) : ils complètent les tests vides.
-                var imp = await ImportTerminalResultsAsync(dev.Serial, false);
+                var imp = await ImportTerminalResultsAsync(serial, false);
                 _devImportNote = imp.Imported > 0 ? " " + Loc.F("{0} test(s) déjà fait(s) sur le terminal repris.", imp.Imported) : "";
 
-                _devLogProcess.Start(_adbExePath, DiagApp.LogcatArgs(dev.Serial), line =>
+                _devLogProcess.Start(_adbExePath, DiagApp.LogcatArgs(serial), line =>
                 {
                     var m = DiagMessage.Parse(line);
                     if (m != null) Dispatcher.InvokeAsync(() => OnDevMessage(m), DispatcherPriority.Background);
                 });
                 SetDevStatus(Loc.T("Détection du matériel du terminal…"));
-                await SendDiagCommandAsync(dev.Serial, "probe");
+                _devFeatures = null;
+                await SendDiagCommandAsync(serial, "probe");
 
                 // Pas de réponse : écran verrouillé, ou appli bloquée par le terminal.
                 _devProbeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
@@ -88,15 +101,20 @@ namespace ADBToolsNew
                 {
                     _devProbeTimer.Stop();
                     if (_devFeatures == null && _devSession)
+                    {
                         SetDevStatus(Loc.T("Le terminal ne répond pas : déverrouillez son écran, puis cliquez à nouveau sur « Préparer le terminal »."));
+                        AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ⚠️ L'appli du terminal ne répond pas : déverrouillez son écran, puis relancez.", DateTime.Now));
+                    }
                 };
-                _devFeatures = null;
                 _devProbeTimer.Start();
                 BtnDevTestsStop.IsEnabled = true;
+                return true;
             }
             catch (Exception ex)
             {
                 SetDevStatus(Loc.F("Démarrage impossible : {0}", ex.Message));
+                AppendConsole(Loc.F("\n[{0:HH:mm:ss}] ❌ Tests du terminal : {1}", DateTime.Now, ex.Message));
+                return false;
             }
             finally
             {
@@ -155,32 +173,41 @@ namespace ADBToolsNew
                 var item = _devItems.FirstOrDefault(i => i.Id == g.Key);
                 if (item == null) continue;
                 bool empty = item.Status == "⚪" || item.Status == "⏳";
+                var line = DiagLineForApp(item.Id);
+                if (line != null && (DiagnosticSheet.IsDone(line.StatusIcon) || line.StatusIcon == "❓")) empty = false; // déjà renseigné dans la fiche
                 if (!empty && !(replaceMeasured && !item.ManualVerdict)) { kept++; continue; }
-                foreach (var (m, at) in g)
-                {
-                    if (m.Type == "RESULT")
-                    {
-                        item.Status = DeviceTestText.StatusIcon(m.Status);
-                        item.Details = DeviceTestText.Result(m);
-                        item.ManualVerdict = false;
-                        if (m.Status == "na") item.Available = false;
-                        string remote = m.Str("file");
-                        if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
-                    }
-                    else if (m.Type == "VERDICT")
-                    {
-                        string icon = DeviceTestText.StatusIcon(m.Status);
-                        item.Status = icon;
-                        item.ManualVerdict = icon != "⚪";
-                        if (icon == "⚪") { item.Details = ""; item.LocalFile = null; }
-                        else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
-                    }
-                }
+                await ApplyDevMessagesAsync(item, g.Select(x => x.Message).ToList());
+                SyncDevToDiag(item, Loc.F("Repris du terminal : {0}", DiagnosticSheet.StatusWord(item.Status)));
                 imported++;
             }
             RefreshDevSummary();
             RefreshDevTestPanel();
             return (imported, kept);
+        }
+
+        /// <summary>Résultat puis verdict enregistrés par l'appli, appliqués à un test (fichiers rapatriés).</summary>
+        private async Task ApplyDevMessagesAsync(DeviceTestItem item, IEnumerable<DiagMessage> messages)
+        {
+            foreach (var m in messages)
+            {
+                if (m.Type == "RESULT")
+                {
+                    item.Status = DeviceTestText.StatusIcon(m.Status);
+                    item.Details = DeviceTestText.Result(m);
+                    item.ManualVerdict = false;
+                    if (m.Status == "na") item.Available = false;
+                    string remote = m.Str("file");
+                    if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
+                }
+                else if (m.Type == "VERDICT")
+                {
+                    string icon = DeviceTestText.StatusIcon(m.Status);
+                    item.Status = icon;
+                    item.ManualVerdict = icon != "⚪";
+                    if (icon == "⚪") { item.Details = ""; item.LocalFile = null; }
+                    else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
+                }
+            }
         }
 
         private async void BtnDevTestsImport_Click(object sender, RoutedEventArgs e)
@@ -203,11 +230,7 @@ namespace ADBToolsNew
         }
 
         /// <summary>« Envoyer au PC » dans l'appli : la fenêtre des tests s'ouvre avec les résultats du terminal.</summary>
-        private async void OnDiagAppExport(string serial)
-        {
-            BtnOpenDeviceTests_Click(null, null);
-            ShowImportStatus(await ImportTerminalResultsAsync(serial, true));
-        }
+        private async void OnDiagAppExport(string serial) => await ShowDiagImportAsync(serial);
 
         private void StopDeviceTestsOnExit()
         {
@@ -242,6 +265,8 @@ namespace ADBToolsNew
                     BtnDevTestsStart.IsEnabled = false;
                     if (DevTestsList.SelectedIndex < 0) DevTestsList.SelectedItem = _devItems.FirstOrDefault(i => i.Available);
                     RefreshDevTestPanel();
+                    foreach (var it in _devItems) SyncDevToDiag(it, null);
+                    RefreshDiagDetail();
                     break;
 
                 case "LIVE":
@@ -249,6 +274,11 @@ namespace ADBToolsNew
                     {
                         TxtDevTestLive.Text = DeviceTestText.Live(m);
                         DevTestLiveBox.Visibility = Visibility.Visible;
+                    }
+                    if ((DiagChecklistGrid.SelectedItem as DiagComponent)?.AppTest == m.Test)
+                    {
+                        TxtDiagLive.Text = DeviceTestText.Live(m);
+                        DiagLiveBox.Visibility = Visibility.Visible;
                     }
                     break;
 
@@ -273,6 +303,7 @@ namespace ADBToolsNew
                     if (!string.IsNullOrEmpty(remote)) item.LocalFile = await PullDevFileAsync(remote, item.Id);
                     if (SelectedDevTest == item) RefreshDevTestPanel();
                     RefreshDevSummary();
+                    SyncDevToDiag(item, Loc.F("Mesure sur le terminal : {0}", DiagnosticSheet.StatusWord(item.Status)));
                     // Résultat mesuré : test suivant ; « à confirmer » : on attend le choix du technicien.
                     if (m.Status != "confirm" && !item.ManualVerdict) ChainAdvance(item.Id, m.Status == "na" ? 0.5 : 3.0);
                     break;
@@ -290,11 +321,21 @@ namespace ADBToolsNew
                     else item.Details = DeviceTestText.Confirmed(item.Id, icon, item.Details);
                     if (SelectedDevTest == item) RefreshDevTestPanel();
                     RefreshDevSummary();
+                    SyncDevToDiag(item, m.Status == "skip" ? Loc.T("Passé sur le terminal") : Loc.F("Verdict sur le terminal : {0}", DiagnosticSheet.StatusWord(icon)));
                     ChainAdvance(item.Id, 1.0);
                     break;
                 }
 
                 case "STATE":
+                {
+                    // Test lancé depuis l'appli (pas par le PC) : la ligne passe « en cours ».
+                    var st = _devItems.FirstOrDefault(i => i.Id == m.Test);
+                    if (st != null && _devCurrent == null)
+                    {
+                        if (m.Status == "started" && st.Status != "⏳") { st.Status = "⏳"; SyncDevToDiag(st, null); }
+                        else if (m.Status == "stopped" && st.Status == "⏳") { st.Status = "⚪"; SyncDevToDiag(st, null); }
+                    }
+                }
                     if (m.Status == "stopped" && m.Test == _devCurrent)
                     {
                         _devCurrent = null;
@@ -304,7 +345,9 @@ namespace ADBToolsNew
                             it.Status = "⚪"; // arrêté avant d'avoir un résultat
                             ChainAdvance(it.Id, 1.5);
                         }
+                        if (it != null) SyncDevToDiag(it, null);
                         RefreshDevTestPanel();
+                        RefreshDiagDetail();
                     }
                     break;
             }
@@ -431,6 +474,7 @@ namespace ADBToolsNew
             TxtDevTestLive.Text = "";
             _devCurrent = it.Id;
             RefreshDevTestPanel();
+            SyncDevToDiag(it, Loc.T("Lancé sur le terminal depuis le PC"));
             string args = DiagApp.CommandArgs(_devSerial, it.Id) + (string.IsNullOrEmpty(step) ? "" : " -e step " + step);
             await _adbManager.ExecuteAsync(args);
         }
@@ -570,27 +614,8 @@ namespace ADBToolsNew
             }
             if (_diagList == null) InitializeDiagChecklist();
             if (_diagList == null) return;
-
-            foreach (var it in _devItems.Where(i => !i.Def.External))
-            {
-                string sid = DeviceTestCatalog.SystemIdPrefix + it.Id;
-                var existing = _diagList.FirstOrDefault(d => d.SystemId == sid);
-                if (!it.IsReported)
-                {
-                    if (existing != null) _diagList.Remove(existing);
-                    continue;
-                }
-                if (existing == null)
-                {
-                    existing = new DiagComponent { SystemId = sid, ComponentName = it.Def.Name };
-                    _diagList.Add(existing);
-                }
-                existing.StatusIcon = it.Status;
-                existing.Details = it.Details;
-                existing.Comment = it.Comment ?? "";
-                existing.ImagePath = it.LocalFile != null && it.LocalFile.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? it.LocalFile : "";
-            }
-            DiagChecklistGrid.Items.Refresh();
+            // La fiche suit déjà les tests en direct : on recopie simplement l'état de chaque test (aucune ligne retirée).
+            foreach (var it in _devItems) SyncDevToDiag(it, null);
             int n = _devItems.Count(i => i.IsReported && !i.Def.External);
             SetDevStatus(Loc.F("{0} test(s) reporté(s) dans le diagnostic SAV (et le rapport Word).", n));
             AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🧪 Tests du terminal : {1} résultat(s) reporté(s) dans le diagnostic SAV.", DateTime.Now, n));

@@ -135,6 +135,7 @@
     <Compile Include="MainWindow.MassOsUpdate.cs" />
     <Compile Include="MainWindow.Master.cs" />
     <Compile Include="MainWindow.Depannage.cs" />
+    <Compile Include="MainWindow.DiagSheet.cs" />
     <Compile Include="MainWindow.Taskbar.cs" />
     <Compile Include="Core\OsUpdatePackage.cs" />
     <Compile Include="Core\MasterProfile.cs" />
@@ -142,6 +143,7 @@
     <Compile Include="Core\MasterSettingsGlossary.cs" />
     <Compile Include="Core\MasterHelperApp.cs" />
     <Compile Include="Core\Troubleshooting.cs" />
+    <Compile Include="Core\DiagnosticSheet.cs" />
     <Compile Include="Core\XlsxExport.cs" />
     <Compile Include="Core\DeviceSnapshot.cs" />
     <Compile Include="Core\ScanTest.cs" />

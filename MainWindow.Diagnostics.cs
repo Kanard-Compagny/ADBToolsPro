@@ -1,4 +1,4 @@
-using ADBToolsNew.Core;
+﻿using ADBToolsNew.Core;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -64,10 +64,6 @@ namespace ADBToolsNew
             _diagSerial = serial;
         }
 
-        // --- Repli des panneaux (inspecteur / Laboratoire) ---
-        private bool _isInspectorCollapsed = false;
-        private bool _isLabCardCollapsed = false;
-
         // --- Historique des boutons physiques ---
         private readonly KeyPressHistory _keyPressHistory = new KeyPressHistory();
 
@@ -81,72 +77,16 @@ namespace ADBToolsNew
 
         private void InitializeDiagChecklist()
         {
-            _diagList = new System.Collections.ObjectModel.ObservableCollection<DiagComponent>
-            {
-                new DiagComponent { SystemId = "auth", StatusIcon = "⚪", ComponentName = "Autorisation ADB & Connexion", Details = "" },
-                new DiagComponent { SystemId = "root", StatusIcon = "⚪", ComponentName = "Privilèges Root", Details = "" },
-                new DiagComponent { SystemId = "wifi", StatusIcon = "⚪", ComponentName = "Interface Wi-Fi", Details = "" },
-                new DiagComponent { SystemId = "ping", StatusIcon = "⚪", ComponentName = "Ping Réseau (Local & Internet)", Details = "" },
-                new DiagComponent { SystemId = "battery", StatusIcon = "⚪", ComponentName = "État & Santé Batterie", Details = "" },
-                new DiagComponent { SystemId = "storage", StatusIcon = "⚪", ComponentName = "Stockage Interne", Details = "" },
-                new DiagComponent { SystemId = "sensors", StatusIcon = "⚪", ComponentName = "Capteurs (Accéléro/Gyro/Proximité/Lumière)", Details = "" },
-                new DiagComponent { SystemId = "thermal", StatusIcon = "⚪", ComponentName = "Diagnostic Thermique", Details = "" },
-                new DiagComponent { SystemId = "crashes", StatusIcon = "⚪", ComponentName = "Historique Crashs / ANR", Details = "" },
-                new DiagComponent { SystemId = "keys", StatusIcon = "⚪", ComponentName = "Boutons Physiques (Test Manuel)", Details = "Testez les boutons dans le Laboratoire en bas à droite." },
-                new DiagComponent { SystemId = "touch", StatusIcon = "⚪", ComponentName = "Dalle Tactile (Test Manuel)", Details = "Testez le tactile dans le Laboratoire en bas à droite." },
-                new DiagComponent { SystemId = "scanner", StatusIcon = "⚪", ComponentName = "Optique Scanner (Test Manuel)", Details = "Déclenchez la gâchette dans le Laboratoire (détection automatique du signal) et vérifiez visuellement que le laser/illuminateur s'allume et décode un code-barres réel." },
-                new DiagComponent { SystemId = "screen", StatusIcon = "⚪", ComponentName = "Écran : Pixels Morts / Brûlure (Test Manuel)", Details = "Utilisez les mires de couleur dans le Laboratoire en bas à droite." }
-            };
+            _diagList = new System.Collections.ObjectModel.ObservableCollection<DiagComponent>(DiagnosticSheet.CreateLines());
             DiagChecklistGrid.ItemsSource = _diagList;
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(_diagList);
+            view.GroupDescriptions.Clear();
+            view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(DiagComponent.Category)));
             KeyHistoryList.ItemsSource = _keyPressHistory.Entries;
+            RefreshDiagProgress();
         }
 
-        private void DiagChecklistGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (DiagChecklistGrid.SelectedItem is DiagComponent item)
-            {
-                TxtDiagTitle.Text = item.DisplayName;
-                TxtDiagDetails.Text = string.IsNullOrEmpty(item.Details) ? Loc.T("Aucune donnée extraite.") : Loc.TranslateLines(item.Details);
-                TxtDiagComment.Text = item.Comment;
-                GridDiagValidation.Visibility = Visibility.Visible;
-
-                // Sélectionner un test doit toujours le rendre visible, même si le technicien avait replié
-                // l'inspecteur entre-temps pour travailler plus au large dans le Laboratoire.
-                if (_isInspectorCollapsed) SetInspectorCollapsed(false);
-            }
-            else
-            {
-                GridDiagValidation.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        // --- REPLI DES PANNEAUX (inspecteur / Laboratoire) ---
-        private void BtnToggleInspector_Click(object sender, RoutedEventArgs e) => SetInspectorCollapsed(!_isInspectorCollapsed);
-
-        private void SetInspectorCollapsed(bool collapsed)
-        {
-            _isInspectorCollapsed = collapsed;
-            InspectorBody.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
-            BtnToggleInspector.Content = collapsed ? "▸" : "▾";
-            BtnToggleInspector.ToolTip = collapsed ? Loc.T("Afficher") : Loc.T("Réduire");
-        }
-
-        private void BtnToggleLabCard_Click(object sender, RoutedEventArgs e) => SetLabCardCollapsed(!_isLabCardCollapsed);
-
-        private void SetLabCardCollapsed(bool collapsed)
-        {
-            _isLabCardCollapsed = collapsed;
-
-            LabBodyGetEvent.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
-            LabBodyScreenTest.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
-
-            // La ligne passe de "*" (occupe tout l'espace restant) à "Auto" (juste l'en-tête) : ça rend
-            // immédiatement toute la hauteur libérée à l'inspecteur au-dessus, sans le pousser hors champ.
-            LabRowDefinition.Height = collapsed ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-
-            BtnToggleLabCard.Content = collapsed ? "▸" : "▾";
-            BtnToggleLabCard.ToolTip = collapsed ? Loc.T("Afficher le Laboratoire") : Loc.T("Réduire le Laboratoire");
-        }
+        private void DiagChecklistGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshDiagDetail();
 
         // --- VALIDATION MANUELLE ---
         private void BtnDiagPass_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("✅"); }
@@ -154,13 +94,22 @@ namespace ADBToolsNew
         private void BtnDiagWarn_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("⚠️"); }
         private void BtnDiagUntested_Click(object sender, RoutedEventArgs e) { UpdateDiagStatus("⚪"); }
 
+        /// <summary>Résultat choisi sur le PC : il prime sur la mesure de l'appli (et reste modifiable).</summary>
         private void UpdateDiagStatus(string status)
         {
             if (DiagChecklistGrid.SelectedItem is DiagComponent item)
             {
                 item.StatusIcon = status;
                 item.Comment = TxtDiagComment.Text;
-                DiagChecklistGrid.Items.Refresh(); // Rafraîchit visuellement le tableau
+                AddDiagHistory(item, Loc.F("Modifié sur le PC : {0}", DiagnosticSheet.StatusWord(status)));
+                if (item.AppTest != null)
+                {
+                    var dev = _devItems.FirstOrDefault(d => d.Id == item.AppTest);
+                    if (dev != null) { dev.Status = status; dev.ManualVerdict = status != "⚪"; dev.Comment = item.Comment; }
+                }
+                DiagChecklistGrid.Items.Refresh();
+                RefreshDiagDetail();
+                RefreshDiagProgress();
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🩺 {1} marqué comme {2}", DateTime.Now, item.DisplayName, status));
             }
         }
@@ -230,6 +179,8 @@ namespace ADBToolsNew
             }
 
             InitializeDiagChecklist();
+            foreach (var it in _devItems) { it.Status = it.Available ? "⚪" : "➖"; it.Details = ""; it.Comment = ""; it.LocalFile = null; it.ManualVerdict = false; }
+            foreach (var it in _devItems) SyncDevToDiag(it, null);
             _keyPressHistory.Reset();
             if (_touchZoneGrid != null) BuildTouchZoneGrid(_touchZoneGrid.Columns, _touchZoneGrid.Rows);
 
@@ -244,8 +195,7 @@ namespace ADBToolsNew
             _touchFramePending = false;
             _diagSerial = null;
 
-            GridDiagValidation.Visibility = Visibility.Collapsed;
-            TxtDiagTitle.Text = Loc.T("Sélectionnez un composant à tester");
+            RefreshDiagDetail();
 
             AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 🔄 Nouveau diagnostic : réinitialisation complète (Auto + Manuel).", DateTime.Now));
         }
@@ -271,8 +221,7 @@ namespace ADBToolsNew
 
             foreach (var item in _diagList)
             {
-                if (item.SystemId == "keys" || item.SystemId == "touch" || item.SystemId == "scanner" || item.SystemId == "screen") continue; // Tests manuels ignorés
-                if (item.SystemId != null && item.SystemId.StartsWith(DeviceTestCatalog.SystemIdPrefix, StringComparison.Ordinal)) continue; // Tests du terminal : résultats gardés
+                if (!item.PcCheck) continue; // tests de l'appli et tests en direct : résultats gardés
 
                 // 🔌 Le terminal a été perdu en cours d'analyse : on ignore les tests restants au lieu
                 // d'enchaîner des commandes vouées à l'échec.
@@ -306,6 +255,7 @@ namespace ADBToolsNew
                     {
                         item.Details = result.Details;
                         item.StatusIcon = result.StatusIcon;
+                        AddDiagHistory(item, Loc.F("Contrôle automatique du PC : {0}", DiagnosticSheet.StatusWord(result.StatusIcon)));
                     }
                 }
                 catch (Exception ex)
@@ -318,11 +268,12 @@ namespace ADBToolsNew
             }
 
             BtnRunAutoCheck.IsEnabled = true;
-            BtnRunAutoCheck.Content = Loc.T("▶️ Lancer le Check-up Auto");
+            BtnRunAutoCheck.Content = Loc.T("▶ Check-up auto (PC)");
+            RefreshDiagProgress();
             AppendConsole(deviceLost
                 ? Loc.F("\n[{0:HH:mm:ss}] 🩺 Check-up interrompu (terminal déconnecté).", DateTime.Now)
                 : Loc.F("\n[{0:HH:mm:ss}] 🩺 Check-up Automatique terminé.", DateTime.Now));
-            if (DiagChecklistGrid.SelectedItem != null) DiagChecklistGrid_SelectionChanged(null, null); // Force le rafraichissement de l'inspecteur
+            RefreshDiagDetail();
         }
 
         // --- LE LABORATOIRE MATÉRIEL (GETEVENT) ---
@@ -338,7 +289,6 @@ namespace ADBToolsNew
             if (ToggleLabListen.IsChecked == true)
             {
                 ToggleLabListen.Content = Loc.T("⏹️ Arrêter l'écoute");
-                if (_isLabCardCollapsed) SetLabCardCollapsed(false); // démarrer un test doit rendre le Laboratoire visible
                 RememberDiagnosedDevice(dev.Serial);
                 StartGetEventLab(dev.Serial);
             }
@@ -467,6 +417,7 @@ namespace ADBToolsNew
 
             var lines = _keyPressHistory.Entries.Select(entry => $"• {entry.DisplayName} : {entry.Count} appui(s)");
             keysItem.StatusIcon = "✅";
+            AddDiagHistory(keysItem, Loc.F("Écoute du PC : {0} bouton(s) détecté(s)", _keyPressHistory.Entries.Count));
             keysItem.Details = $"--- BOUTONS DÉTECTÉS PENDANT LE TEST ---\n{string.Join("\n", lines)}\n\nℹ️ Vérifiez que tous les boutons attendus sur ce modèle apparaissent ci-dessus. Un bouton pressé mais absent de la liste n'a généré aucun signal (piste de bouton HS).\n";
 
             DiagChecklistGrid.Items.Refresh();
@@ -493,6 +444,7 @@ namespace ADBToolsNew
             var keyNames = string.Join(", ", triggerEntries.Select(entry => entry.DisplayName));
 
             scannerItem.StatusIcon = "✅";
+            AddDiagHistory(scannerItem, Loc.T("Écoute du PC : gâchette détectée"));
             scannerItem.Details = $"--- GÂCHETTE SCANNER ---\n• Appuis détectés : {totalPresses} (touche(s) : {keyNames})\n\nℹ️ Ceci confirme uniquement que le signal de la gâchette est bien transmis au système. Vérifiez visuellement que le laser/illuminateur s'allume et décode correctement un code-barres réel : cette partie reste un contrôle manuel.\n";
 
             DiagChecklistGrid.Items.Refresh();
@@ -603,6 +555,7 @@ namespace ADBToolsNew
 
             bool allTouched = untouched.Count == 0;
             touchItem.StatusIcon = allTouched ? "✅" : "⚠️";
+            AddDiagHistory(touchItem, Loc.F("Écoute du PC : {0} zone(s) sur {1}", _touchZoneGrid.TouchedCount, _touchZoneGrid.TotalCount));
             touchItem.Details = allTouched
                 ? $"--- GRILLE TACTILE ---\n• Zones testées : {_touchZoneGrid.TouchedCount} / {_touchZoneGrid.TotalCount}\n• Aucune zone morte détectée : la totalité de l'écran a répondu au toucher.\n"
                 : $"--- GRILLE TACTILE ---\n• Zones testées : {_touchZoneGrid.TouchedCount} / {_touchZoneGrid.TotalCount}\n⚠️ Zones jamais touchées lors du balayage ({untouched.Count}) : {string.Join(", ", untouched)}\n\nℹ️ Si le balayage n'a pas couvert tout l'écran, relancez un test complet avant de conclure à une zone morte.\n";
@@ -678,13 +631,13 @@ namespace ADBToolsNew
 
             try
             {
-                string json = DiagnosticService.BuildRmaReportJson(serial, _diagList);
+                string json = DiagnosticService.BuildRmaReportJson(serial, DiagReportItems());
 
                 string savePath = System.IO.Path.Combine(GetReportsFolderPath(), $"Rapport_RMA_{FileNameHelper.Sanitize(serial)}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
                 System.IO.File.WriteAllText(savePath, json);
 
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 💾 Rapport JSON RMA généré : {1}", DateTime.Now, savePath));
-                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Rapport RMA", serial, "", "", _diagList), savePath);
+                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Rapport RMA", serial, "", "", DiagReportItems()), savePath);
                 ShowInExplorer(savePath);
             }
             catch (Exception ex)
@@ -708,7 +661,7 @@ namespace ADBToolsNew
                 return;
             }
 
-            var untested = ADBToolsNew.Core.WordReportService.GetUntestedComponentNames(_diagList);
+            var untested = ADBToolsNew.Core.WordReportService.GetUntestedComponentNames(DiagReportItems());
             if (untested.Count > 0)
             {
                 string list = string.Join("\n", untested.Select(name => "• " + Loc.T(name)));
@@ -729,9 +682,9 @@ namespace ADBToolsNew
 
             try
             {
-                string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetReportsFolderPath(), serial, societe, incident, _diagList);
+                string outputPath = ADBToolsNew.Core.WordReportService.GenerateReport(templatePath, GetReportsFolderPath(), serial, societe, incident, DiagReportItems());
                 AppendConsole(Loc.F("\n[{0:HH:mm:ss}] 📝 Rapport Word généré : {1}", DateTime.Now, outputPath));
-                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Diagnostic SAV", serial, societe, incident, _diagList), outputPath);
+                RecordHistory(ADBToolsNew.Core.DiagHistory.FromDiagnostic("Diagnostic SAV", serial, societe, incident, DiagReportItems()), outputPath);
                 ShowInExplorer(outputPath);
             }
             catch (Exception ex)

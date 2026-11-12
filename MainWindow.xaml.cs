@@ -76,17 +76,57 @@ namespace ADBToolsNew
     // ==========================================
     // CLASSE DE STRUCTURE DU BANC DE TEST
     // ==========================================
+    /// <summary>Une ligne de la fiche de diagnostic SAV (contrôle du PC, test de l'appli, ou les deux).</summary>
     public class DiagComponent
     {
         public string SystemId { get; set; }
         public string StatusIcon { get; set; }
         public string ComponentName { get; set; }
-        public string Details { get; set; }
+
+        /// <summary>
+        /// Détail affiché et repris dans le rapport : relevé du PC (<see cref="PcDetails"/>) puis résultat de l'appli
+        /// (<see cref="TerminalDetails"/>). Écrire Details renseigne la partie PC.
+        /// </summary>
+        public string Details
+        {
+            get
+            {
+                bool p = !string.IsNullOrWhiteSpace(PcDetails), t = !string.IsNullOrWhiteSpace(TerminalDetails);
+                if (p && t) return PcDetails.TrimEnd() + "
+
+--- SUR LE TERMINAL ---
+" + TerminalDetails;
+                return t ? TerminalDetails : (PcDetails ?? "");
+            }
+            set => PcDetails = value ?? "";
+        }
+        public string PcDetails { get; set; } = "";
+        public string TerminalDetails { get; set; } = "";
         public string Comment { get; set; }
         public string ImagePath { get; set; } = "";
+        public string AudioPath { get; set; } = "";
+
+        // --- Fiche (affichage) ---
+        public string Category { get; set; } = "";
+        /// <summary>Qui fait le test : « PC », « terminal », « terminal · PC »…</summary>
+        public string Source { get; set; } = "";
+        public string Instruction { get; set; } = "";
+        /// <summary>Test correspondant dans l'appli ADB Tools Diag (null : contrôle du PC seulement).</summary>
+        public string AppTest { get; set; }
+        /// <summary>Contrôle automatique du PC (check-up).</summary>
+        public bool PcCheck { get; set; }
+        /// <summary>Test en direct depuis le PC : « getevent » (touches, tactile), « screen » (mire), « scan » (lectures).</summary>
+        public string PcLive { get; set; }
+        /// <summary>Matériel absent sur ce terminal : ligne grisée, hors rapport.</summary>
+        public bool Unavailable { get; set; }
+        /// <summary>Statut avant un test en cours (rétabli si le test est arrêté sans résultat).</summary>
+        public string StatusBeforeRun { get; set; }
+        public List<string> History { get; } = new List<string>();
 
         /// <summary>Nom affiché (traduit si l'interface est en anglais) ; ComponentName reste la référence.</summary>
         public string DisplayName => ADBToolsNew.Core.Loc.T(ComponentName);
+        public string SourceText => Unavailable ? ADBToolsNew.Core.Loc.T("absent") : ADBToolsNew.Core.Loc.T(Source);
+        public double RowOpacity => Unavailable ? 0.45 : 1.0;
     }
 
     public partial class MainWindow : Window

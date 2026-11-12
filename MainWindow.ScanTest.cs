@@ -229,7 +229,10 @@ namespace ADBToolsNew
             item.StatusIcon = icon;
             item.Details = details;
             if (string.IsNullOrWhiteSpace(item.Comment)) item.Comment = comment;
+            AddDiagHistory(item, Loc.F("Lectures en direct sur le PC : {0}", DiagnosticSheet.StatusWord(icon)));
             DiagChecklistGrid.Items.Refresh();
+            RefreshDiagDetail();
+            RefreshDiagProgress();
 
             var dev = _devItems.FirstOrDefault(i => i.Id == "scanner");
             if (dev != null)

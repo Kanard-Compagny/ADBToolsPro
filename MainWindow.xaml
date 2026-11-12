@@ -2456,180 +2456,164 @@
                         </TabItem>
 
                         <TabItem>
+                            <!-- Diagnostics SAV : une seule fiche, une ligne par élément du terminal, testée par le PC, par l'appli
+                                 ADB Tools Diag, ou les deux (voir MainWindow.DiagSheet.cs). -->
                             <Grid Margin="15,0,15,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Grid Grid.Row="0" Margin="0,0,0,15">
+                                <Grid Grid.Row="0" Margin="0,0,0,14">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Banc de Test &amp; Contrôle Qualité" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
-                                    <StackPanel Orientation="Horizontal" Grid.Column="1">
-                                        <Button x:Name="BtnDiagHistory" Content="🗂️ Historique" Click="BtnDiagHistory_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,10,0"
-                                                ToolTip="Diagnostics et analyses déjà réalisés sur ce terminal (historique par numéro de série)."/>
-                                        <Button x:Name="BtnExportRma" Content="💾 Exporter (JSON)" Click="BtnExportRma_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Width="160" Margin="0,0,10,0"
-                                                ToolTip="Exporte le rapport SAV brut au format JSON (données uniquement, sans mise en page)."/>
-                                        <Button x:Name="BtnReportTemplateSav" Content="⚙️ Modèle : fourni" Tag="Sav" Click="BtnReportTemplate_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,10,0"
-                                                ToolTip="Choisir, modifier ou importer le modèle Word du rapport SAV."/>
-                                        <Button x:Name="BtnExportWord" Content="📝 Exporter (Word)" Click="BtnExportWord_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35" Width="170"
-                                                ToolTip="Génère le rapport SAV complet dans le modèle Word (infos terminal, résultats par module, visuels des tests tactile/boutons)."/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Diagnostics SAV" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                        <TextBlock x:Name="TxtDiagSubtitle" Text="Branchez un terminal, puis lancez le check-up du PC et les tests sur le terminal, dans l'ordre que vous voulez." FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                        <ProgressBar x:Name="DiagProgress" Height="6" Width="360" HorizontalAlignment="Left" Margin="0,7,0,0" Minimum="0" Maximum="1" Value="0" Foreground="{DynamicResource BrandText}" Background="{DynamicResource Surface2}" BorderThickness="0"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center">
+                                        <Button x:Name="BtnRunAutoCheck" Content="▶ Check-up auto (PC)" Click="BtnRunAutoCheck_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,8,0"
+                                                ToolTip="Contrôles faits par le PC : connexion, root, batterie, stockage, température, plantages, capteurs, Wi-Fi, ping"/>
+                                        <Button x:Name="BtnDiagTerminalAll" Content="📱 Tester sur le terminal" Click="BtnDiagTerminalAll_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35" Padding="14,0" Margin="0,0,8,0"
+                                                ToolTip="Lance l'enchaînement des tests dans l'appli ADB Tools Diag : la fiche se remplit en direct"/>
+                                        <Button x:Name="BtnDiagImport" Content="📥 Récupérer du terminal" Click="BtnDiagImport_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="14,0" Margin="0,0,8,0"
+                                                ToolTip="Reprend dans la fiche les tests déjà faits dans l'appli ADB Tools Diag"/>
+                                        <Button x:Name="BtnDiagMore" Content="⋯" Click="BtnDiagMore_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Width="40" FontSize="16" Margin="0,0,8,0"
+                                                ToolTip="Historique, export JSON, modèle de rapport, nouveau diagnostic"/>
+                                        <Popup x:Name="DiagMorePopup" PlacementTarget="{Binding ElementName=BtnDiagMore}" Placement="Bottom" StaysOpen="False" Closed="DiagMorePopup_Closed">
+                                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="10" MinWidth="230">
+                                                <StackPanel>
+                                                    <Button x:Name="BtnDiagHistory" Content="🗂️ Historique du terminal" Click="BtnDiagHistory_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" HorizontalContentAlignment="Left" Padding="12,0" Margin="0,0,0,6"
+                                                            ToolTip="Diagnostics et analyses déjà réalisés sur ce terminal (historique par numéro de série)."/>
+                                                    <Button x:Name="BtnExportRma" Content="💾 Exporter (JSON)" Click="BtnExportRma_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,0,6"
+                                                            ToolTip="Exporte le rapport SAV brut au format JSON (données uniquement, sans mise en page)."/>
+                                                    <Button x:Name="BtnReportTemplateSav" Content="⚙️ Modèle : fourni" Tag="Sav" Click="BtnReportTemplate_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,0,6"
+                                                            ToolTip="Choisir, modifier ou importer le modèle Word du rapport SAV."/>
+                                                    <Button x:Name="BtnResetDiagnostic" Content="🔄 Nouveau diagnostic" Click="BtnResetDiagnostic_Click" Style="{StaticResource DangerButtonStyle}" Height="32" Padding="12,0"
+                                                            ToolTip="Réinitialise entièrement la fiche (statuts, commentaires, grille tactile, journal des touches). Le terminal n'est pas affecté."/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                        <Button x:Name="BtnExportWord" Content="📝 Rapport Word" Click="BtnExportWord_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35" Padding="16,0"
+                                                ToolTip="Génère le rapport SAV complet dans le modèle Word (infos terminal, résultats par élément, visuels)."/>
                                     </StackPanel>
                                 </Grid>
 
                                 <Grid Grid.Row="1">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="380"/>
+                                        <ColumnDefinition Width="400"/>
                                         <ColumnDefinition Width="15"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Grid.Column="0" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Style="{StaticResource CardGlowStyle}">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                            </Grid.RowDefinitions>
-
-                                            <Grid Margin="0,0,0,15">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Button x:Name="BtnRunAutoCheck" Content="▶️ Lancer le Check-up Auto" Click="BtnRunAutoCheck_Click" Style="{StaticResource OutlineButtonStyle}" Height="40" ToolTip="Teste automatiquement le Wi-Fi, la Batterie, le Root et le Ping"/>
-                                                <Button x:Name="BtnResetDiagnostic" Content="🔄" Click="BtnResetDiagnostic_Click" Style="{StaticResource DangerButtonStyle}" Height="40" Width="40" Margin="8,0,0,0" Grid.Column="1"
-                                                        ToolTip="Nouveau test : réinitialise entièrement le diagnostic (statuts et commentaires Auto + Manuel, grille tactile, journal des touches). Le terminal sélectionné n'est pas affecté."/>
-                                            </Grid>
-
-                                            <DataGrid x:Name="DiagChecklistGrid"
-                                                      Grid.Row="1"
-                                                      Background="Transparent"
-                                                      SelectionMode="Single" 
-                                                      SelectionUnit="FullRow" 
-                                                      IsReadOnly="True"
-                                                      AutoGenerateColumns="False"
-                                                      CanUserAddRows="False"
-                                                      HeadersVisibility="None"
-                                                      GridLinesVisibility="None"
-                                                      RowHeight="35"
-                                                      FontSize="14"
-                                                      SelectionChanged="DiagChecklistGrid_SelectionChanged">
-
-                                                <DataGrid.RowStyle>
-                                                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                                        <Setter Property="Background" Value="Transparent"/>
-                                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
-                                                            </Trigger>
-                                                            <!-- Ligne sélectionnée : vert foncé et texte blanc, lisible dans les deux thèmes (déclaré en dernier
-                                                                 pour l'emporter sur le survol et sur les couleurs de niveau). -->
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource SideActiveBg}"/>
-                                                                <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </DataGrid.RowStyle>
-
-                                                <DataGrid.Columns>
-                                                    <DataGridTextColumn Binding="{Binding StatusIcon}" Width="40">
-                                                        <DataGridTextColumn.ElementStyle>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                                            </Style>
-                                                        </DataGridTextColumn.ElementStyle>
-                                                    </DataGridTextColumn>
-                                                    <DataGridTextColumn Binding="{Binding DisplayName}" Width="*"/>
-                                                </DataGrid.Columns>
-                                            </DataGrid>
-                                        </Grid>
-                                    </Border>
-
-                                    <Grid Grid.Column="2">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition x:Name="LabRowDefinition" Height="*"/>
-                                        </Grid.RowDefinitions>
-
-                                        <Border x:Name="InspectorBorder" Grid.Row="0" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,15" Style="{StaticResource CardGlowStyle}">
-                                            <StackPanel>
-                                                <Grid Margin="0,0,0,10">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock x:Name="TxtDiagTitle" Text="Sélectionnez un composant à tester" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
-                                                    <Button x:Name="BtnToggleInspector" Content="▾" ToolTip="Réduire" Click="BtnToggleInspector_Click" Grid.Column="1" Style="{StaticResource SidebarToggleStyle}" Width="26" Height="26" FontSize="13"/>
-                                                </Grid>
-
-                                                <StackPanel x:Name="InspectorBody">
-                                                    <Border Background="{DynamicResource Surface2}" CornerRadius="5" Padding="15" Margin="0,0,0,15">
-                                                        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                            <TextBlock x:Name="TxtDiagDetails" Text="Les informations techniques apparaîtront ici." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
-                                                        </ScrollViewer>
-                                                    </Border>
-
-                                                    <Grid x:Name="GridDiagValidation" Visibility="Collapsed">
+                                    <Border Grid.Column="0" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="8,8,4,8" Style="{StaticResource CardGlowStyle}">
+                                        <ListBox x:Name="DiagChecklistGrid" Background="Transparent" BorderThickness="0" SelectionMode="Single"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" FontSize="13"
+                                                 SelectionChanged="DiagChecklistGrid_SelectionChanged">
+                                            <ListBox.GroupStyle>
+                                                <GroupStyle>
+                                                    <GroupStyle.HeaderTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" Margin="10,10,0,3"/>
+                                                        </DataTemplate>
+                                                    </GroupStyle.HeaderTemplate>
+                                                </GroupStyle>
+                                            </ListBox.GroupStyle>
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="10,5" Margin="0,0,4,1">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SideActiveBg}"/>
+                                                                        <Setter Property="Foreground" Value="{DynamicResource SideActiveInk}"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Opacity="{Binding RowOpacity}">
                                                         <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="20"/>
                                                             <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="15"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="Commentaire technicien (Optionnel) :" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,5"/>
-                                                            <TextBox x:Name="TxtDiagComment" Height="40" VerticalContentAlignment="Top" Padding="5" TextWrapping="Wrap"/>
-                                                        </StackPanel>
-
-                                                        <!-- Verdicts manuels : « Non testé » remet la ligne à zéro (elle sort alors du rapport comme non testée). -->
-                                                        <Button x:Name="BtnDiagUntested" Content="⚪ NON TESTÉ" Click="BtnDiagUntested_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource Surface2}" Foreground="{DynamicResource Muted}" BorderBrush="{DynamicResource Line}" FontWeight="SemiBold" Padding="12,0" MinWidth="100" Height="40" Grid.Column="2" Margin="0,20,10,0" ToolTip="Remettre ce test à « non testé »"/>
-                                                        <Button x:Name="BtnDiagFail" Content="❌ FAIL" Click="BtnDiagFail_Click" Style="{StaticResource StatusFailButtonStyle}" Width="100" Height="40" Grid.Column="3" Margin="0,20,10,0"/>
-                                                        <Button x:Name="BtnDiagWarn" Content="⚠️ À SURVEILLER" Click="BtnDiagWarn_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource WarnBg}" Foreground="{DynamicResource WarnFg}" BorderBrush="{DynamicResource WarnFg}" Padding="12,0" MinWidth="100" Height="40" Grid.Column="4" Margin="0,20,10,0"/>
-                                                        <Button x:Name="BtnDiagPass" Content="✅ PASS" Click="BtnDiagPass_Click" Style="{StaticResource StatusPassButtonStyle}" Width="100" Height="40" Grid.Column="5" Margin="0,20,0,0"/>
+                                                        <Ellipse x:Name="Dot" Width="10" Height="10" Fill="Transparent" Stroke="{DynamicResource Muted}" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding SourceText}" FontSize="11" Opacity="0.7" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                                     </Grid>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding StatusIcon}" Value="✅">
+                                                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource OkFg}"/>
+                                                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource OkFg}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding StatusIcon}" Value="⚠️">
+                                                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource WarnFg}"/>
+                                                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource WarnFg}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding StatusIcon}" Value="❌">
+                                                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource BadFg}"/>
+                                                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource BadFg}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding StatusIcon}" Value="❓">
+                                                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource Action}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding StatusIcon}" Value="⏳">
+                                                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource BrandText}"/>
+                                                            <Setter TargetName="Dot" Property="StrokeDashArray" Value="1 1"/>
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
 
-                                        <Border Grid.Row="1" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="20" Style="{StaticResource CardGlowStyle}">
-                                            <!-- ScrollViewer : si la console en bas est agrandie, cette carte se retrouve à l'étroit.
-                                                 Sans scroll, le Laboratoire GetEvent et le Test d'Écran étaient coupés sans moyen d'y accéder. -->
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <Grid Grid.Row="0" Margin="0,0,0,15">
+                                    <Border Grid.Column="2" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="20,16" Style="{StaticResource CardGlowStyle}">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel>
-                                                        <TextBlock Text="🕹️ Laboratoire Matériel Live (GetEvent)" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,5"/>
-                                                        <TextBlock Text="Détection matérielle des boutons physiques, de la gâchette et de la dalle tactile." Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                        <Button Content="🧪 Tests du terminal…" Click="BtnOpenDeviceTests_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35" Padding="12,0" Margin="0,0,8,0" ToolTip="Caméras, flash, son, micro, vibreur, capteurs, NFC, GPS, Bluetooth, clavier, mémoire : chaque test est facultatif"/>
-                                                        <Button Content="🔫 Test du lecteur…" Click="BtnOpenScanTest_Click" Style="{StaticResource OutlineButtonStyle}" Height="35" Padding="12,0" Margin="0,0,8,0" ToolTip="Lit réellement des codes-barres avec le lecteur du terminal (appli de test temporaire) : données, symbologie, cadence, taux de réussite"/>
-                                                        <ToggleButton x:Name="ToggleLabListen" Content="Démarrer l'écoute" Click="ToggleLabListen_Click" Style="{StaticResource ModernToggleStyle}" Width="140" Height="35" Margin="0,0,8,0"/>
-                                                        <Button x:Name="BtnToggleLabCard" Content="▾" ToolTip="Réduire le Laboratoire" Click="BtnToggleLabCard_Click" Style="{StaticResource SidebarToggleStyle}" Width="26" Height="26" FontSize="13"/>
-                                                    </StackPanel>
+                                                    <TextBlock x:Name="TxtDiagTitle" Text="Choisissez un élément dans la liste" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                    <Border x:Name="DiagSourceBadge" Grid.Column="1" Background="{DynamicResource Surface2}" CornerRadius="10" Padding="10,4" VerticalAlignment="Center" Visibility="Collapsed">
+                                                        <TextBlock x:Name="TxtDiagSource" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                                    </Border>
                                                 </Grid>
+                                                <TextBlock x:Name="TxtDiagInstruction" Text="Chaque ligne indique qui fait le test : le PC, l'appli sur le terminal, ou les deux au choix. Le résultat retenu et le commentaire restent modifiables à tout moment, même après une récupération." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                                                <Grid x:Name="LabBodyGetEvent" Grid.Row="1">
+                                                <StackPanel x:Name="DiagActions" Orientation="Horizontal" Margin="0,0,0,12" Visibility="Collapsed">
+                                                    <Button x:Name="BtnDiagRunTerminal" Content="▶ Lancer sur le terminal" Click="BtnDiagRunTerminal_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0"/>
+                                                    <Button x:Name="BtnDiagStopTerminal" Content="⏹ Arrêter" Click="BtnDiagStopTerminal_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0" Visibility="Collapsed"/>
+                                                    <Button x:Name="BtnDiagRunPc" Content="↻ Refaire le contrôle (PC)" Click="BtnDiagRunPc_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0" Margin="0,0,8,0"/>
+                                                    <ToggleButton x:Name="ToggleLabListen" Content="Démarrer l'écoute" Click="ToggleLabListen_Click" Style="{StaticResource ModernToggleStyle}" Height="32" MinWidth="140" Margin="0,0,8,0"
+                                                                  ToolTip="Le PC écoute les touches, la gâchette et la dalle tactile en direct, sans appli (getevent)"/>
+                                                    <Button x:Name="BtnDiagScanPc" Content="🔫 Lectures en direct sur le PC…" Click="BtnOpenScanTest_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Padding="12,0"
+                                                            ToolTip="Lit des codes-barres avec le lecteur du terminal et les affiche sur le PC : données, symbologie, cadence, taux de réussite"/>
+                                                </StackPanel>
+
+                                                <Border x:Name="DiagLiveBox" Background="{DynamicResource Surface2}" CornerRadius="6" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtDiagLive" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
+                                                </Border>
+
+                                                <Grid x:Name="LabBodyGetEvent" Visibility="Collapsed" Margin="0,0,0,12">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="10"/>
@@ -2722,8 +2706,8 @@
                                                     </Border>
                                                 </Grid>
 
-                                                <StackPanel x:Name="LabBodyScreenTest" Grid.Row="2" Margin="0,15,0,0">
-                                                    <TextBlock Text="🖥️ Test d'Écran (Pixels Morts / Brûlure)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,5"/>
+                                                <StackPanel x:Name="LabBodyScreenTest" Visibility="Collapsed" Margin="0,0,0,12">
+                                                    <TextBlock Text="Mire envoyée depuis le PC" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,5"/>
                                                     <TextBlock Text="Affiche une mire plein écran (résolution exacte de l'appareil + barres système masquées automatiquement) sur le terminal. Comparez chaque couleur à la recherche de pixels morts, de taches ou de traces de brûlure (burn-in). Un premier tap sur l'appareil masque l'interface de la visionneuse. Cliquez sur 'Nettoyer' en fin de test pour restaurer l'affichage normal." Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button x:Name="BtnScreenTestRed" Content="Rouge" Click="BtnScreenTestColor_Click" Tag="Red" Style="{StaticResource ColorSwatchButtonStyle}" Background="#FF5252" Foreground="White" Width="78" Height="32" Margin="0,0,8,0"/>
@@ -2735,11 +2719,90 @@
                                                         <Button x:Name="BtnScreenTestCleanup" Content="🗑️ Nettoyer" Click="BtnScreenTestCleanup_Click" Style="{StaticResource DangerButtonStyle}" Width="110" Height="32" ToolTip="Supprime les images de test envoyées sur le terminal"/>
                                                     </StackPanel>
                                                 </StackPanel>
-                                            </Grid>
-                                            </ScrollViewer>
-                                        </Border>
+                                                <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
+                                                    <TextBlock x:Name="TxtDiagDetails" Text="Aucune donnée pour l'instant." Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                                </Border>
 
-                                    </Grid>
+                                                <StackPanel x:Name="DiagMediaPanel" Margin="0,0,0,12" Visibility="Collapsed">
+                                                    <Image x:Name="DiagPhoto" MaxHeight="260" HorizontalAlignment="Left" Stretch="Uniform" Margin="0,0,0,8" Visibility="Collapsed"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button x:Name="BtnDiagPlay" Content="▶ Réécouter" Click="BtnDiagPlay_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" Margin="0,0,8,0" Visibility="Collapsed"/>
+                                                        <Button x:Name="BtnDiagOpenFile" Content="📂 Ouvrir le fichier" Click="BtnDiagOpenFile_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <StackPanel x:Name="GridDiagValidation" Visibility="Collapsed">
+                                                    <TextBlock Text="Résultat retenu" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,6"/>
+                                                    <WrapPanel x:Name="DiagVerdictPanel" Margin="0,0,0,12">
+                                                        <Button x:Name="BtnDiagPass" Tag="✅" Content="✅ Conforme" Click="BtnDiagPass_Click" Style="{StaticResource StatusPassButtonStyle}" MinWidth="120" Padding="12,0" Height="36" Margin="0,0,8,6"/>
+                                                        <Button x:Name="BtnDiagWarn" Tag="⚠️" Content="⚠️ À surveiller" Click="BtnDiagWarn_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource WarnBg}" Foreground="{DynamicResource WarnFg}" BorderBrush="{DynamicResource WarnFg}" MinWidth="120" Padding="12,0" Height="36" Margin="0,0,8,6"/>
+                                                        <Button x:Name="BtnDiagFail" Tag="❌" Content="❌ Non conforme" Click="BtnDiagFail_Click" Style="{StaticResource StatusFailButtonStyle}" MinWidth="120" Padding="12,0" Height="36" Margin="0,0,8,6"/>
+                                                        <Button x:Name="BtnDiagUntested" Tag="⚪" Content="⚪ Non testé" Click="BtnDiagUntested_Click" Style="{StaticResource StatusFailButtonStyle}" Background="{DynamicResource Surface2}" Foreground="{DynamicResource Muted}" BorderBrush="{DynamicResource Line}" MinWidth="110" Padding="12,0" Height="36" Margin="0,0,8,6" ToolTip="Remettre ce test à « non testé »"/>
+                                                    </WrapPanel>
+                                                    <TextBlock Text="Commentaire pour le rapport (facultatif)" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,5"/>
+                                                    <TextBox x:Name="TxtDiagComment" Height="60" VerticalContentAlignment="Top" Padding="6" TextWrapping="Wrap" AcceptsReturn="True" LostFocus="TxtDiagComment_LostFocus"/>
+                                                    <TextBlock Text="Historique de la ligne" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,14,0,4"/>
+                                                    <ItemsControl x:Name="DiagHistoryList">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,1"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Récupération des résultats de l'appli : choix des tests repris, conflits avec la fiche signalés. -->
+                                <Grid x:Name="DiagImportOverlay" Grid.RowSpan="2" Background="#B0000000" Visibility="Collapsed" Panel.ZIndex="50">
+                                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="24,20" MaxWidth="820" MaxHeight="640" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Margin="0,0,0,12">
+                                                <TextBlock Text="Résultats reçus du terminal" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource Ink}"/>
+                                                <TextBlock x:Name="TxtDiagImportInfo" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl x:Name="DiagImportList">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border x:Name="Row" Background="{DynamicResource Surface2}" CornerRadius="6" Padding="10,7" Margin="0,0,6,4">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="30"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="150"/>
+                                                                        <ColumnDefinition Width="200"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Style="{StaticResource ModernCheckBoxStyle}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                                    <TextBlock Grid.Column="2" Text="{Binding TerminalText}" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="3" Text="{Binding SheetText}" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                                </Grid>
+                                                            </Border>
+                                                            <DataTemplate.Triggers>
+                                                                <DataTrigger Binding="{Binding Conflict}" Value="True">
+                                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource WarnBg}"/>
+                                                                </DataTrigger>
+                                                            </DataTemplate.Triggers>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                            <TextBlock Grid.Row="2" Text="Ligne surlignée : la fiche a déjà un résultat différent ; il est gardé tant que la case n'est pas cochée. Tout reste modifiable ensuite (résultat, commentaire)." FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,10,0,12"/>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <Button Content="Plus tard" Click="BtnDiagImportCancel_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="16,0" Margin="0,0,10,0"/>
+                                                <Button x:Name="BtnDiagImportApply" Content="Reprendre dans la fiche" Click="BtnDiagImportApply_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="18,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </Grid>
                             </Grid>
                         </TabItem>

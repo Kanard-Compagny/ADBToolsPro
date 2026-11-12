@@ -307,6 +307,11 @@ public class MainActivity extends Activity implements Out.Sink {
                 runAll = false;
                 startTest("scanner", true);
                 return;
+            case "run_all":
+                // « Tester sur le terminal » du PC : l'appli enchaîne ses tests ; le PC suit les résultats dans sa fiche.
+                stopCurrent();
+                startAll("1".equals(pendingExtras == null ? null : pendingExtras.getString("reset")));
+                return;
         }
         if (!known(cmd)) { Out.result(cmd, "na", Out.obj("reason", "unknown")); return; }
         runAll = false;
