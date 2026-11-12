@@ -11,8 +11,8 @@
      Android 8 (API 26) et plus récents ; minSdk plus bas pour ne bloquer aucun terminal ancien. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.kanard.adbtools.diag"
-    android:versionCode="6"
-    android:versionName="5.0">
+    android:versionCode="7"
+    android:versionName="5.1">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
 
@@ -43,6 +43,14 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- Suivi terrain lancé depuis l'appli : liste des applis du terminal à suivre (Android 11 et plus). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:label="ADB Tools Diag"

@@ -170,7 +170,7 @@ public class SurveyService extends Service {
     private static Double ping(String host) {
         Process p = null;
         try {
-            p = Runtime.getRuntime().exec(new String[]{"ping", "-c", "1", "-W", "1", host});
+            p = Runtime.getRuntime().exec(new String[]{host.indexOf(':') >= 0 ? "ping6" : "ping", "-c", "1", "-W", "1", host});
             BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line;
             while ((line = r.readLine()) != null) {
@@ -293,8 +293,17 @@ public class SurveyService extends Service {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
                 Network n = cm.getActiveNetwork();
                 LinkProperties lp = n == null ? null : cm.getLinkProperties(n);
-                if (lp != null) for (RouteInfo r : lp.getRoutes())
-                    if (r.isDefaultRoute() && r.getGateway() != null) return r.getGateway().getHostAddress();
+                // Passerelle IPv4 de préférence : l'adresse IPv6 (fe80::…) ne répond pas toujours au ping.
+                String v6 = "";
+                if (lp != null) for (RouteInfo r : lp.getRoutes()) {
+                    if (!r.isDefaultRoute() || r.getGateway() == null || r.getGateway().isAnyLocalAddress()) continue;
+                    if (r.getGateway() instanceof java.net.Inet4Address) return r.getGateway().getHostAddress();
+                    if (v6.length() == 0) v6 = r.getGateway().getHostAddress();
+                }
+                @SuppressWarnings("deprecation")
+                int g4 = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE)).getDhcpInfo().gateway;
+                if (g4 != 0) return (g4 & 0xFF) + "." + ((g4 >> 8) & 0xFF) + "." + ((g4 >> 16) & 0xFF) + "." + ((g4 >> 24) & 0xFF);
+                if (v6.length() > 0) return v6;
             }
             @SuppressWarnings("deprecation")
             int g = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE)).getDhcpInfo().gateway;

@@ -147,7 +147,7 @@ public class MainActivity extends Activity implements Out.Sink {
 
     // Suivi terrain
     private TextView fieldBig, fieldDetail, fieldEvents, fieldIdle;
-    private LinearLayout fieldRunning;
+    private LinearLayout fieldRunning, fieldStopped;
     private long recorderStartRequestedAt;
 
     // Touches
@@ -779,7 +779,7 @@ public class MainActivity extends Activity implements Out.Sink {
         }
         Button all = actionButton(L.t("Tout tester", "Test everything"));
         all.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(true); } });
-        p.addView(all, lpHeight(52, 14));
+        p.addView(all, lpButton(all, 52, 14));
         TextView foot = text(L.t("Le PC peut aussi lancer un test à tout moment : l'appli bascule sur le bon écran.",
                 "The PC can also start a test at any time: the app switches to the right screen."), 12, L.muted, false);
         foot.setPadding(0, dp(14), 0, 0);
@@ -855,11 +855,19 @@ public class MainActivity extends Activity implements Out.Sink {
         head.setOrientation(LinearLayout.VERTICAL);
         head.setPadding(dp(16), dp(14), dp(16), dp(10));
         LinearLayout line = new LinearLayout(this);
+        line.setGravity(Gravity.CENTER_VERTICAL);
         diagProgressText = text("", 13, L.muted, false);
         line.addView(diagProgressText, new LinearLayout.LayoutParams(0, -2, 1f));
-        diagSummary = text("", 13, L.muted, false);
-        line.addView(diagSummary);
+        Button redo = secondaryButton(L.t("Tout refaire", "Start over"));
+        redo.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        redo.setMinHeight(dp(36));
+        redo.setMinimumHeight(dp(36));
+        redo.setPadding(dp(12), 0, dp(12), 0);
+        redo.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(true); } });
+        line.addView(redo, new LinearLayout.LayoutParams(-2, dp(36)));
         head.addView(line);
+        diagSummary = text("", 13, L.muted, false);
+        diagSummary.setPadding(0, dp(6), 0, 0);
         FrameLayout bar = new FrameLayout(this);
         bar.setBackground(rounded(L.surface2, 0, 3));
         diagProgressFill = new View(this);
@@ -868,6 +876,7 @@ public class MainActivity extends Activity implements Out.Sink {
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(-1, dp(6));
         blp.topMargin = dp(8);
         head.addView(bar, blp);
+        head.addView(diagSummary);
         outer.addView(head);
 
         diagList = new LinearLayout(this);
@@ -878,15 +887,11 @@ public class MainActivity extends Activity implements Out.Sink {
         outer.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.VERTICAL);
         actions.setPadding(dp(16), dp(10), dp(16), dp(12));
         diagContinue = actionButton("");
         diagContinue.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(false); } });
-        actions.addView(diagContinue, new LinearLayout.LayoutParams(0, dp(52), 1f));
-        Button redo = secondaryButton(L.t("Tout refaire", "Start over"));
-        redo.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startAll(true); } });
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(-2, dp(52));
-        rlp.leftMargin = dp(10);
-        actions.addView(redo, rlp);
+        actions.addView(diagContinue, lpButton(diagContinue, 52, 0));
         outer.addView(actions);
         return outer;
     }
@@ -907,11 +912,14 @@ public class MainActivity extends Activity implements Out.Sink {
                 row.addView(text(label(id), 15, L.ink, false), new LinearLayout.LayoutParams(0, -2, 1f));
                 row.addView(statusPill(status.get(id)));
                 row.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { runAll = false; startTest(id, false); } });
-                diagList.addView(row, lpHeight(52, 6));
+                row.setMinimumHeight(dp(52));
+                row.setPadding(dp(14), dp(8), dp(14), dp(8));
+                diagList.addView(row, lpMatch(6));
             }
             int[] c = counts();
             diagProgressText.setText(L.t(c[3] + " tests sur " + TESTS.length, c[3] + " of " + TESTS.length + " tests"));
             diagSummary.setText(c[1] + c[2] == 0 ? "" : L.t(c[1] + " à surveiller · " + c[2] + " KO", c[1] + " to monitor · " + c[2] + " faulty"));
+            diagSummary.setVisibility(c[1] + c[2] == 0 ? View.GONE : View.VISIBLE);
             ViewGroup.LayoutParams lp = diagProgressFill.getLayoutParams();
             int full = getResources().getDisplayMetrics().widthPixels - dp(32);
             lp.width = Math.round(full * c[3] / (float) TESTS.length);
@@ -937,7 +945,9 @@ public class MainActivity extends Activity implements Out.Sink {
                 Long at = statusAt.get(id);
                 if (at != null) { TextView tm = text(f.format(new Date(at)), 12, L.muted, false); tm.setPadding(0, 0, dp(10), 0); row.addView(tm); }
                 row.addView(statusPill(s));
-                resultsList.addView(row, lpHeight(52, 6));
+                row.setMinimumHeight(dp(52));
+                row.setPadding(dp(14), dp(8), dp(14), dp(8));
+                resultsList.addView(row, lpMatch(6));
             }
             if (!any) {
                 TextView empty = text(L.t("Aucun résultat pour l'instant. Lancez un diagnostic depuis l'accueil ou depuis le PC.",
@@ -1401,10 +1411,10 @@ public class MainActivity extends Activity implements Out.Sink {
         wifiRunning.addView(wifiEvents);
         Button mark = actionButton(L.t("Poser un repère", "Add a marker"));
         mark.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askMark(); } });
-        wifiRunning.addView(mark, lpHeight(54, 16));
+        wifiRunning.addView(mark, lpButton(mark, 54, 16));
         Button stop = secondaryButton(L.t("Arrêter la mesure", "Stop measuring"));
         stop.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopSurvey(); } });
-        wifiRunning.addView(stop, lpHeight(48, 10));
+        wifiRunning.addView(stop, lpButton(stop, 48, 10));
         TextView tip = text(L.t("Vous pouvez débrancher le terminal et vous déplacer. Posez des repères aux endroits clés (quai, rayon, bureau…).",
                 "You can unplug the device and walk around. Add markers at key places (dock, aisle, office…)."), 13, L.muted, false);
         tip.setPadding(0, dp(12), 0, 0);
@@ -1417,7 +1427,7 @@ public class MainActivity extends Activity implements Out.Sink {
         wifiStopped.addView(wifiIdle);
         Button start = actionButton(L.t("Démarrer une mesure", "Start a survey"));
         start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { startSurvey(null); } });
-        wifiStopped.addView(start, lpHeight(52, 16));
+        wifiStopped.addView(start, lpButton(start, 52, 16));
         p.addView(wifiStopped);
         return scroll(p);
     }
@@ -1540,10 +1550,10 @@ public class MainActivity extends Activity implements Out.Sink {
         Button inc = actionButton(L.t("Signaler un incident", "Report an incident"));
         inc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
         inc.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askIncident(); } });
-        fieldRunning.addView(inc, lpHeight(64, 16));
+        fieldRunning.addView(inc, lpButton(inc, 64, 16));
         Button stop = secondaryButton(L.t("Arrêter le suivi", "Stop monitoring"));
         stop.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { confirmStopRecorder(); } });
-        fieldRunning.addView(stop, lpHeight(48, 10));
+        fieldRunning.addView(stop, lpButton(stop, 48, 10));
         TextView tip = text(L.t("Utilisez le terminal normalement. Au moindre problème, appuyez sur « Signaler un incident » (aussi dans la notification).",
                 "Use the device as usual. When a problem occurs, press \"Report an incident\" (also in the notification)."), 13, L.muted, false);
         tip.setPadding(0, dp(12), 0, 0);
@@ -1552,8 +1562,14 @@ public class MainActivity extends Activity implements Out.Sink {
         fieldEvents.setPadding(0, dp(12), 0, 0);
         fieldRunning.addView(fieldEvents);
         p.addView(fieldRunning);
+        fieldStopped = new LinearLayout(this);
+        fieldStopped.setOrientation(LinearLayout.VERTICAL);
         fieldIdle = text("", 15, L.ink, false);
-        p.addView(fieldIdle);
+        fieldStopped.addView(fieldIdle);
+        Button start = actionButton(L.t("Démarrer le suivi", "Start monitoring"));
+        start.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { askRecorderTarget(); } });
+        fieldStopped.addView(start, lpButton(start, 52, 16));
+        p.addView(fieldStopped);
         return scroll(p);
     }
 
@@ -1574,17 +1590,16 @@ public class MainActivity extends Activity implements Out.Sink {
         RecorderService s = RecorderService.running;
         boolean starting = s == null && System.currentTimeMillis() - recorderStartRequestedAt < 15000;
         fieldRunning.setVisibility(s != null || starting ? View.VISIBLE : View.GONE);
-        fieldIdle.setVisibility(s != null || starting ? View.GONE : View.VISIBLE);
+        fieldStopped.setVisibility(s != null || starting ? View.GONE : View.VISIBLE);
         if (starting) { fieldBig.setText("…"); fieldDetail.setText(L.t("Démarrage du suivi…", "Starting…")); return; }
         if (s == null) {
             fieldIdle.setText(recorderStartRequestedAt > 0
                     ? L.t("Suivi terminé. Rebranchez le terminal au PC et récupérez-le dans ADB Tools (Analyse de fichiers ▸ Suivi terrain).",
                           "Monitoring finished. Plug the device back into the PC and retrieve it in ADB Tools (File analysis ▸ Field monitoring).")
                     : L.t("Le suivi terrain confie le terminal à un utilisateur pendant plusieurs heures : il note le journal Android, la batterie, "
-                          + "le Wi-Fi, les coupures et les incidents signalés d'un bouton. Il se lance depuis ADB Tools (Analyse de fichiers ▸ Suivi terrain), "
-                          + "qui accorde les droits nécessaires.",
+                          + "le Wi-Fi, les coupures et les incidents signalés d'un bouton. Au retour, ADB Tools le récupère et l'ouvre sur les incidents.",
                           "Field monitoring hands the device to a user for several hours: it records the Android log, battery, Wi-Fi, drops "
-                          + "and incidents reported with one button. Start it from ADB Tools (File analysis ▸ Field monitoring), which grants the required permissions."));
+                          + "and incidents reported with one button. Back at the PC, ADB Tools retrieves it and opens it on the incidents."));
             return;
         }
         long sec = (System.currentTimeMillis() - s.startedAt) / 1000;
@@ -1604,6 +1619,52 @@ public class MainActivity extends Activity implements Out.Sink {
         if (nz(s.lastWifi).length() > 0) d.append("\nWi-Fi : ").append(s.lastWifi);
         fieldDetail.setText(d.toString());
         fieldEvents.setText(s.recentText());
+    }
+
+    /** Suivi lancé depuis l'appli : appli métier à suivre (facultatif), puis durée. */
+    private void askRecorderTarget() {
+        final List<String[]> apps = new ArrayList<String[]>();
+        try {
+            android.content.pm.PackageManager pm = getPackageManager();
+            Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+            HashSet<String> seen = new HashSet<String>();
+            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(main, 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (pkg.equals(getPackageName()) || !seen.add(pkg)) continue;
+                apps.add(new String[] { String.valueOf(ri.loadLabel(pm)), pkg });
+            }
+            java.util.Collections.sort(apps, new java.util.Comparator<String[]>() {
+                @Override public int compare(String[] a, String[] b) { return a[0].compareToIgnoreCase(b[0]); }
+            });
+        } catch (Exception ignored) { }
+        final String[] labels = new String[apps.size() + 1];
+        labels[0] = L.t("Aucune appli en particulier", "No specific app");
+        for (int i = 0; i < apps.size(); i++) labels[i + 1] = apps.get(i)[0];
+        dialog().setTitle(L.t("Appli métier à suivre", "Business app to monitor"))
+                .setItems(labels, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        askRecorderDuration(which == 0 ? "" : apps.get(which - 1)[1]);
+                    }
+                })
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
+    }
+
+    private void askRecorderDuration(final String target) {
+        final int[] minutes = { 0, 60, 120, 240, 480 };
+        String[] labels = { L.t("Sans limite (arrêt manuel)", "No limit (stop manually)"), "1 h", "2 h", "4 h", "8 h" };
+        dialog().setTitle(L.t("Durée du suivi", "Monitoring duration"))
+                .setItems(labels, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        Bundle b = new Bundle();
+                        b.putString(RecorderService.EXTRA_TARGET, target);
+                        b.putInt(RecorderService.EXTRA_DURATION, minutes[which]);
+                        b.putInt(RecorderService.EXTRA_INTERVAL, 15);
+                        startRecorder(b);
+                    }
+                })
+                .setNegativeButton(L.t("Annuler", "Cancel"), null)
+                .show();
     }
 
     /** Incident : motif rapide en un geste, précision facultative. */
@@ -1724,6 +1785,16 @@ public class MainActivity extends Activity implements Out.Sink {
     }
 
     private LinearLayout.LayoutParams lpMatch(int topDp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.topMargin = dp(topDp);
+        return lp;
+    }
+
+    /** Bouton pleine largeur : hauteur minimale, grandit si le texte passe sur deux lignes (petits écrans). */
+    private LinearLayout.LayoutParams lpButton(Button b, int hDp, int topDp) {
+        b.setMinHeight(dp(hDp));
+        b.setMinimumHeight(dp(hDp));
+        b.setPadding(dp(14), dp(8), dp(14), dp(8));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.topMargin = dp(topDp);
         return lp;
