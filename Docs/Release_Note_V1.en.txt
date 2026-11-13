@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.6.0
+                              RELEASE NOTES V1.7.0
 ================================================================================
-Version        : 1.6.0 (Master: restoring devices after a wipe)
-Release date   : November 2026 (1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.7.0 (single diagnostics sheet, Diag app redesigned, manufacturer settings, troubleshooting)
+Release date   : November 2026 (1.6.0: Master, 1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,90 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.6.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.7.0 (November 2026)
+================================================================================
+SERVICE DIAGNOSTICS (sheet redesigned)
+  - A single sheet, one line per part of the device, grouped by category:
+    system; screen, touch and buttons; scanner; cameras; audio and
+    vibrator; sensors; connections. The label on the right says who tests:
+    the PC, the Diag app on the device, or either.
+  - At the top: "Auto check-up (PC)", "Test on the device" (the whole test
+    run in the app), "Retrieve from the device", Word report.
+  - Details of each line: instructions, start on the device or on the PC,
+    live key and touch listening, colour patterns sent from the PC, live
+    scans, preview of what was done on the device (swiped touch grid,
+    pressed keys), photos and recordings to review.
+  - Kept result (Compliant, To monitor, Non-compliant, Not tested) and comment editable at any
+    time, with the line's history.
+  - Retrieving the app's results: a window lists what was received and you
+    tick what goes into the sheet; a line that already has a different
+    result is highlighted and kept unless ticked.
+  - Tests the model lacks are greyed out and left out of the report; the
+    Word report follows the sheet, with the device's touch grid as an image.
+
+ADB TOOLS DIAG APP (redesigned)
+  - In ADB Tools colours, in French or English, light or dark theme like the
+    program; burger menu.
+  - Tests: screen, touch, keys (power included), cameras, flash, speaker,
+    earpiece, microphone with level, vibrator, sensors with reaction,
+    barcode scanner (DataWedge or keyboard), RFID, NFC, GPS, Bluetooth,
+    memory speed. Only the tests the model supports are offered.
+  - Plugged in or without a PC: results stay on the device. Results screen:
+    run a test again, change a result, "Send to the PC".
+  - Wi-Fi survey (ping target of your choice, e.g. 8.8.8.8) and field
+    monitoring (formerly "field recorder"): the summary stays on screen at
+    the end, then "Send to the PC" opens the Wi-Fi analysis or the file
+    analysis directly.
+  - The app stays installed. "Diag app" button in the top bar: install,
+    open, remove; it turns orange when a survey or a monitoring record is
+    waiting, and gathers the retrievals.
+  - Can be removed from the device ("Remove the app" menu) without leaving a
+    DataWedge setting behind.
+
+MASTER: MANUFACTURER SETTINGS ("Manufacturer" tab)
+  - Zebra first, on a shared engine ready for other brands. A block is only
+    applied on devices of its brand; elsewhere the summary says so.
+  - Import of one or more StageNow profiles (Export to MDM, XML); merge into
+    a single profile (identical steps not copied twice, a setting present on
+    both sides is flagged).
+  - Steps in plain words, grouped by theme (Wi-Fi, Enterprise Home Screen,
+    Velocity, DataWedge, apps, files, screen and power, system); each can be
+    ticked or unticked.
+  - XML editor in its own window: highlighting, search, XML checked as you
+    type (faulty line underlined), the Master follows live; original kept
+    (go back, view changes).
+  - Sensitive steps (reset, OS update, encryption, USB debugging) unticked;
+    once ticked they are confirmed by typing APPLIQUER and run last.
+  - Profile files: provided from the PC or from the APK of a Master app; a
+    file the profile downloads from a link is flagged and can be provided
+    instead (the download is skipped).
+  - Applied step by step by the ADB Tools Helper mini app (EMDK, Zebra's
+    official interface), with the device's answer in the summary.
+  - Files tab: copy into Zebra's protected folders (/enterprise, e.g. EHS
+    configuration) through MX, without root; folders already used are
+    remembered and offered again.
+
+TROUBLESHOOTING (new menu page)
+  - By symptom: device not detected, not authorized or offline, broken
+    screen or dead touch, no USB debugging, recovery / reset / fastboot, key
+    combinations.
+  - Keyboard and mouse control over the cable (scrcpy OTG), with the right
+    device picked and the USB driver explained if Windows does not see it.
+  - Key combinations per brand and model, stored in the program (offline)
+    and extendable with your own.
+
+FIRST LAUNCH
+  - Language, interface size suggested for the screen (with preview) and
+    theme, only on a new install; the size advice is also in Settings.
+
+MISCELLANEOUS
+  - All separate windows follow the design: rounded corners, shadow,
+    scrollbars.
+  - Guided tour completed (Diag app, service sheet, manufacturer Master).
+  - New open-source component: AvalonEdit (MIT), for the XML editor.
+
+================================================================================
+2a. WHAT'S NEW IN VERSION 1.6.0 (November 2026)
 ================================================================================
 MASTER (new menu page)
   - Restore devices after a wipe, any brand that supports ADB: a reference
@@ -384,17 +467,18 @@ v3 license), published on GitHub by Mr.Kanard.
 - OS update has its own page since version 1.5.0 (see section 2b).
 
 [🔧 Service diagnostics]
-- One-click automatic check-up covering 9 checkpoints: ADB authorization, root
-  privileges, Wi-Fi interface, network ping, battery status/health, internal
-  storage, sensors, thermal diagnostics, crash/ANR history.
-- 4 guided manual tests: physical buttons, touch panel, scanner trigger and
-  optics, colour patterns to detect dead pixels and screen burn-in.
-- Pass/fail verdict per checkpoint with a free technician comment.
-- Live hardware lab: key press log (with stuck key detection) and touch test
-  grid.
-- "New test": resets the whole diagnostics in one click.
-- Export to JSON (RMA) and to Word (.docx), ready to give to the customer.
-- History of the diagnostics run on each device (by serial number).
+- A single sheet, one line per part of the device, grouped by category; the
+  label on the right says who tests (PC, device, or either).
+- PC automatic check-up: ADB authorization, root, battery, storage,
+  temperatures, crashes / ANRs, sensors, Wi-Fi, ping.
+- ADB Tools Diag app tests started from the sheet (one test or the whole
+  run), results retrieved in one click.
+- Live listening from the PC: physical keys (with stuck key detection) and
+  touched areas; colour patterns sent to the screen; live barcode scans.
+- Kept result and comment editable at any time, history per line; "New
+  test" to start again on another device.
+- JSON export (RMA) and Word report ready for the customer: summary and
+  verdict, table by category, touch grid as an image.
 
 [📡 Wi-Fi analysis]
 - Live monitoring of the connection: SSID, BSSID, IP and MAC addresses,

@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.6.0
+                              RELEASE NOTES V1.7.0
 ================================================================================
-Version        : 1.6.0 (Master : remise en état des terminaux après un wipe)
-Date de sortie : Novembre 2026 (1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
+Version        : 1.7.0 (fiche de diagnostic unique, appli Diag refaite, réglages constructeur, dépannage)
+Date de sortie : Novembre 2026 (1.6.0 : Master, 1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -25,7 +25,96 @@ matériel réel ; les limitations connues sont listées en fin de document
 (section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.6.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.7.0 (Novembre 2026)
+================================================================================
+DIAGNOSTICS SAV (fiche refaite)
+  - Une seule fiche, une ligne par élément du terminal, rangée par catégorie :
+    système ; écran, tactile et boutons ; lecteur ; caméras ; audio et
+    vibreur ; capteurs ; connexions. La mention à droite dit qui teste : le
+    PC, l'appli Diag sur le terminal, ou les deux au choix.
+  - En haut : « Check-up auto (PC) », « Tester sur le terminal » (toute la
+    batterie de tests dans l'appli), « Récupérer du terminal », rapport Word.
+  - Détail de chaque ligne : consigne, lancement sur le terminal ou sur le
+    PC, écoute en direct des touches et du tactile, mires d'écran envoyées
+    depuis le PC, lectures du lecteur en direct, aperçu de ce qui a été fait
+    sur le terminal (grille tactile balayée, touches pressées), photos et
+    enregistrements à revoir.
+  - Résultat retenu (Conforme, À surveiller, Non conforme, Non testé) et
+    commentaire modifiables à tout moment, avec l'historique de la ligne.
+  - Récupération des résultats de l'appli : une fenêtre liste ce qui a été
+    reçu, on coche ce qui entre dans la fiche ; une ligne qui a déjà un
+    résultat différent est surlignée et gardée tant qu'on ne la coche pas.
+  - Tests absents du modèle grisés et exclus du rapport ; le rapport Word
+    reprend la fiche, avec la grille tactile faite sur le terminal en image.
+
+APPLI ADB TOOLS DIAG (refaite)
+  - Aux couleurs d'ADB Tools, en français ou en anglais, thème clair ou
+    sombre comme le programme ; menu burger.
+  - Tests : écran, tactile, touches (marche comprise), caméras, flash,
+    haut-parleur, écouteur, micro avec niveau, vibreur, capteurs avec
+    réaction, lecteur code-barres (DataWedge ou clavier), RFID, NFC, GPS,
+    Bluetooth, vitesse de la mémoire. Seuls les tests possibles sur le
+    modèle sont proposés.
+  - Branchée ou sans PC : les résultats restent sur le terminal. Écran
+    Résultats : refaire un test, changer un résultat, « Envoyer au PC ».
+  - Mesure Wi-Fi (cible du ping au choix, ex. 8.8.8.8) et suivi terrain
+    (anciennement « enregistreur terrain ») : le bilan reste affiché à la
+    fin, puis « Envoyer au PC » ouvre directement l'analyse Wi-Fi ou
+    l'analyse de fichiers.
+  - L'appli reste installée. Bouton « Appli Diag » dans la barre du haut :
+    installer, ouvrir, retirer ; il passe en orange quand une mesure ou un
+    suivi attend d'être récupéré, et regroupe les récupérations.
+  - Retrait possible depuis le terminal (menu « Retirer l'appli »), sans
+    laisser de réglage DataWedge derrière elle.
+
+MASTER : RÉGLAGES CONSTRUCTEUR (onglet « Constructeur »)
+  - Zebra pour commencer, moteur commun prévu pour d'autres marques. Un bloc
+    n'est appliqué que sur les terminaux de sa marque ; ailleurs, le bilan
+    l'indique.
+  - Import d'un ou plusieurs profils StageNow (Export to MDM, XML) ; fusion
+    en un seul profil (étapes identiques non recopiées, réglage présent des
+    deux côtés signalé).
+  - Étapes en clair, rangées par thème (Wi-Fi, Enterprise Home Screen,
+    Velocity, DataWedge, applications, fichiers, écran et énergie,
+    système) ; chacune se coche ou se décoche.
+  - Éditeur XML en fenêtre séparée : coloration, recherche, XML vérifié à
+    chaque frappe (ligne fautive soulignée), le Master suit en direct ;
+    original gardé (revenir, voir les changements).
+  - Étapes sensibles (remise à zéro, mise à jour d'OS, chiffrement,
+    débogage USB) décochées ; cochées, elles se confirment en tapant
+    APPLIQUER et passent en dernier.
+  - Fichiers du profil : fournis depuis le PC ou depuis l'apk d'une appli
+    du Master ; un fichier que le profil fait télécharger par un lien est
+    repéré, et peut être fourni à la place (le téléchargement est sauté).
+  - Application étape par étape par la mini appli ADB Tools Helper (EMDK,
+    interface officielle de Zebra), avec la réponse du terminal au bilan.
+  - Onglet Fichiers : dépôt dans les dossiers protégés de Zebra
+    (/enterprise, ex. configuration EHS) par MX, sans root ; les dossiers
+    déjà utilisés sont retenus et reproposés.
+
+DÉPANNAGE (nouvelle page du menu)
+  - Par symptôme : terminal non détecté, non autorisé ou hors ligne, écran
+    cassé ou tactile mort, pas de débogage USB, recovery / réinitialisation
+    / fastboot, combinaisons de touches.
+  - Prise en main au clavier et à la souris par câble (scrcpy OTG), avec le
+    bon appareil choisi et l'explication du pilote USB si Windows ne le
+    voit pas.
+  - Combinaisons de touches par marque et par modèle, enregistrées dans le
+    programme (hors connexion) et à compléter avec les vôtres.
+
+PREMIER LANCEMENT
+  - Langue, taille de l'interface conseillée selon l'écran (avec aperçu) et
+    thème, seulement sur une nouvelle installation ; le conseil de taille
+    est aussi dans Paramètres.
+
+DIVERS
+  - Toutes les fenêtres séparées à la charte : coins arrondis, ombre,
+    barres de défilement.
+  - Visite guidée complétée (Appli Diag, fiche SAV, Master constructeur).
+  - Nouveau composant libre : AvalonEdit (MIT), pour l'éditeur XML.
+
+================================================================================
+2a. NOUVEAUTÉS DE LA VERSION 1.6.0 (Novembre 2026)
 ================================================================================
 MASTER (nouvelle page du menu)
   - Remettre des terminaux en état après un wipe, toutes marques compatibles
@@ -534,28 +623,19 @@ blocages et rend l'application plus fluide sur les longues sessions.
   commande refusée...) plutôt qu'un blocage silencieux de l'interface.
 
 [🔧 Diagnostics SAV]
-- Check-up automatique en un clic couvrant 9 points de contrôle : autorisation
-  ADB, privilèges root, interface Wi-Fi, ping réseau, état/santé batterie,
-  stockage interne, capteurs (accéléromètre/gyroscope/proximité/luminosité),
-  diagnostic thermique, historique des plantages/ANR.
-- 4 tests manuels guidés : boutons physiques, dalle tactile, gâchette/optique
-  du scanner, mires de couleur pour détecter pixels morts et brûlure d'écran
-  (Rouge/Vert/Bleu/Blanc/Noir/Gris).
-- Verdict Pass/Fail par point de contrôle avec commentaire libre du
-  technicien.
-- Laboratoire matériel en direct : journal des appuis sur les touches
-  physiques (avec détection de touche bloquée) et grille de test tactile
-  avec coordonnées X/Y.
-- "🔄 Nouveau test" : réinitialise en un clic l'ensemble du diagnostic (statuts,
-  commentaires, grille tactile, journal des touches) pour repartir de zéro sur
-  un nouveau terminal, avec confirmation avant remise à zéro.
-- Export du rapport complet au format JSON, prêt à joindre à un dossier SAV.
-- Export au format Word (.docx), prêt à remettre au client : résumé et verdict
-  automatiques (nombre de tests conformes / à surveiller / non conformes,
-  en précisant ceux non réalisés),
-  tableaux séparés Auto/Manuel avec code couleur par statut, visuel de la
-  grille tactile testée, et avertissement (non bloquant) si des tests n'ont
-  pas encore été réalisés au moment de l'export.
+- Une seule fiche, une ligne par élément du terminal, rangée par catégorie ;
+  la mention à droite dit qui teste (PC, terminal, ou les deux).
+- Check-up automatique du PC : autorisation ADB, root, batterie, stockage,
+  températures, plantages / ANR, capteurs, Wi-Fi, ping.
+- Tests de l'appli ADB Tools Diag lancés depuis la fiche (un test ou toute
+  la batterie), résultats récupérés d'un clic.
+- Écoute en direct depuis le PC : touches physiques (avec touche bloquée)
+  et zones touchées ; mires de couleur envoyées sur l'écran ; lectures du
+  lecteur code-barres en direct.
+- Résultat retenu et commentaire modifiables à tout moment, historique par
+  ligne ; « Nouveau test » pour repartir de zéro sur un autre terminal.
+- Export JSON (RMA) et rapport Word prêt à remettre au client : résumé et
+  verdict, tableau par catégorie, grille tactile en image.
 
 [📡 Analyse Wi-Fi]
 - Surveillance en direct de la connexion : SSID, BSSID, adresse IP, adresse

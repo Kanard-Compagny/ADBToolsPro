@@ -17,7 +17,7 @@ namespace ADBToolsNew.Core
         public const string LogTag = "ADBToolsDiag";
         public const string DataWedgeProfile = "ADBToolsDiag";
         /// <summary>Version de l'appli fournie avec le programme : à garder égale au versionCode de DiagApp/AndroidManifest.xml.</summary>
-        public const int VersionCode = 14;
+        public const int VersionCode = 15;
 
         /// <summary>Version installée lue dans « dumpsys package » (0 : appli absente).</summary>
         public static int ParseInstalledVersion(string dumpsys)

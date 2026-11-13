@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ADB Tools Pro</title>
-<meta name="description" content="The free toolbox for Android support technicians: diagnostics, screen mirroring, device and scanner tests, Wi-Fi and log analysis, Word reports. For Windows, no command line needed.">
+<meta name="description" content="The free toolbox for Android support technicians: service diagnostics with a test app on the device, screen mirroring, Wi-Fi and log analysis, restore after a wipe, troubleshooting, Word reports. For Windows, no command line needed.">
 <link rel="canonical" href="https://kanard-compagny.github.io/ADBToolsPro/en/">
 <link rel="alternate" hreflang="fr" href="https://kanard-compagny.github.io/ADBToolsPro/">
 <link rel="alternate" hreflang="en" href="https://kanard-compagny.github.io/ADBToolsPro/en/">
@@ -69,19 +69,19 @@
       <div class="cases">
         <div class="case">
           <q>Parts of the screen stopped responding</q>
-          <p>Test the touch panel by filling a grid, with every touch shown live on the PC. Physical buttons, dead pixels, cameras, speaker, microphone, vibrator, sensors, NFC, GPS: every test you run goes into the report.<span class="where">Diagnostics, Lab</span></p>
+          <p>A single sheet, one line per part of the device. Test the touch panel in the ADB Tools Diag app or live from the PC, and the swiped grid shows up in the sheet. Buttons, dead pixels, cameras, sound, vibrator, sensors, NFC, GPS, RFID: every result stays editable on the PC and goes into the report.<span class="where">Diagnostics, Diag app</span></p>
         </div>
         <div class="case">
           <q>Wi-Fi keeps dropping in the warehouse</q>
-          <p>The device measures Wi-Fi on its own, unplugged, while you walk the site: signal, access point, channel and ping every second, with markers like “Dock 3”. Back at the PC you get charts, access point changes, drops and a summary per zone.<span class="where">Wi-Fi analysis, Cable-free survey</span></p>
+          <p>The Diag app measures Wi-Fi on its own, device unplugged, while you walk the site: signal, access point, channel and ping every second, with markers like “Dock 3”. Back at the PC, “Send to the PC”: charts, access point changes, drops and a summary per zone.<span class="where">Wi-Fi analysis, Diag app</span></p>
         </div>
         <div class="case">
           <q>The scanner won't read anything</q>
-          <p>A small test app shows every scan, its symbology and the time since the trigger was pressed. Missed reads and mismatches against a sheet of expected codes stand out straight away.<span class="where">Diagnostics, Scanner test</span></p>
+          <p>The Diag app shows every scan, its symbology and the time since the trigger was pressed, through DataWedge or keyboard input. Missed reads and mismatches against a sheet of expected codes stand out straight away.<span class="where">Diagnostics, Scanner</span></p>
         </div>
         <div class="case">
           <q>The app crashes, but never while you're watching</q>
-          <p>The field recorder keeps the Android log for hours with the device unplugged. The user reports the incident with one tap. Back at the PC, ADB Tools opens the recording on the incident and shows what changed just before it.<span class="where">File analysis, Field recorder</span></p>
+          <p>The Diag app's field monitoring keeps the Android log for hours with the device unplugged. The user reports the incident with one tap. Back at the PC, ADB Tools opens the record on the incident and shows what changed just before it.<span class="where">File analysis, Field monitoring</span></p>
         </div>
         <div class="case">
           <q>The whole fleet needs the latest version</q>
@@ -89,7 +89,11 @@
         </div>
         <div class="case">
           <q>The device is back from a wipe, everything must be set up again</q>
-          <p>Capture a reference device already set up for the customer: apps, permissions, settings, language, time, Wi-Fi, launcher, MDM. Complete what cannot be retrieved, then reinject it onto one or several devices. Each one is analyzed before sending, and the report shows what was restored or not.<span class="where">Master</span></p>
+          <p>Capture a reference device already set up for the customer: apps, permissions, settings, language, time, Wi-Fi, launcher, MDM. Add your StageNow profiles for Zebra settings. Complete what cannot be retrieved, then reinject it onto one or several devices. Each one is analyzed before sending, and the report shows what was restored or not.<span class="where">Master</span></p>
+        </div>
+        <div class="case">
+          <q>Broken screen, USB debugging turned off</q>
+          <p>Pick the symptom: the page explains the cause and offers what is still possible. Keyboard and mouse control over the cable, data recovery, recovery mode, and each brand's key combinations, available even with no device plugged in.<span class="where">Troubleshooting</span></p>
         </div>
       </div>
     </div>
@@ -118,12 +122,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>Diagnostics</h3>
+          <h3>Diagnostics <span class="new">New in 1.7</span></h3>
           <ul>
+            <li>A single sheet: one line per part, tested by the PC, by the Diag app, or both.</li>
             <li>Automatic check-up: Wi-Fi, ping, battery, storage, sensors, temperatures.</li>
-            <li>Guided hardware tests and barcode scanner test.</li>
-            <li>Each line set to Pass, Fail, Watch or Not tested.</li>
+            <li>Device results retrieved in one click; status and comment editable, history per line.</li>
             <li>Comparator: two devices, or a device and its approved reference.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>ADB Tools Diag app <span class="new">New in 1.7</span></h3>
+          <ul>
+            <li>On the device, plugged in or not: screen, touch, keys, cameras, flash, sound, microphone, vibrator, sensors, scanner, RFID, NFC, GPS, Bluetooth, memory.</li>
+            <li>Cable-free Wi-Fi survey and field monitoring, then “Send to the PC”.</li>
+            <li>Only the tests the model supports are offered.</li>
+            <li>Installed and removed in one click from ADB Tools, or from the device.</li>
           </ul>
         </div>
         <div class="group">
@@ -140,7 +153,7 @@
             <li>Automatic analysis: crashes, ANRs, memory, Wi-Fi, battery, scanner, with advice for each problem.</li>
             <li>File analysis: Zebra RxLogger archive, bugreport or logcat, timeline per topic, jump to the incident.</li>
             <li>Reboots and their cause, business app lifecycle, your team's known faults.</li>
-            <li>Field recorder with one-tap incident reports.</li>
+            <li>Field monitoring with one-tap incident reports.</li>
           </ul>
         </div>
         <div class="group">
@@ -153,12 +166,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>Master <span class="new">New in 1.6</span></h3>
+          <h3>Master</h3>
           <ul>
             <li>Restore after a wipe: capture a reference device, or create the Master by hand.</li>
-            <li>Apps, settings in plain words, language and time, Wi-Fi, launcher, MDM, DataWedge files.</li>
+            <li>Apps, settings in plain words, language and time, Wi-Fi, launcher, MDM, files copied wherever you want.</li>
+            <li>Manufacturer settings: Zebra StageNow profiles imported, merged, editable in an XML editor, applied only on the right brand.</li>
             <li>Each device analyzed before sending, choice per app according to its version.</li>
             <li>Report of what was restored or not, Excel export.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Troubleshooting <span class="new">New in 1.7</span></h3>
+          <ul>
+            <li>By symptom: device not detected or not authorized, broken screen, dead touch, no USB debugging.</li>
+            <li>Keyboard and mouse control over the cable (OTG), data recovery.</li>
+            <li>Recovery, reset, fastboot, and key combinations per brand you can extend.</li>
           </ul>
         </div>
         <div class="group">
@@ -178,7 +200,7 @@
             <li>Team profile: one file to set up every PC the same way.</li>
             <li>Verified updates installed in one click.</li>
             <li>Light, dark or same as Windows; interface in English or French.</li>
-            <li>Adjustable interface size and guided tour on first launch.</li>
+            <li>First launch: language, interface size suggested for the screen, theme; then a guided tour.</li>
           </ul>
         </div>
       </div>
@@ -188,16 +210,22 @@
     <section id="screenshots">
     <div class="wrap">
       <h2>Screenshots</h2>
-      <p class="intro">Dark theme, on Zebra TC58 and TC53 devices (French interface, English available). Serial numbers and network details are masked. Click to enlarge.</p>
+      <p class="intro">Dark theme, on Zebra TC58 and TC53 devices (French interface, English available). Serial numbers, networks and customer names are masked. Click to enlarge.</p>
       <div class="shots">
-        <figure class="lead"><a href="../assets/captures/master.webp" title="Open full size" data-lightbox><img src="../assets/captures/master.webp" alt="Master: a captured reference device, content checked tab by tab, devices analyzed before sending." width="1919" height="1030" decoding="async"></a><figcaption>Master: a captured reference device, content checked tab by tab, devices analyzed before sending.</figcaption></figure>
+        <figure class="lead"><a href="../assets/captures/diagnostics.webp" title="Open full size" data-lightbox><img src="../assets/captures/diagnostics.webp" alt="Service diagnostics: a single sheet, one line per part; here the touch grid swiped in the app, brought back to the PC." width="1934" height="1038" decoding="async"></a><figcaption>Service diagnostics: a single sheet, one line per part; here the touch grid swiped in the app, brought back to the PC.</figcaption></figure>
+        <figure><a href="../assets/captures/appli-diagnostic.webp" title="Open full size" data-lightbox><img src="../assets/captures/appli-diagnostic.webp" alt="The ADB Tools Diag app on the device: home, scanner test, end of the diagnostic and sending to the PC." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>The ADB Tools Diag app on the device: home, scanner test, end of the diagnostic and sending to the PC.</figcaption></figure>
+        <figure><a href="../assets/captures/appli-mesures.webp" title="Open full size" data-lightbox><img src="../assets/captures/appli-mesures.webp" alt="Cable-free Wi-Fi survey and field monitoring in the app, then “Send to the PC”." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Cable-free Wi-Fi survey and field monitoring in the app, then “Send to the PC”.</figcaption></figure>
+        <figure><a href="../assets/captures/diagnostics-recuperation.webp" title="Open full size" data-lightbox><img src="../assets/captures/diagnostics-recuperation.webp" alt="Results received from the device: choose what goes into the sheet, nothing is lost." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Results received from the device: choose what goes into the sheet, nothing is lost.</figcaption></figure>
+        <figure><a href="../assets/captures/master-constructeur.webp" title="Open full size" data-lightbox><img src="../assets/captures/master-constructeur.webp" alt="Master, Manufacturer tab: a Zebra StageNow profile read as plain steps." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Master, Manufacturer tab: a Zebra StageNow profile read as plain steps.</figcaption></figure>
+        <figure><a href="../assets/captures/editeur-xml.webp" title="Open full size" data-lightbox><img src="../assets/captures/editeur-xml.webp" alt="The profile's XML editor, in its own window: checked as you type, the Master follows live." width="1240" height="780" loading="lazy" decoding="async"></a><figcaption>The profile's XML editor, in its own window: checked as you type, the Master follows live.</figcaption></figure>
+        <figure><a href="../assets/captures/depannage.webp" title="Open full size" data-lightbox><img src="../assets/captures/depannage.webp" alt="Troubleshooting: by symptom, with each brand's key combinations." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Troubleshooting: by symptom, with each brand's key combinations.</figcaption></figure>
+        <figure><a href="../assets/captures/premier-lancement.webp" title="Open full size" data-lightbox><img src="../assets/captures/premier-lancement.webp" alt="First launch: language, interface size suggested for the screen, theme." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>First launch: language, interface size suggested for the screen, theme.</figcaption></figure>
+        <figure><a href="../assets/captures/master.webp" title="Open full size" data-lightbox><img src="../assets/captures/master.webp" alt="Master: a captured reference device, content checked tab by tab, devices analyzed before sending." width="1919" height="1030" loading="lazy" decoding="async"></a><figcaption>Master: a captured reference device, content checked tab by tab, devices analyzed before sending.</figcaption></figure>
         <figure><a href="../assets/captures/mise-a-jour-os.webp" title="Open full size" data-lightbox><img src="../assets/captures/mise-a-jour-os.webp" alt="OS update: two devices updated at the same time, version checked on return and apps reinstalled." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>OS update: two devices updated at the same time, version checked on return and apps reinstalled.</figcaption></figure>
         <figure><a href="../assets/captures/analyse-fichiers.webp" title="Open full size" data-lightbox><img src="../assets/captures/analyse-fichiers.webp" alt="File analysis: a 2.2-million-line RxLogger archive, the per-topic timeline and the investigation tools." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>File analysis: a 2.2-million-line RxLogger archive, the per-topic timeline and the investigation tools.</figcaption></figure>
         <figure><a href="../assets/captures/dashboard.webp" title="Open full size" data-lightbox><img src="../assets/captures/dashboard.webp" alt="Device dashboard and ADB commands." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Device dashboard and ADB commands.</figcaption></figure>
         <figure><a href="../assets/captures/mirroring.webp" title="Open full size" data-lightbox><img src="../assets/captures/mirroring.webp" alt="Mirroring: the device screen on the PC, with screen recording and watermark." width="1905" height="999" loading="lazy" decoding="async"></a><figcaption>Mirroring: the device screen on the PC, with screen recording and watermark.</figcaption></figure>
-        <figure><a href="../assets/captures/diagnostics.webp" title="Open full size" data-lightbox><img src="../assets/captures/diagnostics.webp" alt="Diagnostics: automatic check-up, live hardware lab, device and scanner tests." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Diagnostics: automatic check-up, live hardware lab, device and scanner tests.</figcaption></figure>
         <figure><a href="../assets/captures/lecteur.webp" title="Open full size" data-lightbox><img src="../assets/captures/lecteur.webp" alt="Scanner test: every scan, its symbology, the time since the trigger and the success rate." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Scanner test: every scan, its symbology, the time since the trigger and the success rate.</figcaption></figure>
-        <figure><a href="../assets/captures/appli-diagnostic.webp" title="Open full size" data-lightbox><img src="../assets/captures/appli-diagnostic.webp" alt="The diagnostic app on the device, for the duration of a test: sensors, scanner and more." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>The diagnostic app on the device, for the duration of a test: sensors, scanner and more.</figcaption></figure>
         <figure><a href="../assets/captures/wifi.webp" title="Open full size" data-lightbox><img src="../assets/captures/wifi.webp" alt="Live Wi-Fi analysis: signal, latency, access point, addresses." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Live Wi-Fi analysis: signal, latency, access point, addresses.</figcaption></figure>
         <figure><a href="../assets/captures/rapport-wifi.webp" title="Open full size" data-lightbox><img src="../assets/captures/rapport-wifi.webp" alt="Wi-Fi analysis Word report with charts, ready for the customer." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Wi-Fi analysis Word report with charts, ready for the customer.</figcaption></figure>
         <figure><a href="../assets/captures/rapport-sav.webp" title="Open full size" data-lightbox><img src="../assets/captures/rapport-sav.webp" alt="Diagnostics Word report: every test, its result and the technician's comment." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Diagnostics Word report: every test, its result and the technician's comment.</figcaption></figure>
@@ -261,7 +289,11 @@
         </details>
         <details>
           <summary>Do I need to install anything on the device?</summary>
-          <div><p>Not for most features. Device tests, the scanner test, the cable-free Wi-Fi survey and the field recorder use a small diagnostic app that is installed for the test, then removed.</p></div>
+          <div><p>Not for most features. Device tests, the scanner, the Wi-Fi survey and field monitoring go through the ADB Tools Diag app: one click on “Diag app” installs it, and it can stay on the device to work without a PC. It is removed in one click, from ADB Tools or from its own “Remove the app” menu. The Master also uses a small icon-less app for Wi-Fi, language and Zebra settings.</p></div>
+        </details>
+        <details>
+          <summary>The device has no USB debugging, or its screen is broken</summary>
+          <div><p>The Troubleshooting page starts from the symptom and says what is still possible: keyboard and mouse control over the cable, data recovery, recovery mode and each brand's key combinations. The explanations are stored in the program and show even offline.</p></div>
         </details>
         <details>
           <summary>Windows shows a warning on first launch</summary>

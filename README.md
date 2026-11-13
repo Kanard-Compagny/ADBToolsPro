@@ -10,7 +10,7 @@
 **La boîte à outils gratuite du technicien Android.**
 Diagnostiquer, contrôler et dépanner un terminal Android — smartphone, tablette ou terminal durci de logistique — depuis un PC Windows, sans taper une seule ligne de commande.
 
-*Free Windows toolbox for Android support technicians: device dashboard, screen mirroring, app and file management, guided hardware diagnostics, Wi-Fi analysis, Word reports, fleet OS updates and device restore after a wipe (Master) — all on top of ADB, no command line needed.*
+*Free Windows toolbox for Android support technicians: device dashboard, screen mirroring, app and file management, a single service diagnostics sheet with an on-device test app, Wi-Fi analysis, Word reports, fleet OS updates, device restore after a wipe (Master, with Zebra StageNow profiles) and troubleshooting — all on top of ADB, no command line needed.*
 
 Windows 10 / 11 · programme portable, rien à installer dans Windows · **[Site de présentation](https://kanard-compagny.github.io/ADBToolsPro/)** ([English](https://kanard-compagny.github.io/ADBToolsPro/en/))
 
@@ -38,25 +38,24 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - Explorateur de fichiers : envoyer et récupérer des fichiers du terminal.
 
 ### 🔧 Diagnostics SAV
-- **Check-up automatique** : Wi-Fi, ping, batterie, stockage, capteurs, températures.
-- **Tests manuels guidés** : boutons physiques, dalle tactile (grille à remplir), scanner, écran (pixels morts, brûlure).
-- Laboratoire matériel en direct : chaque appui de bouton et chaque touche de l'écran s'affichent sur le PC.
-- **Tests du terminal** avec une petite appli de diagnostic installée le temps des tests : caméras, flash, haut-parleur, micro, vibreur, capteurs, NFC, GPS, Bluetooth, clavier, vitesse de la mémoire (Android 8 à 16).
-- **Test du lecteur code-barres** : chaque lecture en direct, symbologie, délai depuis la gâchette, lectures ratées, planche de codes attendus.
-- Chaque ligne du diagnostic en PASS, FAIL, **À surveiller** ou Non testé.
+- **Une seule fiche**, une ligne par élément du terminal, rangée par catégorie : chaque ligne dit qui la teste (le PC, l'appli Diag, ou les deux).
+- **Check-up automatique** du PC : Wi-Fi, ping, batterie, stockage, capteurs, températures, plantages.
+- **Tests sur le terminal** lancés depuis la fiche, un par un ou tous d'un coup, et **résultats récupérés d'un clic** : on coche ce qui entre dans la fiche, rien n'est écrasé.
+- Écoute en direct depuis le PC (touches, tactile, lecteur) et **aperçu de ce qui a été fait sur le terminal** (grille tactile, touches pressées).
+- Chaque ligne en Conforme, **À surveiller**, Non conforme ou Non testé, avec commentaire et **historique** ; tout reste modifiable après récupération.
 - **Comparateur** : deux terminaux, ou un terminal et sa référence validée (`.adbref`) — seules les vraies différences ressortent (Android, correctif, applications, réglages).
 - **Rapport Word** à votre en-tête et votre logo, ou export JSON.
 
 ### 📡 Analyse Wi-Fi
 - Suivi en direct de la latence, des pertes de paquets et du signal (graphiques).
 - Détection des changements de point d'accès (roaming) et des déconnexions.
-- **Mesure sans câble** : le terminal mesure le Wi-Fi seul pendant le parcours du site, avec des repères (« Quai 3 ») et un bilan par zone.
+- **Mesure sans câble** : l'appli Diag mesure le Wi-Fi seule pendant le parcours du site, avec des repères (« Quai 3 ») ; « Envoyer au PC » l'ouvre avec le bilan par zone.
 - Rapport Word avec les graphiques, pour montrer au client ce qui s'est passé.
 
 ### 🔎 Journaux et analyse de fichiers
 - **Analyse automatique des logs** : plantages, ANR, mémoire, stockage, batterie, Wi-Fi, DNS, certificats et lecteur code-barres de toutes marques, regroupés du plus grave au moins grave avec un conseil.
 - **Analyse de fichiers** : archive RxLogger Zebra, bugreport ou logcat reçu du terrain, tous les journaux fusionnés ; frise par sujet, « Aller à l'incident », constats et tendances, ce qui change avant l'incident, redémarrages et leur cause, vie de l'appli métier, pannes connues de l'équipe, signets, comparaison de deux relevés.
-- **Enregistreur terrain** : le terminal débranché enregistre pendant des heures, l'utilisateur signale un incident d'un appui ; au retour, l'enregistrement s'ouvre sur l'incident.
+- **Suivi terrain** (appli Diag) : le terminal débranché enregistre pendant des heures, l'utilisateur signale un incident d'un appui ; au retour, le suivi s'ouvre sur l'incident.
 - Rapport client **Word** et rapport technique **PDF / HTML**.
 
 ### 📦 Mise à jour OS
@@ -69,7 +68,18 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Remettre des terminaux en état après un wipe** : un terminal de référence est capturé, puis le Master est réinjecté sur un ou plusieurs terminaux en même temps. Il peut aussi être créé à la main.
 - Applications et autorisations, applis désactivées, réglages Android (formulaire par thème, en clair), langue et fuseau horaire, Wi-Fi, lanceur, propriétaire du terminal (MDM), fichiers (ex. DataWedge), commandes ADB, étapes à faire à la main guidées.
 - Chaque terminal est **analysé avant l'envoi** (applis absentes, plus anciennes ou plus récentes) et le **bilan** dit ce qui a été remis en place ou non, avec la raison ; export Excel.
-- La mini appli **ADB Tools Helper** enregistre les Wi-Fi et change la langue, ce qu'Android n'autorise plus par câble ; sinon, QR code Wi-Fi à scanner.
+- **Réglages constructeur** : profils **StageNow** Zebra importés (un ou plusieurs, fusionnés), lus en étapes claires, modifiables dans un **éditeur XML** en fenêtre séparée ; étapes sensibles confirmées ; appliqués seulement sur les terminaux de la marque. Fichiers déposés aussi dans les dossiers protégés de Zebra (`/enterprise`).
+- La mini appli **ADB Tools Helper** enregistre les Wi-Fi, change la langue et applique les réglages Zebra (EMDK), ce qu'Android n'autorise pas par câble ; sinon, QR code Wi-Fi à scanner.
+
+### 📲 Appli ADB Tools Diag
+- Sur le terminal, **branché ou sans PC** : écran, tactile, touches, caméras, flash, son, micro, vibreur, capteurs, lecteur (DataWedge ou clavier), RFID, NFC, GPS, Bluetooth, mémoire. Seuls les tests possibles sur le modèle sont proposés.
+- **Mesure Wi-Fi** et **suivi terrain** sans câble, puis **« Envoyer au PC »**.
+- S'installe, s'ouvre et se retire depuis le bouton **« Appli Diag »** de la barre du haut, qui passe en orange quand une mesure attend ; retrait possible aussi depuis le terminal.
+
+### 🩹 Dépannage
+- Par symptôme : terminal non détecté ou non autorisé, écran cassé, tactile mort, pas de débogage USB.
+- Prise en main au clavier et à la souris par câble, récupération des données, recovery, fastboot.
+- **Combinaisons de touches par marque**, consultables hors connexion et à compléter.
 
 ### ⚡ Outils avancés
 - Simulation des boutons physiques, luminosité, densité d'affichage, résolution, volume.
@@ -84,7 +94,7 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Historique par numéro de série** : chaque rapport est rangé dans l'historique du terminal, consultable et partageable avec l'équipe (dossier réseau).
 - **Profil d'équipe** : un seul fichier `.adbprofil` pour configurer tous les postes pareil (en-tête des rapports, logo, modèles, bibliothèque de commandes, dossier des mises à jour).
 - **Mises à jour** depuis GitHub ou depuis un dossier de diffusion de l'équipe, vérifiées (SHA-256) et installées en un clic.
-- Accueil et **visite guidée** au premier lancement.
+- **Premier lancement** : langue, taille de l'interface conseillée selon l'écran, thème ; puis accueil et **visite guidée**.
 - **Tout reste sur le PC** : aucune donnée n'est envoyée sur Internet.
 
 ## Démarrer

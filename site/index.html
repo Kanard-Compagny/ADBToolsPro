@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ADB Tools Pro</title>
-<meta name="description" content="La boîte à outils gratuite du technicien Android : diagnostic, mirroring, tests du terminal et du lecteur, analyse Wi-Fi et analyse des journaux, rapports Word. Pour Windows, sans ligne de commande.">
+<meta name="description" content="La boîte à outils gratuite du technicien Android : diagnostic SAV avec appli de test sur le terminal, mirroring, analyse Wi-Fi et des journaux, remise en état après un wipe, dépannage, rapports Word. Pour Windows, sans ligne de commande.">
 <link rel="canonical" href="https://kanard-compagny.github.io/ADBToolsPro/">
 <link rel="alternate" hreflang="fr" href="https://kanard-compagny.github.io/ADBToolsPro/">
 <link rel="alternate" hreflang="en" href="https://kanard-compagny.github.io/ADBToolsPro/en/">
@@ -69,19 +69,19 @@
       <div class="cases">
         <div class="case">
           <q>L'écran ne réagit plus par endroits</q>
-          <p>La dalle tactile se teste en remplissant une grille, et chaque appui s'affiche en direct sur le PC. Boutons physiques, pixels morts, caméras, haut-parleur, micro, vibreur, capteurs, NFC, GPS : chaque test fait est noté dans le rapport.<span class="where">Diagnostics SAV, Laboratoire</span></p>
+          <p>Une seule fiche, une ligne par élément du terminal. La dalle se teste dans l'appli ADB Tools Diag ou en direct depuis le PC, et la grille balayée s'affiche dans la fiche. Boutons, pixels morts, caméras, son, vibreur, capteurs, NFC, GPS, RFID : chaque résultat reste modifiable sur le PC et part dans le rapport.<span class="where">Diagnostics SAV, Appli Diag</span></p>
         </div>
         <div class="case">
           <q>Le Wi-Fi décroche dans l'entrepôt</q>
-          <p>Le terminal mesure le Wi-Fi seul, débranché, pendant que vous parcourez le site : signal, borne, canal, ping chaque seconde, avec des repères comme « Quai 3 ». Au retour, graphiques, changements de borne, coupures et bilan par zone.<span class="where">Analyse Wi-Fi, Mesure sans câble</span></p>
+          <p>L'appli Diag mesure le Wi-Fi seule, terminal débranché, pendant que vous parcourez le site : signal, borne, canal, ping chaque seconde, avec des repères comme « Quai 3 ». Au retour, « Envoyer au PC » : graphiques, changements de borne, coupures et bilan par zone.<span class="where">Analyse Wi-Fi, Appli Diag</span></p>
         </div>
         <div class="case">
           <q>Le scanner ne lit plus rien</q>
-          <p>Une petite appli de test affiche chaque lecture, sa symbologie et le délai depuis l'appui sur la gâchette. Les lectures ratées et les écarts avec une planche de codes attendus ressortent tout de suite.<span class="where">Diagnostics SAV, Test du lecteur</span></p>
+          <p>L'appli Diag affiche chaque lecture, sa symbologie et le délai depuis l'appui sur la gâchette, avec DataWedge ou en mode clavier. Les lectures ratées et les écarts avec une planche de codes attendus ressortent tout de suite.<span class="where">Diagnostics SAV, Lecteur</span></p>
         </div>
         <div class="case">
           <q>L'appli plante, mais jamais quand vous êtes là</q>
-          <p>L'enregistreur terrain garde le journal Android pendant des heures, terminal débranché. L'utilisateur signale l'incident d'un appui. Au retour, ADB Tools ouvre l'enregistrement sur l'incident et montre ce qui a changé juste avant.<span class="where">Analyse de fichiers, Enregistreur terrain</span></p>
+          <p>Le suivi terrain de l'appli Diag garde le journal Android pendant des heures, terminal débranché. L'utilisateur signale l'incident d'un appui. Au retour, ADB Tools ouvre le suivi sur l'incident et montre ce qui a changé juste avant.<span class="where">Analyse de fichiers, Suivi terrain</span></p>
         </div>
         <div class="case">
           <q>Il faut passer tout le parc à la dernière version</q>
@@ -89,7 +89,11 @@
         </div>
         <div class="case">
           <q>Le terminal revient d'un wipe, il faut tout remettre comme avant</q>
-          <p>Capturez un terminal de référence déjà configuré pour le client : applis, autorisations, réglages, langue, heure, Wi-Fi, lanceur, MDM. Complétez ce qui ne se récupère pas, puis réinjectez-le sur un ou plusieurs terminaux. Chacun est analysé avant l'envoi, et le bilan dit ce qui a été remis en place ou non.<span class="where">Master</span></p>
+          <p>Capturez un terminal de référence déjà configuré pour le client : applis, autorisations, réglages, langue, heure, Wi-Fi, lanceur, MDM. Ajoutez vos profils StageNow pour les réglages Zebra. Complétez ce qui ne se récupère pas, puis réinjectez-le sur un ou plusieurs terminaux. Chacun est analysé avant l'envoi, et le bilan dit ce qui a été remis en place ou non.<span class="where">Master</span></p>
+        </div>
+        <div class="case">
+          <q>Écran cassé, débogage USB désactivé</q>
+          <p>Choisissez le symptôme : la page explique la cause et propose ce qui reste possible. Prise en main au clavier et à la souris par câble, récupération des données, recovery, et les combinaisons de touches de chaque marque, consultables même sans terminal branché.<span class="where">Dépannage</span></p>
         </div>
       </div>
     </div>
@@ -118,12 +122,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>Diagnostics SAV</h3>
+          <h3>Diagnostics SAV <span class="new">Nouveau en 1.7</span></h3>
           <ul>
+            <li>Une seule fiche : une ligne par élément, testé par le PC, par l'appli Diag, ou les deux.</li>
             <li>Check-up automatique : Wi-Fi, ping, batterie, stockage, capteurs, températures.</li>
-            <li>Tests guidés du matériel et test du lecteur code-barres.</li>
-            <li>Chaque ligne en Pass, Fail, À surveiller ou Non testé.</li>
+            <li>Résultats du terminal récupérés d'un clic ; statut et commentaire modifiables, historique par ligne.</li>
             <li>Comparateur : deux terminaux, ou un terminal et sa référence validée.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Appli ADB Tools Diag <span class="new">Nouveau en 1.7</span></h3>
+          <ul>
+            <li>Sur le terminal, branché ou non : écran, tactile, touches, caméras, flash, son, micro, vibreur, capteurs, lecteur, RFID, NFC, GPS, Bluetooth, mémoire.</li>
+            <li>Mesure Wi-Fi et suivi terrain sans câble, puis « Envoyer au PC ».</li>
+            <li>Seuls les tests possibles sur le modèle sont proposés.</li>
+            <li>S'installe et se retire d'un clic depuis ADB Tools, ou depuis le terminal.</li>
           </ul>
         </div>
         <div class="group">
@@ -140,7 +153,7 @@
             <li>Analyse automatique : plantages, ANR, mémoire, Wi-Fi, batterie, lecteur, avec un conseil pour chaque problème.</li>
             <li>Analyse de fichiers : archive RxLogger Zebra, bugreport ou logcat, frise par sujet, aller à l'incident.</li>
             <li>Redémarrages et leur cause, vie de l'appli métier, pannes connues de l'équipe.</li>
-            <li>Enregistreur terrain avec signalement d'incident.</li>
+            <li>Suivi terrain avec signalement d'incident.</li>
           </ul>
         </div>
         <div class="group">
@@ -153,12 +166,21 @@
           </ul>
         </div>
         <div class="group">
-          <h3>Master <span class="new">Nouveau en 1.6</span></h3>
+          <h3>Master</h3>
           <ul>
             <li>Remise en état après un wipe : capture d'un terminal de référence, ou Master créé à la main.</li>
-            <li>Applis, réglages en clair, langue et heure, Wi-Fi, lanceur, MDM, fichiers DataWedge.</li>
+            <li>Applis, réglages en clair, langue et heure, Wi-Fi, lanceur, MDM, fichiers déposés où vous voulez.</li>
+            <li>Réglages constructeur : profils StageNow Zebra importés, fusionnés, modifiables dans un éditeur XML, appliqués seulement sur la bonne marque.</li>
             <li>Chaque terminal analysé avant l'envoi, choix par appli selon sa version.</li>
             <li>Bilan de ce qui a été remis en place ou non, export Excel.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Dépannage <span class="new">Nouveau en 1.7</span></h3>
+          <ul>
+            <li>Par symptôme : terminal non détecté ou non autorisé, écran cassé, tactile mort, pas de débogage USB.</li>
+            <li>Prise en main au clavier et à la souris par câble (OTG), récupération des données.</li>
+            <li>Recovery, réinitialisation, fastboot, et combinaisons de touches par marque, à compléter.</li>
           </ul>
         </div>
         <div class="group">
@@ -178,7 +200,7 @@
             <li>Profil d'équipe : un fichier pour configurer tous les postes pareil.</li>
             <li>Mises à jour vérifiées et installées en un clic.</li>
             <li>Thème clair, sombre ou comme Windows ; interface en français ou en anglais.</li>
-            <li>Taille de l'interface réglable et visite guidée au premier lancement.</li>
+            <li>Premier lancement : langue, taille de l'interface conseillée selon l'écran, thème ; puis visite guidée.</li>
           </ul>
         </div>
       </div>
@@ -188,16 +210,22 @@
     <section id="captures">
     <div class="wrap">
       <h2>En images</h2>
-      <p class="intro">Captures en thème sombre, sur des Zebra TC58 et TC53. Numéros de série et réseau masqués. Cliquez pour agrandir.</p>
+      <p class="intro">Captures en thème sombre, sur des Zebra TC58 et TC53. Numéros de série, réseaux et noms de clients masqués. Cliquez pour agrandir.</p>
       <div class="shots">
-        <figure class="lead"><a href="assets/captures/master.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/master.webp" alt="Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi." width="1919" height="1030" decoding="async"></a><figcaption>Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi.</figcaption></figure>
+        <figure class="lead"><a href="assets/captures/diagnostics.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/diagnostics.webp" alt="Diagnostics SAV : une seule fiche, une ligne par élément ; ici la grille tactile balayée dans l'appli, reprise sur le PC." width="1934" height="1038" decoding="async"></a><figcaption>Diagnostics SAV : une seule fiche, une ligne par élément ; ici la grille tactile balayée dans l'appli, reprise sur le PC.</figcaption></figure>
+        <figure><a href="assets/captures/appli-diagnostic.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/appli-diagnostic.webp" alt="L'appli ADB Tools Diag sur le terminal : accueil, test du lecteur, fin du diagnostic et envoi au PC." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>L'appli ADB Tools Diag sur le terminal : accueil, test du lecteur, fin du diagnostic et envoi au PC.</figcaption></figure>
+        <figure><a href="assets/captures/appli-mesures.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/appli-mesures.webp" alt="Mesure Wi-Fi et suivi terrain sans câble dans l'appli, puis « Envoyer au PC »." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Mesure Wi-Fi et suivi terrain sans câble dans l'appli, puis « Envoyer au PC ».</figcaption></figure>
+        <figure><a href="assets/captures/diagnostics-recuperation.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/diagnostics-recuperation.webp" alt="Résultats reçus du terminal : on choisit ce qui entre dans la fiche, rien ne se perd." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Résultats reçus du terminal : on choisit ce qui entre dans la fiche, rien ne se perd.</figcaption></figure>
+        <figure><a href="assets/captures/master-constructeur.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/master-constructeur.webp" alt="Master, onglet Constructeur : un profil StageNow Zebra lu en étapes claires." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Master, onglet Constructeur : un profil StageNow Zebra lu en étapes claires.</figcaption></figure>
+        <figure><a href="assets/captures/editeur-xml.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/editeur-xml.webp" alt="L'éditeur XML du profil, en fenêtre séparée : vérifié à chaque frappe, le Master suit en direct." width="1240" height="780" loading="lazy" decoding="async"></a><figcaption>L'éditeur XML du profil, en fenêtre séparée : vérifié à chaque frappe, le Master suit en direct.</figcaption></figure>
+        <figure><a href="assets/captures/depannage.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/depannage.webp" alt="Dépannage : par symptôme, avec les combinaisons de touches de chaque marque." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Dépannage : par symptôme, avec les combinaisons de touches de chaque marque.</figcaption></figure>
+        <figure><a href="assets/captures/premier-lancement.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/premier-lancement.webp" alt="Premier lancement : langue, taille de l'interface conseillée selon l'écran, thème." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Premier lancement : langue, taille de l'interface conseillée selon l'écran, thème.</figcaption></figure>
+        <figure><a href="assets/captures/master.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/master.webp" alt="Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi." width="1919" height="1030" loading="lazy" decoding="async"></a><figcaption>Master : un terminal de référence capturé, contenu à vérifier par onglets, terminaux analysés avant l'envoi.</figcaption></figure>
         <figure><a href="assets/captures/mise-a-jour-os.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/mise-a-jour-os.webp" alt="Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Mise à jour OS : deux terminaux mis à jour en même temps, version contrôlée au retour et applications réinstallées.</figcaption></figure>
         <figure><a href="assets/captures/analyse-fichiers.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/analyse-fichiers.webp" alt="Analyse de fichiers : un relevé RxLogger de 2,2 millions de lignes, la frise par sujet et les outils d'enquête." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Analyse de fichiers : un relevé RxLogger de 2,2 millions de lignes, la frise par sujet et les outils d'enquête.</figcaption></figure>
         <figure><a href="assets/captures/dashboard.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/dashboard.webp" alt="Tableau de bord du terminal et commandes ADB." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Tableau de bord du terminal et commandes ADB.</figcaption></figure>
         <figure><a href="assets/captures/mirroring.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/mirroring.webp" alt="Mirroring : l'écran du terminal sur le PC, avec enregistrement vidéo et filigrane." width="1905" height="999" loading="lazy" decoding="async"></a><figcaption>Mirroring : l'écran du terminal sur le PC, avec enregistrement vidéo et filigrane.</figcaption></figure>
-        <figure><a href="assets/captures/diagnostics.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/diagnostics.webp" alt="Diagnostics SAV : check-up automatique, laboratoire matériel en direct, tests du terminal et du lecteur." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Diagnostics SAV : check-up automatique, laboratoire matériel en direct, tests du terminal et du lecteur.</figcaption></figure>
         <figure><a href="assets/captures/lecteur.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/lecteur.webp" alt="Test du lecteur : chaque lecture, sa symbologie, le délai depuis la gâchette et le taux de réussite." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Test du lecteur : chaque lecture, sa symbologie, le délai depuis la gâchette et le taux de réussite.</figcaption></figure>
-        <figure><a href="assets/captures/appli-diagnostic.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/appli-diagnostic.webp" alt="L'appli de diagnostic sur le terminal, le temps d'un test : capteurs, lecteur et bien d'autres." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>L'appli de diagnostic sur le terminal, le temps d'un test : capteurs, lecteur et bien d'autres.</figcaption></figure>
         <figure><a href="assets/captures/wifi.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/wifi.webp" alt="Analyse Wi-Fi en direct : signal, latence, borne, adresses." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Analyse Wi-Fi en direct : signal, latence, borne, adresses.</figcaption></figure>
         <figure><a href="assets/captures/rapport-wifi.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/rapport-wifi.webp" alt="Rapport Word de l'analyse Wi-Fi, avec les graphiques, à remettre au client." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Rapport Word de l'analyse Wi-Fi, avec les graphiques, à remettre au client.</figcaption></figure>
         <figure><a href="assets/captures/rapport-sav.webp" title="Ouvrir en grand" data-lightbox><img src="assets/captures/rapport-sav.webp" alt="Rapport Word du diagnostic SAV : chaque test, son résultat et le commentaire du technicien." width="1934" height="1038" loading="lazy" decoding="async"></a><figcaption>Rapport Word du diagnostic SAV : chaque test, son résultat et le commentaire du technicien.</figcaption></figure>
@@ -261,7 +289,11 @@
         </details>
         <details>
           <summary>Faut-il installer quelque chose sur le terminal ?</summary>
-          <div><p>Non pour la plupart des fonctions. Les tests du terminal, le test du lecteur, la mesure Wi-Fi sans câble et l'enregistreur terrain utilisent une petite appli de diagnostic, installée le temps du test puis retirée.</p></div>
+          <div><p>Non pour la plupart des fonctions. Les tests du terminal, le lecteur, la mesure Wi-Fi et le suivi terrain passent par l'appli ADB Tools Diag : un clic sur « Appli Diag » l'installe, et elle peut rester sur le terminal pour servir sans PC. Elle se retire d'un clic, depuis ADB Tools ou depuis son menu « Retirer l'appli ». Le Master utilise aussi une mini appli sans icône pour le Wi-Fi, la langue et les réglages Zebra.</p></div>
+        </details>
+        <details>
+          <summary>Le terminal n'a pas le débogage USB, ou son écran est cassé</summary>
+          <div><p>La page Dépannage part du symptôme et dit ce qui reste possible : prise en main au clavier et à la souris par câble, récupération des données, recovery et combinaisons de touches de chaque marque. Les explications sont enregistrées dans le programme et s'affichent même sans connexion.</p></div>
         </details>
         <details>
           <summary>Windows affiche un avertissement au premier lancement</summary>

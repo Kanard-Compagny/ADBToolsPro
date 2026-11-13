@@ -2161,7 +2161,8 @@ public class MainActivity extends Activity implements Out.Sink {
         if (nz(s.lastWifi).length() > 0) d.append("\nWi-Fi : ").append(s.lastWifi);
         fieldDetail.setText(d.toString());
         fieldEvents.setText(s.recentText());
-        lastFieldSummary = fieldBig.getText() + "\n" + d.toString().replaceFirst("^[●○] ", "");
+        // Bilan gardé une fois le suivi arrêté : sans la ligne d'état « Suivi en cours ».
+        lastFieldSummary = fieldBig.getText() + "\n" + d.toString().replaceFirst("^[^\n]*\n", "");
         prefs().edit().putString("last_field", lastFieldSummary).apply();
     }
 
@@ -2308,9 +2309,9 @@ public class MainActivity extends Activity implements Out.Sink {
                 Out.export();
                 dialog().setTitle(L.t("Envoyer au PC", "Send to the PC"))
                         .setMessage(L.t("Si le terminal est branché au PC avec ADB Tools ouvert, la fenêtre de récupération s'ouvre sur le PC.\n\n"
-                                        + "Sinon, branchez-le et appuyez de nouveau, ou utilisez « Récupérer du terminal » dans Diagnostics SAV ▸ Tests du terminal.",
+                                        + "Sinon, branchez-le et appuyez de nouveau, ou utilisez « Récupérer du terminal » en haut de Diagnostics SAV (ou le bouton « Appli Diag » d'ADB Tools).",
                                 "If the device is plugged into the PC with ADB Tools open, the retrieval window opens on the PC.\n\n"
-                                        + "Otherwise, plug it in and tap again, or use \"Retrieve from the device\" in SAV Diagnostics ▸ Device tests."))
+                                        + "Otherwise, plug it in and tap again, or use \"Retrieve from the device\" at the top of Service diagnostics (or the \"Diag app\" button in ADB Tools)."))
                         .setPositiveButton("OK", null).show();
             }
         });
