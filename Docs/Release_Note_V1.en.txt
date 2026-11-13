@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.7.0
+                              RELEASE NOTES V1.8.0
 ================================================================================
-Version        : 1.7.0 (single diagnostics sheet, Diag app redesigned, manufacturer settings, troubleshooting)
-Release date   : November 2026 (1.6.0: Master, 1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
+Version        : 1.8.0 (Datalogic and Honeywell manufacturer settings, Zebra step templates, Advanced tools redesigned)
+Release date   : November 2026 (1.7.0: single diagnostics sheet, Diag app redesigned, troubleshooting, 1.6.0: Master, 1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
 Architecture   : Portable (third-party tools downloaded on first launch)
@@ -21,7 +21,61 @@ Every tab has been tested on real hardware; known limitations are listed at
 the end of this document (section 9).
 
 ================================================================================
-2. WHAT'S NEW IN VERSION 1.7.0 (November 2026)
+2. WHAT'S NEW IN VERSION 1.8.0 (November 2026)
+================================================================================
+MASTER: MANUFACTURER SETTINGS FOR THREE BRANDS
+  - "Import a manufacturer profile" recognizes the format from the file's
+    content: StageNow profile (Zebra), Scan2Deploy .json profile (Datalogic)
+    or EZConfig DeviceConfig.xml (Honeywell).
+  - Datalogic: the Scan2Deploy profile is read as plain steps (Wi-Fi
+    network, date and time, status bar, lock screen, ADB, USB mode, script,
+    archive to deploy, files written). It is sent in one go to the device's
+    Scan2Deploy agent (Android 9 or later) with only the checked steps; the
+    summary uses the agent's report. Flagged: a network that removes the other
+    saved networks, scripts, archives to download.
+  - Honeywell: DeviceConfig.xml read by section (a Wi-Fi network shows its
+    name, protected keys are flagged). It is placed in honeywell/persist with
+    only the checked sections (Provisioning mode must be on; the previous
+    file is kept as .bak), then the device restarts at the end of the Master
+    to apply it.
+  - Sensitive steps in all three formats (reset, ADB turned off...) are
+    unchecked and confirmed by typing APPLY.
+  - Datalogic and Honeywell are built from the brands' public documentation:
+    field feedback will help refine them.
+
+MASTER: MX STEP TEMPLATES (ZEBRA)
+  - "Add a step" in the XML editor and on each Zebra profile: catalog of 15
+    templates grouped by theme, showing what the profile already contains
+    ("already 1") to spot a forgotten setting.
+  - Wi-Fi (add, remove a network), apps (install, uninstall, enable or
+    disable, launcher), files and EHS (place, download, EHS configuration,
+    EHS as launcher), screen timeout, date and time zone, language,
+    Bluetooth / NFC / GPS, restart at the end.
+  - A few checked fields, the added XML shown before insertion; the step goes
+    at the end of the profile or after the step at the cursor, leaving the
+    rest untouched; Ctrl+Z removes it. A file chosen on the PC is attached to
+    the Master.
+  - "Create an empty Zebra profile" to start from scratch.
+
+ADVANCED TOOLS (redesigned)
+  - The whole device state is read when the tab opens, when the device
+    changes and with "Read state again": NFC, location, mobile data, screen
+    timeout, volume and ringer mode included. What the device lacks is
+    greyed out with the reason.
+  - Each switch checks the real state after the click; if the setting doesn't
+    take, it goes back to the real state and the matching Android screen
+    opens on the device.
+  - Keys: power, home, back, recent apps, volume, wake up, sleep; scan
+    trigger on Zebra devices with DataWedge.
+  - "Open on the device": Settings, Wi-Fi, Bluetooth, Developer options,
+    Apps, Date and time, Language, Sound, About phone.
+  - Date, time and language: offset from the PC flagged beyond one minute,
+    automatic time and time zone.
+  - Stay awake while plugged in, with a safeguard: restored when you switch
+    device or close ADB Tools, shown in orange in the top bar while on.
+
+================================================================================
+2a. WHAT'S NEW IN VERSION 1.7.0 (November 2026)
 ================================================================================
 SERVICE DIAGNOSTICS (sheet redesigned)
   - A single sheet, one line per part of the device, grouped by category:
@@ -104,7 +158,7 @@ MISCELLANEOUS
   - New open-source component: AvalonEdit (MIT), for the XML editor.
 
 ================================================================================
-2a. WHAT'S NEW IN VERSION 1.6.0 (November 2026)
+2b. WHAT'S NEW IN VERSION 1.6.0 (November 2026)
 ================================================================================
 MASTER (new menu page)
   - Restore devices after a wipe, any brand that supports ADB: a reference
@@ -157,7 +211,7 @@ OTHER IMPROVEMENTS
   - QR codes generated with QRCoder (MIT, see THIRD_PARTY_NOTICES.txt).
 
 ================================================================================
-2b. WHAT'S NEW IN VERSION 1.5.0 (November 2026)
+2c. WHAT'S NEW IN VERSION 1.5.0 (November 2026)
 ================================================================================
 OS UPDATE (new menu page)
   - One or several USB-connected devices updated at the same time, each
@@ -200,7 +254,7 @@ OTHER IMPROVEMENTS
   - Guided tour completed: Logs, Comparator, File analysis, OS update.
 
 ================================================================================
-2c. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
+2d. WHAT'S NEW IN VERSION 1.4.0 (November 2026)
 ================================================================================
 FILE ANALYSIS (new menu page)
   - Opens a log set received from the field: Zebra RxLogger archive,
@@ -248,7 +302,7 @@ OTHER IMPROVEMENTS
   - 64-bit program for large log sets.
 
 ================================================================================
-2d. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
+2e. WHAT'S NEW IN VERSION 1.3.0 (November 2026)
 ================================================================================
 AUTOMATIC LOG ANALYSIS (Logs page)
   - "Analyse displayed logs": the whole live capture is reviewed, even lines
@@ -326,7 +380,7 @@ OTHER IMPROVEMENTS
   - Wi-Fi check-up: correct SSID and access point (BSSID) on Android 11.
 
 ================================================================================
-2e. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
+2f. WHAT'S NEW IN VERSION 1.2.0 (November 2026)
 ================================================================================
 A fully redesigned Settings page, modelled on Scanalyse.
 
@@ -456,15 +510,19 @@ v3 license), published on GitHub by Mr.Kanard.
 - Create folders, rename and delete remotely.
 
 [⚡ Advanced tools]
-- Physical key simulator (Home, Back, Volume...).
-- Direct switches: Wi-Fi, Bluetooth, airplane mode, NFC, location,
-  auto-rotate, dark mode.
-- Settings with values: brightness, density (DPI), screen resolution (with
-  reset to factory values), screen timeout, volume per audio stream, ringer
-  mode.
+- Whole device state read (Wi-Fi, Bluetooth, airplane mode, NFC, location,
+  mobile data, auto-rotate, dark mode); what the device lacks is greyed out
+  with the reason.
+- Simulated keys (power, home, back, recent apps, volume, wake up, sleep);
+  scan trigger on Zebra (DataWedge).
+- Shortcuts to the device's Android screens (Settings, Wi-Fi, Developer
+  options, Date and time, Language...).
+- Brightness, density (DPI), resolution (with reset), screen timeout, volume
+  per stream, ringer mode; date, time and language with the offset from the
+  PC; stay awake while plugged in (with a safeguard).
 - XML extractor of the displayed interface (UI Automator dump), useful to set
   up scanning apps (Velocity, ProGlove...).
-- OS update has its own page since version 1.5.0 (see section 2b).
+- OS update has its own page since version 1.5.0.
 
 [🔧 Service diagnostics]
 - A single sheet, one line per part of the device, grouped by category; the

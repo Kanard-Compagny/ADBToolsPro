@@ -1,9 +1,9 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.7.0
+                              RELEASE NOTES V1.8.0
 ================================================================================
-Version        : 1.7.0 (fiche de diagnostic unique, appli Diag refaite, réglages constructeur, dépannage)
-Date de sortie : Novembre 2026 (1.6.0 : Master, 1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
+Version        : 1.8.0 (réglages constructeur Datalogic et Honeywell, modèles d'étapes Zebra, Outils avancés refait)
+Date de sortie : Novembre 2026 (1.7.0 : fiche de diagnostic unique, appli Diag refaite, dépannage, 1.6.0 : Master, 1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
 Architecture   : Portable (outils tiers téléchargés au premier lancement)
@@ -25,7 +25,61 @@ matériel réel ; les limitations connues sont listées en fin de document
 (section 10) pour éviter toute mauvaise surprise sur le terrain.
 
 ================================================================================
-2. NOUVEAUTÉS DE LA VERSION 1.7.0 (Novembre 2026)
+2. NOUVEAUTÉS DE LA VERSION 1.8.0 (Novembre 2026)
+================================================================================
+MASTER : RÉGLAGES CONSTRUCTEUR POUR TROIS MARQUES
+  - « Importer un profil constructeur » reconnaît le format au contenu du
+    fichier : profil StageNow (Zebra), profil Scan2Deploy en .json
+    (Datalogic) ou DeviceConfig.xml d'EZConfig (Honeywell).
+  - Datalogic : le profil Scan2Deploy est lu en étapes claires (réseau Wi-Fi,
+    date et heure, barre d'état, écran de verrouillage, ADB, mode USB, script,
+    archive à déployer, fichiers écrits). Il part en une fois vers l'agent
+    Scan2Deploy du terminal (Android 9 et plus), avec les seules étapes
+    cochées ; le bilan reprend le compte rendu de l'agent. Signalés : réseau
+    qui efface les autres réseaux enregistrés, script, archive à télécharger.
+  - Honeywell : DeviceConfig.xml lu par section (un réseau Wi-Fi porte son
+    nom, les clés protégées sont signalées). Il est déposé dans
+    honeywell/persist avec les seules sections cochées (le mode Provisioning
+    doit être activé ; l'ancien fichier est gardé en .bak), puis le terminal
+    redémarre à la fin du Master pour l'appliquer.
+  - Étapes sensibles des trois formats (remise à zéro, ADB coupé...)
+    décochées et confirmées en tapant APPLIQUER.
+  - Datalogic et Honeywell sont faits d'après la documentation publique des
+    marques : les remontées terrain permettront de les affiner.
+
+MASTER : MODÈLES D'ÉTAPES MX (ZEBRA)
+  - « Ajouter une étape » dans l'éditeur XML et sur chaque profil Zebra :
+    catalogue de 15 modèles classés par thème, avec ce que le profil contient
+    déjà (« déjà 1 ») pour repérer un réglage oublié.
+  - Wi-Fi (ajouter, retirer un réseau), applications (installer, désinstaller,
+    activer ou désactiver, lanceur), fichiers et EHS (déposer, télécharger,
+    configuration EHS, EHS comme lanceur), délai de mise en veille, date et
+    fuseau, langue, Bluetooth / NFC / GPS, redémarrage à la fin.
+  - Quelques champs vérifiés, XML ajouté visible avant l'insertion ; étape
+    placée à la fin du profil ou après l'étape du curseur, sans toucher au
+    reste ; Ctrl+Z la retire. Fichier choisi sur le PC joint au Master.
+  - « Créer un profil Zebra vide » pour partir de zéro.
+
+OUTILS AVANCÉS (refait)
+  - Tout l'état du terminal est relu à l'ouverture de l'onglet, au changement
+    de terminal et avec « Relire l'état » : NFC, localisation, données
+    mobiles, mise en veille, volume et mode sonnerie compris. Ce qui n'existe
+    pas sur le terminal est grisé avec la raison.
+  - Chaque interrupteur vérifie l'état réel après le clic ; si le réglage ne
+    prend pas, il revient à l'état réel et l'écran Android concerné s'ouvre
+    sur le terminal.
+  - Touches : marche/arrêt, accueil, retour, applis récentes, volume, réveil,
+    veille ; gâchette de scan sur les Zebra avec DataWedge.
+  - « Ouvrir sur le terminal » : Paramètres, Wi-Fi, Bluetooth, Options pour
+    les développeurs, Applications, Date et heure, Langue, Son, À propos.
+  - Date, heure et langue : écart avec le PC signalé au-delà d'une minute,
+    heure et fuseau automatiques.
+  - Écran allumé quand branché, avec garde-fou : remis comme avant au
+    changement de terminal ou à la fermeture d'ADB Tools, rappel orange dans
+    la barre du haut tant qu'il est actif.
+
+================================================================================
+2a. NOUVEAUTÉS DE LA VERSION 1.7.0 (Novembre 2026)
 ================================================================================
 DIAGNOSTICS SAV (fiche refaite)
   - Une seule fiche, une ligne par élément du terminal, rangée par catégorie :
@@ -114,7 +168,7 @@ DIVERS
   - Nouveau composant libre : AvalonEdit (MIT), pour l'éditeur XML.
 
 ================================================================================
-2a. NOUVEAUTÉS DE LA VERSION 1.6.0 (Novembre 2026)
+2b. NOUVEAUTÉS DE LA VERSION 1.6.0 (Novembre 2026)
 ================================================================================
 MASTER (nouvelle page du menu)
   - Remettre des terminaux en état après un wipe, toutes marques compatibles
@@ -608,19 +662,19 @@ blocages et rend l'application plus fluide sur les longues sessions.
 - Création de dossier, renommage et suppression à distance.
 
 [⚡ Outils Avancés]
-- Simulateur de touches physiques (Home, Retour, Volume...).
-- Interrupteurs directs : Wi-Fi, Bluetooth, Mode Avion, NFC, Localisation,
-  Rotation auto, Mode Sombre.
-- Réglages avec curseurs/valeurs : luminosité, densité (DPI), résolution
-  d'écran (avec réinitialisation aux valeurs d'usine), délai de mise en
-  veille, volume par flux audio (média/sonnerie/notification/alarme) avec
-  coupure rapide, mode sonnerie (Son/Vibreur/Silencieux).
+- État du terminal relu en entier (Wi-Fi, Bluetooth, mode avion, NFC,
+  localisation, données mobiles, rotation, mode sombre) ; ce qui n'existe pas
+  sur le terminal est grisé avec la raison.
+- Touches simulées (marche, accueil, retour, applis récentes, volume, réveil,
+  veille) ; gâchette de scan sur Zebra (DataWedge).
+- Raccourcis vers les écrans Android du terminal (Paramètres, Wi-Fi, Options
+  pour les développeurs, Date et heure, Langue...).
+- Luminosité, densité (DPI), résolution (avec réinitialisation), mise en
+  veille, volume par flux, mode sonnerie ; date, heure et langue avec l'écart
+  par rapport au PC ; écran allumé quand branché (avec garde-fou).
 - Extracteur XML de l'interface affichée (UI Automator dump), utile pour le
   paramétrage des applications de scan (Velocity, ProGlove...).
-- La mise à jour de l'OS a sa propre page depuis la version 1.5.0 (voir
-  section 2 bis).
-- Chaque action affiche un message clair en cas d'échec (terminal débranché,
-  commande refusée...) plutôt qu'un blocage silencieux de l'interface.
+- La mise à jour de l'OS a sa propre page depuis la version 1.5.0.
 
 [🔧 Diagnostics SAV]
 - Une seule fiche, une ligne par élément du terminal, rangée par catégorie ;

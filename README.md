@@ -68,7 +68,10 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Remettre des terminaux en état après un wipe** : un terminal de référence est capturé, puis le Master est réinjecté sur un ou plusieurs terminaux en même temps. Il peut aussi être créé à la main.
 - Applications et autorisations, applis désactivées, réglages Android (formulaire par thème, en clair), langue et fuseau horaire, Wi-Fi, lanceur, propriétaire du terminal (MDM), fichiers (ex. DataWedge), commandes ADB, étapes à faire à la main guidées.
 - Chaque terminal est **analysé avant l'envoi** (applis absentes, plus anciennes ou plus récentes) et le **bilan** dit ce qui a été remis en place ou non, avec la raison ; export Excel.
-- **Réglages constructeur** : profils **StageNow** Zebra importés (un ou plusieurs, fusionnés), lus en étapes claires, modifiables dans un **éditeur XML** en fenêtre séparée ; étapes sensibles confirmées ; appliqués seulement sur les terminaux de la marque. Fichiers déposés aussi dans les dossiers protégés de Zebra (`/enterprise`).
+- **Réglages constructeur**, appliqués seulement sur les terminaux de la marque, étapes sensibles confirmées :
+  - **Zebra** : profils **StageNow** importés (un ou plusieurs, fusionnés) ou créés vides, lus en étapes claires, modifiables dans un **éditeur XML** en fenêtre séparée avec un **catalogue de modèles d'étapes** (Wi-Fi, applis, fichiers et EHS, veille, heure, langue, radios…). Fichiers déposés aussi dans les dossiers protégés (`/enterprise`).
+  - **Datalogic** : profils **Scan2Deploy** (`.json`), envoyés à l'agent Scan2Deploy du terminal, compte rendu au bilan.
+  - **Honeywell** : **DeviceConfig.xml** (EZConfig), déposé dans `honeywell/persist` (mode Provisioning) et appliqué au redémarrage.
 - La mini appli **ADB Tools Helper** enregistre les Wi-Fi, change la langue et applique les réglages Zebra (EMDK), ce qu'Android n'autorise pas par câble ; sinon, QR code Wi-Fi à scanner.
 
 ### 📲 Appli ADB Tools Diag
@@ -82,7 +85,9 @@ Il s'adresse aux techniciens SAV, intégrateurs, services informatiques et logis
 - **Combinaisons de touches par marque**, consultables hors connexion et à compléter.
 
 ### ⚡ Outils avancés
-- Simulation des boutons physiques, luminosité, densité d'affichage, résolution, volume.
+- État du terminal relu en entier (Wi-Fi, Bluetooth, NFC, localisation, données mobiles…) ; ce qui manque sur le terminal est grisé avec la raison.
+- Touches simulées, gâchette de scan (Zebra), raccourcis vers les écrans Android du terminal (Paramètres, Options développeur, Date et heure, Langue…).
+- Luminosité, densité d'affichage, résolution, veille, volume, mode sonnerie, écart d'heure avec le PC, écran allumé quand branché (avec garde-fou).
 - Extraction de l'écran en XML (UI Automator).
 - Bibliothèque de commandes ADB prêtes à l'emploi, à compléter avec les vôtres.
 - Logs en direct (logcat) avec filtres, et génération du bugreport complet.
