@@ -513,7 +513,39 @@ namespace ADBToolsNew
 
         /// <summary>Il y a des étapes constructeur à appliquer sur ce terminal (marque concernée) : l'appli d'aide est préparée tôt.</summary>
         private bool VendorAppliesTo(MasterTarget t, MasterProfile m) =>
-            m.Vendor.Any(b => b.Include && b.Brand == t.Brand && VendorProfile(b) is MxProfile p && p.Ok && p.Steps.Any(b.IsChecked));
+            m.Vendor.Any(b => b.Include && b.Brand == t.Brand && VendorProfile(b) is MxProfile p && p.Ok && p.Steps.Any(b.IsChecked))
+            || (t.Brand == VendorModules.Zebra && m.Files.Any(f => f.Include && !f.IsFolder && IsProtectedZebraPath(f.DevicePath)));
+
+        /// <summary>Dossier de Zebra fermé à ADB (/enterprise…) : on y dépose par MX (FileMgr), sans root.</summary>
+        private static bool IsProtectedZebraPath(string devicePath) =>
+            (devicePath ?? "").StartsWith("/enterprise/", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Dépose un fichier dans un dossier protégé d'un Zebra : copié d'abord dans /sdcard/Download, puis recopié à sa
+        /// place par une étape MX FileMgr (mini appli, EMDK), enfin la copie temporaire est effacée.
+        /// </summary>
+        private async Task<(bool Ok, string Why)> PushViaMxAsync(MasterTarget t, string local, string targetFile)
+        {
+            if (!await EnsureMasterHelperAsync(t, MasterHelperApp.MxMinVersion)) return (false, Loc.T("mini appli ADB Tools Helper non installée"));
+            string stage = "/sdcard/Download/adbtools_mx_" + Path.GetFileName(local).Replace(' ', '_');
+            var push = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {AdbManager.QuoteLocalArg(stage)}", TimeSpan.FromMinutes(10));
+            if (!push.IsSuccess) return (false, LastLines(push.StandardError + push.StandardOutput, 1));
+            string E(string v) => System.Security.SecurityElement.Escape(v);
+            string xml = "<characteristic type=\"FileMgr\"><parm name=\"FileAction\" value=\"1\"/><characteristic type=\"file-details\">"
+                + "<parm name=\"TargetAccessMethod\" value=\"2\"/><parm name=\"TargetPathAndFileName\" value=\"" + E(targetFile) + "\"/>"
+                + "<parm name=\"IfDuplicate\" value=\"1\"/><parm name=\"SourceAccessMethod\" value=\"2\"/>"
+                + "<parm name=\"SourcePathAndFileName\" value=\"" + E(stage) + "\"/></characteristic></characteristic>";
+            var output = await RunMasterScriptAsync(t.Serial, MasterHelperApp.ApplyMxCommand(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(xml))) + " 2>&1\n");
+            await _adbManager.ExecuteAsync($"-s {t.Serial} shell rm -f {MasterProfile.ShellQuote(stage)}", TimeSpan.FromSeconds(15));
+            string raw = string.Join("\n", output);
+            var br = MasterProfile.ParseBroadcastResult(raw);
+            var (status, response) = StageNowReader.ParseHelperData(br.Data);
+            if (br.Code == 1) return (true, "");
+            if (status == "NO_EMDK") return (false, Loc.T("EMDK absent sur ce terminal : les réglages Zebra ne peuvent pas passer par la mini appli"));
+            if (br.Code == 0) return (false, Loc.T("pas de réponse de la mini appli") + (raw.Length > 0 ? " — " + LastLines(raw, 1) : ""));
+            string sum = StageNowReader.ErrorSummary(response);
+            return (false, sum.Length > 0 ? sum : status);
+        }
 
         /// <summary>Applique les étapes cochées des blocs (ordinaires, ou sensibles en dernier), une par une, avec la réponse du terminal.</summary>
         private async Task ApplyVendorAsync(MasterTarget t, MasterProfile m, bool sensitive)

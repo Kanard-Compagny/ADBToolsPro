@@ -773,7 +773,7 @@ namespace ADBToolsNew
                             Get = () => f.Include, Set = v => { f.Include = v; RefreshMasterPending(); },
                             Edit = async () =>
                             {
-                                string d = await MasterPromptAsync(Loc.T("📄 Destination sur le terminal"), Loc.T("Dossier du terminal où déposer ce fichier. Pour une configuration DataWedge (Zebra) : /enterprise/device/settings/datawedge/autoimport/"), f.DevicePath);
+                                string d = await MasterPromptAsync(Loc.T("📄 Destination sur le terminal"), Loc.T("Dossier du terminal où déposer ce fichier (vous pouvez taper n'importe quel chemin).\n\nZebra : configuration EHS → /enterprise/usr/ ; configuration DataWedge → /enterprise/device/settings/datawedge/autoimport/. Ces dossiers protégés sont remplis par MX (mini appli ADB Tools Helper), sans root."), f.DevicePath);
                                 if (d == null || d.Trim().Length == 0) return;
                                 f.DevicePath = d.Trim().EndsWith("/") ? d.Trim() : d.Trim() + "/";
                                 RerenderMaster();
@@ -1576,9 +1576,10 @@ namespace ADBToolsNew
             if (dlg.ShowDialog() != true) return;
             // Configuration DataWedge (Zebra) : le dossier d'import automatique est la bonne destination.
             bool dw = Path.GetExtension(dlg.FileName).Equals(".db", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(dlg.FileName).ToLowerInvariant().Contains("dw");
-            string suggested = dw ? "/enterprise/device/settings/datawedge/autoimport/" : "/sdcard/Download/";
+            bool ehs = Path.GetFileName(dlg.FileName).Equals("enterprisehomescreen.xml", StringComparison.OrdinalIgnoreCase);
+            string suggested = dw ? "/enterprise/device/settings/datawedge/autoimport/" : ehs ? "/enterprise/usr/" : "/sdcard/Download/";
             if (!await ShowCustomDialogAsync(Loc.T("📄 Destination sur le terminal"),
-                    Loc.T("Dossier du terminal où déposer ce fichier. Pour une configuration DataWedge (Zebra) : /enterprise/device/settings/datawedge/autoimport/"),
+                    Loc.T("Dossier du terminal où déposer ce fichier (vous pouvez taper n'importe quel chemin).\n\nZebra : configuration EHS → /enterprise/usr/ ; configuration DataWedge → /enterprise/device/settings/datawedge/autoimport/. Ces dossiers protégés sont remplis par MX (mini appli ADB Tools Helper), sans root."),
                     Loc.T("Ajouter"), Loc.T("Annuler"), false, true, suggested)) return;
             string dest = TxtDialogInput.Text.Trim();
             if (dest.Length == 0) return;
@@ -1968,6 +1969,16 @@ namespace ADBToolsNew
                 {
                     string local = Path.Combine(_masterDir, f.Local.Replace('/', Path.DirectorySeparatorChar));
                     MasterStatus(t, Loc.F("Fichier : {0}…", Path.GetFileName(local)));
+                    // Dossier protégé de Zebra (/enterprise : configuration EHS, import DataWedge…) : ADB n'y a pas accès,
+                    // le fichier passe par MX (mini appli), comme le ferait StageNow.
+                    if (!f.IsFolder && IsProtectedZebraPath(f.DevicePath) && t.Brand == VendorModules.Zebra)
+                    {
+                        string target = f.DevicePath.TrimEnd('/') + "/" + Path.GetFileName(local);
+                        var mx = await PushViaMxAsync(t, local, target);
+                        MasterAdd(t, catFiles, Path.GetFileName(local) + " → " + f.DevicePath, mx.Ok ? "ok" : "ko", mx.Ok ? Loc.T("déposé par MX (dossier protégé)") : mx.Why);
+                        Advance();
+                        continue;
+                    }
                     await _adbManager.ExecuteAsync($"-s {t.Serial} shell mkdir -p {MasterProfile.ShellQuote(f.DevicePath)}", TimeSpan.FromSeconds(15));
                     var res = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {AdbManager.QuoteLocalArg(f.DevicePath)}", TimeSpan.FromMinutes(10));
                     MasterAdd(t, catFiles, Path.GetFileName(local) + " → " + f.DevicePath, res.IsSuccess ? "ok" : "ko", res.IsSuccess ? "" : LastLines(res.StandardError + res.StandardOutput, 1));
