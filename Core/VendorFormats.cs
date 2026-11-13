@@ -83,7 +83,7 @@ namespace ADBToolsNew.Core
 
         private static readonly JsonDocumentOptions Options = new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip };
 
-        private static readonly string[] GlobalOptions = { "target-path", "install-path", "update-path", "purge-target-path", "auto-scan", "download-preinstalled", "backup-to-enterprise" };
+        private static readonly string[] GlobalOptions = { "target-path", "install-path", "update-path", "purge-target-path", "auto-scan", "download-preinstalled", "downgrade-preinstalled", "backup-to-enterprise", "oemconfig" };
 
         public static MxProfile Read(string json, bool allowEmpty = false)
         {
@@ -107,6 +107,12 @@ namespace ADBToolsNew.Core
                 return m.Success ? VendorKinds.LineOf(text, m.Index) : 1;
             }
             int IndexOfKey(string key) { var m = new Regex("\"" + Regex.Escape(key) + "\"\\s*:").Match(text); return m.Success ? m.Index : 0; }
+            // Ligne de la n-ième occurrence d'une clé après une position (éléments d'un tableau).
+            int IndexAfter(string key, int from, int nth)
+            {
+                var ms = new Regex("\"" + Regex.Escape(key) + "\"\\s*:").Matches(text, Math.Min(from, text.Length));
+                return ms.Count > nth ? VendorKinds.LineOf(text, ms[nth].Index) : VendorKinds.LineOf(text, from);
+            }
             MxStep Add(string type, string key, string theme, string label, JsonNode node, int line)
             {
                 var s = new MxStep { Type = type, Key = "s2d:" + key, Theme = theme, Label = label, Line = line, Xml = node?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "" };
@@ -117,18 +123,38 @@ namespace ADBToolsNew.Core
             if (root["layout"] is JsonObject layout && layout["description"] is JsonValue d && d.TryGetValue(out string desc) && desc != "none")
                 p.Name = desc.Length > 60 ? desc.Substring(0, 60) + "…" : desc;
 
-            // Wi-Fi
+            // Wi-Fi : réseau de préparation, puis réseaux supplémentaires.
+            string WifiLabel(JsonObject n, bool extra)
+            {
+                string essid = Str(n, "essid"), mode = Str(n, "mode");
+                string sec = mode.Length == 0 ? "" : mode.ToLowerInvariant() == "open" ? Loc.T("ouvert") : mode.ToUpperInvariant();
+                return (extra ? Loc.F("Réseau Wi-Fi supplémentaire « {0} »", essid.Length > 0 ? essid : "?") : Loc.F("Réseau Wi-Fi « {0} »", essid.Length > 0 ? essid : "?"))
+                    + (sec.Length > 0 ? " · " + sec : "");
+            }
+            List<string> WifiNotes(JsonObject n)
+            {
+                var notes = new List<string>();
+                if (Str(n, "eap-method") is string eap && eap.Length > 0 && eap != "none") notes.Add(Loc.F("entreprise ({0})", eap.ToUpperInvariant()));
+                if (Bool(n, "mode-key-encrypted") == true || Bool(n, "eap-password-encrypted") == true) notes.Add(Loc.T("mot de passe chiffré par Scan2Deploy Studio"));
+                return notes;
+            }
             if (root["network"] is JsonObject net)
             {
-                string essid = Str(net, "essid"), mode = Str(net, "mode");
-                string sec = mode.Length == 0 ? "" : mode.ToLowerInvariant() == "open" ? Loc.T("ouvert") : mode.ToUpperInvariant();
-                var s = Add("network", "network", StageNowReader.ThemeWifi,
-                    Loc.F("Réseau Wi-Fi « {0} »", essid.Length > 0 ? essid : "?") + (sec.Length > 0 ? " · " + sec : ""), net, Line("network"));
-                var notes = new List<string>();
-                if (Bool(net, "purge") != false) notes.Add(Loc.T("efface les autres réseaux Wi-Fi enregistrés"));
-                if (Str(net, "eap-method") is string eap && eap.Length > 0 && eap != "none") notes.Add(Loc.F("entreprise ({0})", eap.ToUpperInvariant()));
-                if (Bool(net, "mode-key-encrypted") == true || Bool(net, "eap-password-encrypted") == true) notes.Add(Loc.T("mot de passe chiffré par Scan2Deploy Studio"));
+                var s = Add("network", "network", StageNowReader.ThemeWifi, WifiLabel(net, false), net, Line("network"));
+                var notes = WifiNotes(net);
+                if (Bool(net, "purge") != false) notes.Insert(0, Loc.T("efface les autres réseaux Wi-Fi enregistrés"));
                 s.Warning = string.Join(" · ", notes);
+            }
+            if (root["additional-networks"] is JsonArray extraNets)
+            {
+                int start = IndexOfKey("additional-networks");
+                for (int i = 0; i < extraNets.Count; i++)
+                    if (extraNets[i] is JsonObject n)
+                    {
+                        int at = IndexAfter("essid", start, i);
+                        var s = Add("additional-networks", "additional-networks[" + i + "]", StageNowReader.ThemeWifi, WifiLabel(n, true), n, at);
+                        s.Warning = string.Join(" · ", WifiNotes(n));
+                    }
             }
 
             // Réglages du terminal : un réglage par clé.
@@ -139,7 +165,7 @@ namespace ADBToolsNew.Core
                 {
                     string k = kv.Key;
                     string v = kv.Value?.ToString() ?? "";
-                    string theme = k.StartsWith("date") || k.StartsWith("auto-time") ? StageNowReader.ThemeSystem
+                    string theme = k == "default-home" ? StageNowReader.ThemeApps
                         : k == "lock-screen" || k == "status-bar" || k == "navigation-bar" || k == "charge-threshold" ? StageNowReader.ThemeScreen
                         : StageNowReader.ThemeSystem;
                     var s = Add("settings", "settings." + k, theme, SettingLabel(k, kv.Value), kv.Value, Line(k, start));
@@ -158,10 +184,15 @@ namespace ADBToolsNew.Core
                 int start = IndexOfKey("global");
                 if (global["script"] is JsonNode script)
                 {
-                    int lines = script is JsonArray arr ? arr.Count : 1;
-                    var s = Add("global", "global.script", StageNowReader.ThemeSystem,
-                        script is JsonArray ? Loc.F("Script ({0} ligne(s))", lines) : Loc.F("Script : {0}", script.ToString()), script, Line("script", start));
-                    s.Warning = Loc.T("commandes exécutées par Scan2Deploy, non vérifiées par ADB Tools");
+                    var s = Add("global", "global.script", StageNowReader.ThemeSystem, ScriptLabel(script), script, Line("script", start));
+                    var cmds = ScriptCommands(script);
+                    if (cmds.Contains("UPDATE"))
+                    {
+                        s.Sensitive = true;
+                        s.SensitiveReason = Loc.T("le script installe une mise à jour du système (UPDATE)");
+                    }
+                    s.Warning = cmds.Contains("SHELL") ? Loc.T("le script lance des commandes shell, non vérifiées par ADB Tools")
+                        : Loc.T("commandes exécutées par Scan2Deploy, non vérifiées par ADB Tools");
                 }
                 var opts = GlobalOptions.Where(o => global.ContainsKey(o)).ToList();
                 if (opts.Count > 0)
@@ -189,11 +220,25 @@ namespace ADBToolsNew.Core
             // Déploiement : archive téléchargée puis déployée par l'agent.
             if (root["deployment"] is JsonObject dep)
             {
-                string scheme = Str(dep, "scheme").Length > 0 ? Str(dep, "scheme") : "http";
-                string port = dep["port"]?.ToString() ?? "";
-                string url = scheme + "://" + Str(dep, "host") + (port.Length > 0 && port != "80" && port != "443" ? ":" + port : "") + "/" + Str(dep, "path").TrimStart('/');
-                var s = Add("deployment", "deployment", StageNowReader.ThemeFiles, Loc.F("Télécharger et déployer l'archive {0}", url), dep, Line("deployment"));
-                s.Warning = Loc.T("le terminal doit joindre le serveur au moment d'appliquer");
+                string archive = Str(dep, "working-archive");
+                string storage = Str(dep, "storage-type");
+                if (Str(dep, "host").Length > 0)
+                {
+                    string scheme = Str(dep, "scheme").Length > 0 ? Str(dep, "scheme") : "http";
+                    string port = dep["port"]?.ToString() ?? "";
+                    string url = scheme + "://" + Str(dep, "host") + (port.Length > 0 && port != "80" && port != "443" && port != "21" && port != "22" ? ":" + port : "") + "/" + Str(dep, "path").TrimStart('/');
+                    var s = Add("deployment", "deployment", StageNowReader.ThemeFiles, Loc.F("Télécharger et déployer l'archive {0}", url), dep, Line("deployment"));
+                    s.Warning = Loc.T("le terminal doit joindre le serveur au moment d'appliquer");
+                }
+                else
+                {
+                    // Déploiement local : l'archive est lue sur le terminal (mémoire interne, carte SD ou clé USB).
+                    string where = storage == "removable-sdcard" ? Loc.T("carte SD") : storage == "usb-drive" ? Loc.T("clé USB") : Loc.T("mémoire interne");
+                    var s = Add("deployment", "deployment", StageNowReader.ThemeFiles,
+                        Loc.F("Déployer l'archive {0} ({1})", archive.Length > 0 ? archive : "/sdcard/Download/scan2deploy.archive", where), dep, Line("deployment"));
+                    if (storage == "removable-sdcard" || storage == "usb-drive") s.Warning = Loc.F("l'archive doit être sur la {0} du terminal", where);
+                    else if (archive.StartsWith("/")) s.DeviceFiles.Add(archive);
+                }
             }
 
             // Fichiers écrits par le profil (contenu inclus).
@@ -209,10 +254,14 @@ namespace ADBToolsNew.Core
                 }
             }
 
+            if (root["update-scan2deploy"] is JsonObject upd)
+                Add("update-scan2deploy", "update-scan2deploy", StageNowReader.ThemeApps,
+                    Loc.F("Mettre à jour l'agent Scan2Deploy (version {0})", upd["update-version"]?.ToString() ?? "?"), upd, Line("update-scan2deploy"));
+
             if (root["padlock"] is JsonObject pad)
                 Add("padlock", "padlock", StageNowReader.ThemeSystem, Loc.F("Verrou de préparation : {0}", Str(pad, "state").Length > 0 ? Str(pad, "state") : "undefined"), pad, Line("padlock"));
 
-            foreach (var kv in root.Where(x => !Known.Contains(x.Key)))
+            foreach (var kv in root.Where(x => !Known.Contains(x.Key) && !x.Key.StartsWith("$")))
             {
                 var s = Add(kv.Key, kv.Key, StageNowReader.ThemeOther, Loc.F("Section « {0} »", kv.Key), kv.Value, Line(kv.Key));
                 s.Recognized = false;
@@ -223,8 +272,31 @@ namespace ADBToolsNew.Core
             return p;
         }
 
-        private static readonly HashSet<string> Known = new HashSet<string> { "layout", "padlock", "global", "settings", "network", "deployment", "blobs" };
-        private static readonly HashSet<string> KnownSettings = new HashSet<string> { "date-time", "auto-time", "auto-time-zone", "auto-time-server", "debug-bridge", "lock-screen", "status-bar", "navigation-bar", "charge-threshold", "usb-profile", "usb-function" };
+        private static readonly HashSet<string> Known = new HashSet<string> { "layout", "padlock", "global", "settings", "network", "additional-networks", "deployment", "blobs", "update-scan2deploy" };
+        private static readonly HashSet<string> KnownSettings = new HashSet<string> { "date-time", "auto-time", "auto-time-zone", "time-zone", "auto-time-server", "debug-bridge", "lock-screen", "status-bar", "navigation-bar", "charge-threshold", "usb-profile", "usb-function", "default-home" };
+
+        private static readonly Regex ScriptCmd = new Regex(@"^\s*([A-Z_]+)\b");
+
+        /// <summary>Commandes d'un script Scan2Deploy (premier mot de chaque ligne), dans l'ordre, sans doublon.</summary>
+        private static List<string> ScriptCommands(JsonNode script) =>
+            script is JsonArray arr
+                ? arr.Select(x => ScriptCmd.Match(x?.ToString() ?? "")).Where(m => m.Success).Select(m => m.Groups[1].Value).Distinct().ToList()
+                : new List<string>();
+
+        private static string ScriptLabel(JsonNode script)
+        {
+            if (!(script is JsonArray arr)) return Loc.F("Script : {0}", script.ToString());
+            var counts = arr.Select(x => ScriptCmd.Match(x?.ToString() ?? "")).Where(m => m.Success).GroupBy(m => m.Groups[1].Value)
+                .Select(g => g.Count() > 1 ? g.Key + " ×" + g.Count() : g.Key).ToList();
+            return counts.Count > 0 ? Loc.F("Script : {0} commande(s) ({1})", arr.Count, string.Join(", ", counts)) : Loc.F("Script ({0} ligne(s))", arr.Count);
+        }
+
+        /// <summary>Paquet visé par une action de fin « intent:…;package=…;end » ou « android-app://paquet/… ».</summary>
+        private static string IntentPackage(string action)
+        {
+            var m = Regex.Match(action ?? "", @"(?:;package=|android-app://)([A-Za-z0-9_.]+)");
+            return m.Success ? m.Groups[1].Value : "";
+        }
 
         private static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue(out string s) ? s : (o[key]?.ToString() ?? "");
         private static bool? Bool(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue(out bool b) ? b : (bool?)null;
@@ -246,7 +318,22 @@ namespace ADBToolsNew.Core
                 case "charge-threshold": return Loc.F("Seuil de charge : {0} %", v);
                 case "usb-profile": return Loc.F("Profil USB : {0}", v);
                 case "usb-function": return Loc.F("Mode USB : {0}", v);
-                default: return Loc.F("Réglage « {0} » : {1}", k, v);
+                case "time-zone": return Loc.F("Fuseau horaire : {0}", v);
+                case "default-home":
+                    {
+                        var o = v as JsonObject;
+                        string type = o != null ? Str(o, "type") : "", pkg = o != null ? Str(o, "package-name") : "";
+                        if (type == "aosp-launcher-app") return Loc.T("Lanceur par défaut : lanceur Android d'origine");
+                        if (type == "no_default") return Loc.T("Lanceur par défaut : aucun (choix laissé à l'utilisateur)");
+                        if (type == "no_action") return Loc.T("Lanceur par défaut : inchangé");
+                        return Loc.F("Lanceur par défaut : {0}", pkg.Length > 0 ? pkg : "?");
+                    }
+                default:
+                    {
+                        string val = v is JsonValue ? v.ToString() : v?.ToJsonString() ?? "";
+                        if (val.Length > 60) val = val.Substring(0, 60) + "…";
+                        return Loc.F("Réglage « {0} » : {1}", k, val);
+                    }
             }
         }
 
@@ -258,7 +345,10 @@ namespace ADBToolsNew.Core
                 case "reset": return Loc.T("À la fin : redémarrer le terminal");
                 case "enterprise-reset": return Loc.T("À la fin : réinitialisation entreprise");
                 case "factory-reset": return Loc.T("À la fin : remise à zéro usine");
-                default: return Loc.F("À la fin : {0}", a);
+                default:
+                    string pkg = IntentPackage(a);
+                    if (pkg.Length > 0) return Loc.F("À la fin : ouvrir l'appli {0}", pkg);
+                    return Loc.F("À la fin : {0}", a.Length > 60 ? a.Substring(0, 60) + "…" : a);
             }
         }
 
@@ -268,6 +358,7 @@ namespace ADBToolsNew.Core
             var root = JsonNode.Parse(json, null, Options) as JsonObject;
             var p = Read(json, true);
             var dropBlobs = new List<int>();
+            var dropNets = new List<int>();
             foreach (var s in p.Steps.Where(s => !keep(s)))
             {
                 string k = s.Key.Substring(4);
@@ -275,10 +366,12 @@ namespace ADBToolsNew.Core
                 else if (k == "global.options") foreach (var o in GlobalOptions) (root["global"] as JsonObject)?.Remove(o);
                 else if (k.StartsWith("global.")) (root["global"] as JsonObject)?.Remove(k.Substring(7));
                 else if (k.StartsWith("blobs[")) dropBlobs.Add(int.Parse(k.Substring(6, k.Length - 7)));
+                else if (k.StartsWith("additional-networks[")) dropNets.Add(int.Parse(k.Substring(20, k.Length - 21)));
                 else root.Remove(k);
             }
             if (root["blobs"] is JsonArray arr) foreach (int i in dropBlobs.OrderByDescending(x => x)) if (i < arr.Count) arr.RemoveAt(i);
-            foreach (var name in new[] { "settings", "global", "blobs" })
+            if (root["additional-networks"] is JsonArray nets) foreach (int i in dropNets.OrderByDescending(x => x)) if (i < nets.Count) nets.RemoveAt(i);
+            foreach (var name in new[] { "settings", "global", "blobs", "additional-networks" })
                 if (root[name] is JsonObject o && o.Count == 0 || root[name] is JsonArray a && a.Count == 0) root.Remove(name);
             return root.ToJsonString();
         }

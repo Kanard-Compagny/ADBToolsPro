@@ -156,5 +156,48 @@ namespace ADBToolsNew.Tests
             Assert.IsFalse(p.Ok);
             StringAssert.Contains(p.Error, "Provisioner");
         }
+
+        // Profil réel exporté par Scan2Deploy Studio (schéma 1.13), valeurs anonymisées.
+        private const string S2dStudio = @"{
+  ""global"": {
+    ""install-path"": ""/sdcard/Download/scan2deploy/abc"",
+    ""auto-scan"": true,
+    ""oemconfig"": true,
+    ""script"": [ ""COPY \""/sdcard/a.json\"" \""/sdcard/b.json\"""", ""COPY \""/sdcard/c.txt\"" \""/sdcard/d.txt\"""" ],
+    ""action"": ""intent:#Intent;action=com.exemple.ACTION;package=com.exemple.appli;end""
+  },
+  ""update-scan2deploy"": { ""update-version"": 12599 },
+  ""$schema"": ""https://raw.githubusercontent.com/datalogic/scan2deploy-android-schema/v1.13.0/schema.json"",
+  ""settings"": {
+    ""default-home"": { ""package-name"": ""com.datalogic.launcher"", ""type"": ""custom-app"" },
+    ""lock-screen"": false
+  },
+  ""network"": { ""essid"": ""Reseau"", ""mode"": ""wpa-psk"", ""mode-key"": ""secret123"" },
+  ""additional-networks"": [ { ""essid"": ""Second"", ""mode"": ""open"" } ],
+  ""deployment"": { ""working-archive"": ""/sdcard/testScan2deploy.tar"", ""storage-type"": ""internal-storage"" }
+}";
+
+        [TestMethod]
+        public void ReadsAStudioExport()
+        {
+            var p = Scan2DeployReader.Read(S2dStudio);
+            Assert.IsTrue(p.Ok, p.Error);
+            Assert.IsTrue(p.Steps.All(s => s.Recognized), string.Join(", ", p.Steps.Where(s => !s.Recognized).Select(s => s.Key)));
+            Assert.IsFalse(p.Steps.Any(s => s.Key.Contains("$schema")));
+            StringAssert.Contains(p.Steps.Single(s => s.Key == "s2d:settings.default-home").Label, "com.datalogic.launcher");
+            Assert.AreEqual(StageNowReader.ThemeApps, p.Steps.Single(s => s.Key == "s2d:settings.default-home").Theme);
+            StringAssert.Contains(p.Steps.Single(s => s.Key == "s2d:global.action").Label, "com.exemple.appli");
+            StringAssert.Contains(p.Steps.Single(s => s.Key == "s2d:global.script").Label, "COPY ×2");
+            StringAssert.Contains(p.Steps.Single(s => s.Key == "s2d:global.options").Label, "oemconfig");
+            Assert.IsNotNull(p.Steps.SingleOrDefault(s => s.Key == "s2d:update-scan2deploy"));
+            StringAssert.Contains(p.Steps.Single(s => s.Key == "s2d:additional-networks[0]").Label, "Second");
+            var dep = p.Steps.Single(s => s.Key == "s2d:deployment");
+            Assert.IsFalse(dep.Label.Contains("http"), "déploiement local, pas de serveur");
+            CollectionAssert.Contains(dep.DeviceFiles, "/sdcard/testScan2deploy.tar");
+            Assert.IsFalse(Scan2DeployReader.EndsWithRestart(S2dStudio));
+
+            string json = Scan2DeployReader.BuildChecked(S2dStudio, s => s.Key != "s2d:additional-networks[0]");
+            Assert.IsFalse(json.Contains("Second"));
+        }
     }
 }

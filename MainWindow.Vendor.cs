@@ -107,7 +107,7 @@ namespace ADBToolsNew
             AddMasterSection(Loc.T("🏭 Réglages constructeur"),
                 Loc.T("Fichiers propres à une marque, appliqués seulement sur les terminaux de cette marque (ailleurs le bloc est ignoré, et le bilan le dit). Zebra : profil StageNow exporté pour MDM (StageNow ▸ le profil ▸ Export to MDM ▸ XML), appliqué par la mini appli ADB Tools Helper via EMDK. Datalogic : profil Scan2Deploy (.json), appliqué par l'agent Scan2Deploy du terminal. Honeywell : DeviceConfig.xml (EZConfig), déposé dans honeywell/persist et appliqué au redémarrage."),
                 new List<MasterRow>(), async () => await ImportStageNowAsync(), Loc.T("＋ Importer un profil constructeur"),
-                async () => await CreateEmptyVendorBlockAsync(), Loc.T("＋ Créer un profil Zebra vide"));
+                async () => await CreateEmptyVendorBlockAsync(), Loc.T("＋ Créer un profil Zebra vide"), emptyNote: m.Vendor.Count == 0);
 
             foreach (var b in m.Vendor.ToList())
             {
@@ -660,7 +660,7 @@ namespace ADBToolsNew
                         MasterAdd(t, cat, Loc.F("{0} étape(s)", p.Steps.Count(b.IsChecked)), "skip", Loc.F("réglages {0} ignorés sur ce terminal ({1})", b.Brand, t.Manufacturer.Length > 0 ? t.Manufacturer : Loc.T("autre marque")));
                         continue;
                     }
-                    await ApplyWholeVendorBlockAsync(t, b, p, cat);
+                    await ApplyWholeVendorBlockAsync(t, m, b, p, cat);
                     continue;
                 }
                 if (steps.Count == 0) continue;
@@ -679,31 +679,7 @@ namespace ADBToolsNew
                 var replaced = steps.Where(s => s.DownloadTarget.Length > 0 && (VendorFileFor(b, s.DownloadTarget)?.Provided ?? false)).ToList();
                 foreach (var s in replaced) MasterAdd(t, cat, s.Label, "skip", Loc.T("remplacée par le fichier fourni"));
                 steps = steps.Except(replaced).ToList();
-                if (!sensitive)
-                {
-                    foreach (var path in steps.SelectMany(s => s.DeviceFiles).Concat(replaced.Select(s => s.DownloadTarget)).Distinct())
-                    {
-                        var f = VendorFileFor(b, path);
-                        if (f == null || !f.Provided) continue;
-                        string local;
-                        if (!string.IsNullOrEmpty(f.AppPackage))
-                        {
-                            var app = m.Apps.FirstOrDefault(x => x.Package == f.AppPackage && x.Files.Count == 1);
-                            if (app == null)
-                            {
-                                MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), "ko", Loc.F("appli {0} absente de l'onglet Applications", f.AppPackage));
-                                continue;
-                            }
-                            local = Path.Combine(_masterDir, app.Files[0].Replace('/', Path.DirectorySeparatorChar));
-                        }
-                        else local = Path.Combine(_masterDir, f.Local.Replace('/', Path.DirectorySeparatorChar));
-                        string dir = path.Substring(0, Math.Max(1, path.LastIndexOf('/')));
-                        MasterStatus(t, Loc.F("Fichier : {0}…", VendorFileName(path)));
-                        await _adbManager.ExecuteAsync($"-s {t.Serial} shell mkdir -p {MasterProfile.ShellQuote(dir)}", TimeSpan.FromSeconds(15));
-                        var res = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {AdbManager.QuoteLocalArg(path)}", TimeSpan.FromMinutes(10));
-                        MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), res.IsSuccess ? "ok" : "ko", res.IsSuccess ? "" : LastLines(res.StandardError + res.StandardOutput, 1));
-                    }
-                }
+                if (!sensitive) await PushVendorFilesAsync(t, m, b, steps.SelectMany(s => s.DeviceFiles).Concat(replaced.Select(s => s.DownloadTarget)), cat);
                 if (steps.Count == 0) continue;
                 if (!await EnsureMasterHelperAsync(t, MasterHelperApp.MxMinVersion))
                 {
@@ -734,11 +710,38 @@ namespace ADBToolsNew
                 }
             }
         }
+        /// <summary>Dépose les fichiers fournis du bloc aux chemins que ses étapes lisent sur le terminal.</summary>
+        private async Task PushVendorFilesAsync(MasterTarget t, MasterProfile m, MasterVendorBlock b, IEnumerable<string> paths, string cat)
+        {
+            foreach (var path in paths.Distinct())
+            {
+                var f = VendorFileFor(b, path);
+                if (f == null || !f.Provided) continue;
+                string local;
+                if (!string.IsNullOrEmpty(f.AppPackage))
+                {
+                    var app = m.Apps.FirstOrDefault(x => x.Package == f.AppPackage && x.Files.Count == 1);
+                    if (app == null)
+                    {
+                        MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), "ko", Loc.F("appli {0} absente de l'onglet Applications", f.AppPackage));
+                        continue;
+                    }
+                    local = Path.Combine(_masterDir, app.Files[0].Replace('/', Path.DirectorySeparatorChar));
+                }
+                else local = Path.Combine(_masterDir, f.Local.Replace('/', Path.DirectorySeparatorChar));
+                string dir = path.Substring(0, Math.Max(1, path.LastIndexOf('/')));
+                MasterStatus(t, Loc.F("Fichier : {0}…", VendorFileName(path)));
+                await _adbManager.ExecuteAsync($"-s {t.Serial} shell mkdir -p {MasterProfile.ShellQuote(dir)}", TimeSpan.FromSeconds(15));
+                var res = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {AdbManager.QuoteLocalArg(path)}", TimeSpan.FromMinutes(10));
+                MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), res.IsSuccess ? "ok" : "ko", res.IsSuccess ? "" : LastLines(res.StandardError + res.StandardOutput, 1));
+            }
+        }
+
         /// <summary>
         /// Datalogic (Scan2Deploy) et Honeywell (DeviceConfig) : le profil part en une fois, avec les seules étapes cochées
         /// (et sans les sensibles si elles n'ont pas été confirmées). Chaque étape envoyée a sa ligne au bilan.
         /// </summary>
-        private async Task ApplyWholeVendorBlockAsync(MasterTarget t, MasterVendorBlock b, MxProfile p, string cat)
+        private async Task ApplyWholeVendorBlockAsync(MasterTarget t, MasterProfile m, MasterVendorBlock b, MxProfile p, string cat)
         {
             bool Keep(MxStep s) => b.IsChecked(s) && !(s.Sensitive && _vendorSkipSensitive);
             var sent = p.Steps.Where(Keep).ToList();
@@ -749,6 +752,7 @@ namespace ADBToolsNew
             try { content = VendorKinds.BuildChecked(b.Kind, b.Xml, Keep); }
             catch (Exception ex) { MasterAdd(t, cat, Loc.T("Profil"), "ko", ex.Message); return; }
             void All(string status, string why) { foreach (var s in sent) MasterAdd(t, cat, s.Label, status, why); }
+            if (t.Brand == b.Brand) await PushVendorFilesAsync(t, m, b, sent.SelectMany(s => s.DeviceFiles), cat);
 
             string local = Path.Combine(Path.GetTempPath(), "adbtools_vendor_" + Guid.NewGuid().ToString("N") + (VendorKinds.IsJson(b.Kind) ? ".json" : ".xml"));
             try

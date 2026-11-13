@@ -1447,7 +1447,7 @@ namespace ADBToolsNew
         }
 
         /// <summary>Une catégorie : case générale (tout cocher / décocher), boutons d'ajout, explication, puis ses lignes.</summary>
-        private void AddMasterSection(string title, string help, List<MasterRow> items, Func<Task> add, string addLabel, Func<Task> add2 = null, string add2Label = null)
+        private void AddMasterSection(string title, string help, List<MasterRow> items, Func<Task> add, string addLabel, Func<Task> add2 = null, string add2Label = null, bool emptyNote = true)
         {
             var header = new Grid { Margin = new Thickness(0, 12, 0, 2) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1474,7 +1474,7 @@ namespace ADBToolsNew
             Grid.SetColumn(buttons, 1); header.Children.Add(buttons);
             _masterViewHost.Children.Add(header);
             _masterViewHost.Children.Add(MasterMutedText(help, 11.5));
-            if (items.Count == 0 && add != null)
+            if (items.Count == 0 && add != null && emptyNote)
                 _masterViewHost.Children.Add(MasterMutedText(Loc.T("Rien pour l'instant."), 12));
 
             var list = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
