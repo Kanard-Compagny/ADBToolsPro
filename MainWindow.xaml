@@ -640,6 +640,72 @@
             </Setter>
         </Style>
 
+        <!-- Interrupteur d'état (Outils avancés) : libellé à gauche, curseur à droite. État inconnu (null) = curseur
+             estompé ; indisponible sur ce terminal = toute la ligne estompée, la raison est dans le libellé. -->
+        <Style TargetType="ToggleButton" x:Key="SwitchToggleStyle">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="8,0">
+                            <DockPanel LastChildFill="True">
+                                <Border x:Name="Track" DockPanel.Dock="Right" Width="34" Height="18" CornerRadius="9" Background="{DynamicResource Line}" VerticalAlignment="Center">
+                                    <Ellipse x:Name="Knob" Width="14" Height="14" Fill="{DynamicResource Muted}" HorizontalAlignment="Left" Margin="2,0"/>
+                                </Border>
+                                <ContentPresenter VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Surface2}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{DynamicResource Brand}"/>
+                                <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource OnBrand}"/>
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Center"/>
+                                <Setter TargetName="Knob" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Raccourci arrondi (« Ouvrir sur le terminal »). -->
+        <Style TargetType="Button" x:Key="ChipButtonStyle">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="{DynamicResource BrandSoft}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="15" Padding="12,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BrandText}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="ProgressBar" x:Key="ModernProgressBarStyle">
             <Setter Property="Background" Value="{DynamicResource Surface2}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
@@ -1083,6 +1149,21 @@
                         </Border>
                     </Popup>
 
+                    <!-- Rappel « écran maintenu allumé » (Outils avancés) : visible tant que le réglage est actif ; un clic le remet comme avant. -->
+                    <Button x:Name="BtnStayOnBadge" Click="BtnStayOnBadge_Click" Height="32" Margin="0,0,6,0" Visibility="Collapsed" Cursor="Hand"
+                            ToolTip="L'écran du terminal reste allumé tant qu'il est branché. Cliquer pour remettre le réglage d'origine.">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource Action}" BorderThickness="1" CornerRadius="16" Padding="12,0">
+                                    <ContentPresenter VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="BorderThickness" Value="2"/></Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock FontSize="12" Foreground="{DynamicResource Ink}"><Run Text="Écran maintenu allumé"/><Run Text=" · " Foreground="{DynamicResource Action}"/><Run Text="Arrêter" Foreground="{DynamicResource Action}"/></TextBlock>
+                    </Button>
                     <Button x:Name="BtnWifiPairingToggle" Click="BtnWifiPairingToggle_Click" Style="{StaticResource SidebarToggleStyle}" Height="32">
                         <StackPanel Orientation="Horizontal" Margin="10,0">
                             <TextBlock Text="📡" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -2048,197 +2129,234 @@
 
                         <TabItem>
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <Grid Margin="15,0,15,0">
+                                <Grid Margin="15,0,15,15">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <!-- En-tête : terminal concerné, heure de la dernière lecture, relecture. -->
+                                    <Grid Grid.ColumnSpan="2" Margin="0,0,0,16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Outils avancés" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" FontFamily="{DynamicResource FontDisplay}"/>
+                                            <TextBlock x:Name="TxtToolsDevice" Text="Aucun terminal connecté" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Button x:Name="BtnRefreshTools" Grid.Column="1" Content="Relire l'état" Click="BtnRefreshTools_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" VerticalAlignment="Bottom"
+                                                ToolTip="Relit tout l'état du terminal (utile après un changement fait directement sur le terminal)"/>
+                                    </Grid>
 
-                                        <!-- Colonne gauche : piloter le terminal (boutons, états, extraction de l'écran).
-                                             Colonne droite : réglages d'affichage et de son. La mise à jour OS a sa page. -->
-                                        <TextBlock Text="Simulation &amp; Contrôle" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
-                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
+                                    <!-- ============ Colonne gauche : piloter le terminal ============ -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Piloter le terminal" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource BrandText}" Margin="0,0,0,10"/>
+
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
-                                                <TextBlock Text="🕹️ Boutons Physiques" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                                                <TextBlock Text="Simule l'appui sur les touches matérielles du terminal." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
-
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Button x:Name="BtnKeyPower" Content="🔌 Power" Click="BtnKey_Click" Tag="26" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,5,0"/>
-                                                    <Button x:Name="BtnKeyHome" Content="🏠 Home" Click="BtnKey_Click" Tag="3" Style="{StaticResource OutlineButtonStyle}" Height="32" Grid.Column="1" Margin="0,0,5,0"/>
-                                                    <Button x:Name="BtnKeyBack" Content="↩️ Retour" Click="BtnKey_Click" Tag="4" Style="{StaticResource OutlineButtonStyle}" Height="32" Grid.Column="2"/>
-                                                </Grid>
+                                                <TextBlock Text="Touches" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                <UniformGrid Columns="4">
+                                                    <Button Content="Marche / Arrêt" Tag="26" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,6"/>
+                                                    <Button Content="Accueil" Tag="3" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,6"/>
+                                                    <Button Content="Retour" Tag="4" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,6"/>
+                                                    <Button Content="Applis récentes" Tag="187" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,0,6"/>
+                                                    <Button Content="Volume −" Tag="25" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0"/>
+                                                    <Button Content="Volume +" Tag="24" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0"/>
+                                                    <Button Content="Réveiller" Tag="224" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32" Margin="0,0,6,0"/>
+                                                    <Button Content="Mettre en veille" Tag="223" Click="BtnKey_Click" Style="{StaticResource OutlineButtonStyle}" Height="32"/>
+                                                </UniformGrid>
+                                                <!-- Gâchette de scan : seulement sur une marque où elle a été vérifiée (Zebra + DataWedge). -->
+                                                <Border x:Name="ScanTriggerRow" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,10,0,0" Margin="0,10,0,0" Visibility="Collapsed">
+                                                    <DockPanel>
+                                                        <Button x:Name="BtnScanTrigger" Content="Déclencher une lecture" Click="BtnScanTrigger_Click" Style="{StaticResource PrimaryButtonStyle}" Height="32" Padding="14,0" DockPanel.Dock="Left"/>
+                                                        <TextBlock Text="Gâchette de scan logicielle, par DataWedge." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                    </DockPanel>
+                                                </Border>
                                             </StackPanel>
                                         </Border>
 
-                                        <Grid Margin="0,0,0,15">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="État du Terminal" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
-                                            <Button x:Name="BtnRefreshTools" Content="↺" ToolTip="Actualiser l'état affiché dans l'onglet (reflète un changement fait directement sur le terminal)" Click="BtnRefreshTools_Click" Style="{StaticResource SidebarToggleStyle}" Width="26" Height="26" FontSize="14" Grid.Column="1"/>
-                                        </Grid>
-                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
-                                                <Grid Margin="0,0,0,8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ToggleButton x:Name="ToggleRotation" Content="🔄 Rotation" Click="ToggleRotation_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Margin="0,0,5,0"/>
-                                                    <ToggleButton x:Name="ToggleDarkMode" Content="🌙 Sombre" Click="ToggleDarkMode_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Grid.Column="1" Margin="0,0,5,0" ToolTip="Android 10+"/>
-                                                    <ToggleButton x:Name="ToggleWifi" Content="📶 Wi-Fi" Click="ToggleWifi_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Grid.Column="2" Margin="0,0,5,0"/>
-                                                    <ToggleButton x:Name="ToggleBluetooth" Content="🛜 Bluetooth" Click="ToggleBluetooth_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Grid.Column="3"/>
-                                                </Grid>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ToggleButton x:Name="ToggleAirplane" Content="✈️ Avion" Click="ToggleAirplane_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Margin="0,0,5,0"/>
-                                                    <ToggleButton x:Name="ToggleNfc" Content="📲 NFC" Click="ToggleNfc_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Grid.Column="1" Margin="0,0,5,0" ToolTip="Si le terminal dispose du NFC"/>
-                                                    <ToggleButton x:Name="ToggleLocation" Content="📍 Localisation" Click="ToggleLocation_Click" Style="{StaticResource ModernToggleStyle}" Height="32" Grid.Column="2" ToolTip="⚠️ Peut nécessiter un ajustement sur Android 12+ — non testé sur matériel réel"/>
-                                                </Grid>
+                                                <TextBlock Text="État du terminal" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                                <UniformGrid Columns="2">
+                                                    <ToggleButton x:Name="ToggleWifi" Content="Wi-Fi" Click="ToggleWifi_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,10,2"/>
+                                                    <ToggleButton x:Name="ToggleBluetooth" Content="Bluetooth" Click="ToggleBluetooth_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,0,2"/>
+                                                    <ToggleButton x:Name="ToggleAirplane" Content="Mode avion" Click="ToggleAirplane_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,10,2"/>
+                                                    <ToggleButton x:Name="ToggleNfc" Content="NFC" Click="ToggleNfc_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,0,2"/>
+                                                    <ToggleButton x:Name="ToggleLocation" Content="Localisation" Click="ToggleLocation_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,10,2"/>
+                                                    <ToggleButton x:Name="ToggleMobileData" Content="Données mobiles" Click="ToggleMobileData_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,0,2"/>
+                                                    <ToggleButton x:Name="ToggleRotation" Content="Rotation automatique" Click="ToggleRotation_Click" Style="{StaticResource SwitchToggleStyle}" Margin="0,0,10,0"/>
+                                                    <ToggleButton x:Name="ToggleDarkMode" Content="Mode sombre" Click="ToggleDarkMode_Click" Style="{StaticResource SwitchToggleStyle}"/>
+                                                </UniformGrid>
                                             </StackPanel>
                                         </Border>
 
-                                        <TextBlock Text="Extracteur XML" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15,15,15,7" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
+                                            <StackPanel>
+                                                <TextBlock Text="Ouvrir sur le terminal" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="Écrans Android standard, identiques sur toutes les marques. L'écran du terminal est réveillé avant." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                                <WrapPanel>
+                                                    <Button Content="Paramètres" Tag="android.settings.SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Wi-Fi" Tag="android.settings.WIFI_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Bluetooth" Tag="android.settings.BLUETOOTH_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Options pour les développeurs" Tag="android.settings.APPLICATION_DEVELOPMENT_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Applications" Tag="android.settings.APPLICATION_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Date et heure" Tag="android.settings.DATE_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Langue" Tag="android.settings.LOCALE_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="Son" Tag="android.settings.SOUND_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                    <Button Content="À propos du téléphone" Tag="android.settings.DEVICE_INFO_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource ChipButtonStyle}"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Border>
+
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Style="{StaticResource CardGlowStyle}">
-                                            <StackPanel>
-                                                <TextBlock Text="🔎 Extracteur XML (UI Automator)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                <TextBlock Text="Récupère l'arborescence complète de l'écran affiché au format .xml (utile pour le paramétrage Velocity / ProGlove)." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                                <Button x:Name="BtnDumpUi" Content="📄 Capturer l'écran en XML" Click="BtnDumpUi_Click" Style="{StaticResource PrimaryButtonStyle}" Height="35"/>
-                                            </StackPanel>
+                                            <DockPanel>
+                                                <Button x:Name="BtnDumpUi" Content="Capturer l'écran en XML" Click="BtnDumpUi_Click" Style="{StaticResource OutlineButtonStyle}" Height="34" Padding="14,0" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="Extracteur XML (UI Automator)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="L'écran affiché en .xml, pour le paramétrage Velocity ou ProGlove." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
                                         </Border>
-
                                     </StackPanel>
 
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                    <!-- ============ Colonne droite : affichage, son et heure ============ -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock Text="Affichage, son et heure" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource BrandText}" Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="Affichage &amp; Interface" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
-                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,20" Style="{StaticResource CardGlowStyle}">
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
-
-                                                <Grid Margin="0,0,0,15">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="10"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="10"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="Luminosité" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <Button Content="−" Click="BtnBrightnessMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Margin="0,0,4,0"/>
-                                                            <TextBox x:Name="TxtBrightness" Grid.Column="1" Height="28" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="De 0 à 100% — Entrée pour valider" KeyDown="TxtBrightness_KeyDown"/>
-                                                            <Button Content="+" Click="BtnBrightnessPlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Grid.Column="2" Margin="4,0,0,0"/>
-                                                        </Grid>
-                                                    </StackPanel>
-
-                                                    <StackPanel Grid.Column="2">
-                                                        <TextBlock Text="Densité (DPI)" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <Button Content="−" Click="BtnDpiMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Margin="0,0,4,0"/>
-                                                            <TextBox x:Name="TxtDpiValue" Grid.Column="1" Height="28" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="Entrée pour valider" KeyDown="TxtDpiValue_KeyDown"/>
-                                                            <Button Content="+" Click="BtnDpiPlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Grid.Column="2" Margin="4,0,0,0"/>
-                                                        </Grid>
-                                                    </StackPanel>
-
-                                                    <StackPanel Grid.Column="4">
-                                                        <TextBlock Text="Résolution" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*"/>
-                                                                <ColumnDefinition Width="5"/>
-                                                                <ColumnDefinition Width="Auto"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBox x:Name="TxtResValue" Text="" Height="28" VerticalContentAlignment="Center" ToolTip="Ex: 720x1280"/>
-                                                            <Button Content="Valider" Click="BtnSetRes_Click" Style="{StaticResource OutlineButtonStyle}" Grid.Column="2" Padding="8,0"/>
-                                                        </Grid>
-                                                    </StackPanel>
-                                                </Grid>
-
-                                                <Button Content="🔄 Réinitialiser l'affichage (DPI &amp; Résolution par défaut)" Click="BtnResetDisplay_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,0,15"/>
-
-                                                <TextBlock Text="Mise en veille :" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,5"/>
+                                                <TextBlock Text="Affichage" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="130"/>
                                                         <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="10"/>
-                                                        <ColumnDefinition Width="100"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="CmbScreenTimeout" Height="28">
-                                                        <ComboBoxItem Content="30 secondes"/>
-                                                        <ComboBoxItem Content="1 minute"/>
-                                                        <ComboBoxItem Content="5 minutes"/>
-                                                        <ComboBoxItem Content="30 minutes"/>
-                                                        <ComboBoxItem Content="Jamais (Écran toujours allumé)" IsSelected="True"/>
-                                                    </ComboBox>
-                                                    <Button Content="Appliquer" Click="BtnSetTimeout_Click" Style="{StaticResource OutlineButtonStyle}" Grid.Column="2"/>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <TextBlock Text="Luminosité" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <Button Content="−" Click="BtnBrightnessMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBox x:Name="TxtBrightness" Width="70" Height="30" Margin="6,0" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="De 0 à 100 % — Entrée pour valider" KeyDown="TxtBrightness_KeyDown"/>
+                                                        <Button Content="+" Click="BtnBrightnessPlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBlock Text="%" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Row="1" Text="Densité (DPI)" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <Button Content="−" Click="BtnDpiMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBox x:Name="TxtDpiValue" Width="70" Height="30" Margin="6,0" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="Entrée pour valider" KeyDown="TxtDpiValue_KeyDown"/>
+                                                        <Button Content="+" Click="BtnDpiPlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBlock x:Name="TxtDpiNote" Text="" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Row="2" Text="Résolution" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
+                                                        <TextBox x:Name="TxtResValue" Width="110" Height="30" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="Ex. : 720x1280" DockPanel.Dock="Left"/>
+                                                        <Button Content="Valider" Click="BtnSetRes_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" Margin="6,0,0,0" DockPanel.Dock="Left"/>
+                                                        <Button Content="Réinitialiser l'affichage" Click="BtnResetDisplay_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="12,0" HorizontalAlignment="Right" ToolTip="Densité et résolution d'origine du terminal"/>
+                                                    </DockPanel>
+
+                                                    <TextBlock Grid.Row="3" Text="Mise en veille" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                                                    <StackPanel Grid.Row="3" Grid.Column="1">
+                                                        <WrapPanel>
+                                                            <RadioButton x:Name="RbTimeout0" GroupName="ScreenTimeout" Tag="0" Content="30 s" Click="TimeoutChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                            <RadioButton x:Name="RbTimeout1" GroupName="ScreenTimeout" Tag="1" Content="1 min" Click="TimeoutChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                            <RadioButton x:Name="RbTimeout2" GroupName="ScreenTimeout" Tag="2" Content="5 min" Click="TimeoutChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                            <RadioButton x:Name="RbTimeout3" GroupName="ScreenTimeout" Tag="3" Content="30 min" Click="TimeoutChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                            <RadioButton x:Name="RbTimeout4" GroupName="ScreenTimeout" Tag="4" Content="Jamais" Click="TimeoutChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                        </WrapPanel>
+                                                        <TextBlock x:Name="TxtTimeoutCustom" Foreground="{DynamicResource TextSecondary}" FontSize="12" Visibility="Collapsed"/>
+                                                    </StackPanel>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
-                                        <TextBlock Text="🔊 Volume" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" Margin="0,0,0,15"/>
+
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
+                                            <StackPanel>
+                                                <TextBlock Text="Son" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="130"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Text="Volume" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <WrapPanel Grid.Column="1" Margin="0,0,0,8">
+                                                        <ComboBox x:Name="CmbVolumeStream" Width="130" Height="30" Margin="0,0,8,0" SelectionChanged="CmbVolumeStream_SelectionChanged">
+                                                            <ComboBoxItem Content="Média" Tag="3" IsSelected="True"/>
+                                                            <ComboBoxItem Content="Sonnerie" Tag="2"/>
+                                                            <ComboBoxItem Content="Notification" Tag="5"/>
+                                                            <ComboBoxItem Content="Alarme" Tag="4"/>
+                                                        </ComboBox>
+                                                        <Button Content="−" Click="BtnVolumeMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBox x:Name="TxtVolumeValue" Width="50" Height="30" Margin="6,0" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="Entrée pour valider" KeyDown="TxtVolumeValue_KeyDown"/>
+                                                        <Button Content="+" Click="BtnVolumePlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="30" Height="30" FontSize="16"/>
+                                                        <TextBlock x:Name="TxtVolumeMax" Text="" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,8,0"/>
+                                                        <Button Content="Couper" ToolTip="Coupe le flux choisi" Click="BtnVolumeMute_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Padding="10,0"/>
+                                                    </WrapPanel>
+                                                    <TextBlock Grid.Row="1" Text="Mode sonnerie" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                                                    <WrapPanel Grid.Row="1" Grid.Column="1">
+                                                        <RadioButton x:Name="RbRingerNormal" GroupName="RingerMode" Tag="2" Content="Son" Click="RingerChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                        <RadioButton x:Name="RbRingerVibrate" GroupName="RingerMode" Tag="1" Content="Vibreur" Click="RingerChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                        <RadioButton x:Name="RbRingerSilent" GroupName="RingerMode" Tag="0" Content="Silencieux" Click="RingerChoice_Click" Style="{StaticResource SettingsPillStyle}"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,0,0,14" Style="{StaticResource CardGlowStyle}">
+                                            <StackPanel>
+                                                <TextBlock Text="Date, heure et langue" Foreground="{DynamicResource Ink}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                <Border x:Name="ClockWarning" Background="{DynamicResource WarnBg}" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" Visibility="Collapsed">
+                                                    <TextBlock x:Name="TxtClockWarning" Foreground="{DynamicResource WarnFg}" TextWrapping="Wrap"/>
+                                                </Border>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="130"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Text="Heure du terminal" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="TxtDeviceClock" Grid.Column="1" Text="—" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" Margin="8,0,0,4"/>
+                                                    <ToggleButton x:Name="ToggleAutoTime" Grid.Row="1" Grid.ColumnSpan="2" Content="Heure automatique (réseau)" Click="ToggleAutoTime_Click" Style="{StaticResource SwitchToggleStyle}" Margin="-8,0,0,0" HorizontalAlignment="Left" Width="330"/>
+                                                    <ToggleButton x:Name="ToggleAutoTimeZone" Grid.Row="2" Grid.ColumnSpan="2" Content="Fuseau automatique" Click="ToggleAutoTimeZone_Click" Style="{StaticResource SwitchToggleStyle}" Margin="-8,0,0,4" HorizontalAlignment="Left" Width="330"/>
+                                                    <TextBlock Grid.Row="3" Text="Fuseau et langue" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                    <DockPanel Grid.Row="3" Grid.Column="1">
+                                                        <Button Content="Changer la langue sur le terminal" Tag="android.settings.LOCALE_SETTINGS" Click="BtnOpenOnDevice_Click" Style="{StaticResource OutlineButtonStyle}" Height="28" Padding="10,0" DockPanel.Dock="Right"
+                                                                ToolTip="ADB ne peut pas changer la langue sans root : l'écran Langue s'ouvre sur le terminal."/>
+                                                        <TextBlock x:Name="TxtTimeZoneLocale" Text="—" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,8,0"/>
+                                                    </DockPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
                                         <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="15" Style="{StaticResource CardGlowStyle}">
                                             <StackPanel>
-                                                <ComboBox x:Name="CmbVolumeStream" Height="28" Margin="0,0,0,10">
-                                                    <ComboBoxItem Content="Média" Tag="3" IsSelected="True"/>
-                                                    <ComboBoxItem Content="Sonnerie" Tag="2"/>
-                                                    <ComboBoxItem Content="Notification" Tag="5"/>
-                                                    <ComboBoxItem Content="Alarme" Tag="4"/>
-                                                </ComboBox>
-
-                                                <Grid Margin="0,0,0,15">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Button Content="−" Click="BtnVolumeMinus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Margin="0,0,4,0"/>
-                                                    <TextBox x:Name="TxtVolumeValue" Grid.Column="1" Height="28" VerticalContentAlignment="Center" TextAlignment="Center" ToolTip="Index brut, souvent 0 à 15 — varie selon le terminal — Entrée pour valider" KeyDown="TxtVolumeValue_KeyDown"/>
-                                                    <Button Content="+" Click="BtnVolumePlus_Click" Style="{StaticResource SidebarToggleStyle}" Width="28" Height="28" FontSize="16" Grid.Column="2" Margin="4,0,0,0"/>
-                                                    <Button Content="🔇" ToolTip="Muet (coupe le flux sélectionné)" Click="BtnVolumeMute_Click" Style="{StaticResource OutlineButtonStyle}" Width="36" Height="28" FontSize="13" Grid.Column="4"/>
-                                                </Grid>
-
-                                                <TextBlock Text="Mode sonnerie :" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,0,0,5"/>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Button Content="🔊 Son" Click="BtnRingerNormal_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Margin="0,0,4,0" ToolTip="⚠️ Peut ne pas fonctionner selon la version Android — non testé sur matériel réel"/>
-                                                    <Button Content="📳 Vibreur" Click="BtnRingerVibrate_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Grid.Column="1" Margin="2,0,2,0" ToolTip="⚠️ Peut ne pas fonctionner selon la version Android — non testé sur matériel réel"/>
-                                                    <Button Content="🔕 Silencieux" Click="BtnRingerSilent_Click" Style="{StaticResource OutlineButtonStyle}" Height="30" Grid.Column="2" Margin="4,0,0,0" ToolTip="⚠️ Peut ne pas fonctionner selon la version Android — non testé sur matériel réel"/>
-                                                </Grid>
+                                                <ToggleButton x:Name="ToggleStayOn" Click="ToggleStayOn_Click" Style="{StaticResource SwitchToggleStyle}" Margin="-8,0,0,0">
+                                                    <TextBlock Text="Écran allumé quand branché" FontWeight="SemiBold"/>
+                                                </ToggleButton>
+                                                <TextBlock Text="Pratique pendant une préparation. Remis comme avant quand vous changez de terminal ou fermez ADB Tools, et rappelé en orange dans la barre du haut tant qu'il est actif." Foreground="{DynamicResource TextSecondary}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                             </StackPanel>
                                         </Border>
-
                                     </StackPanel>
                                 </Grid>
                             </ScrollViewer>

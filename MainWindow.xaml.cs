@@ -508,6 +508,7 @@ namespace ADBToolsNew
             try { StopGetEventLab(); } catch { }
             try { StopScanTestOnExit(); } catch { }
             try { StopDeviceTestsOnExit(); } catch { }
+            try { RestoreStayOnOnExit(); } catch { }
 
             if (_isRecording)
             {
@@ -815,6 +816,9 @@ namespace ADBToolsNew
             // ce n'est pas une déconnexion, on ignore cet état transitoire.
             if (selectedDevice == null && _isRefreshingDeviceList) return;
             _ = RefreshDiagAppButtonAsync(); // bouton « Appli Diag » de la barre du haut
+            // Outils avancés : remet « écran allumé quand branché » sur le terminal quitté, relit l'onglet s'il est affiché.
+            _ = StayOnGuardOnDeviceChangeAsync(selectedDevice?.State == "device" ? selectedDevice.Serial : null);
+            if (MainTabControl != null && MainTabControl.SelectedIndex == 4) _ = RefreshToolsStateAsync();
 
             if (selectedDevice == null || string.IsNullOrEmpty(selectedDevice.State))
             {

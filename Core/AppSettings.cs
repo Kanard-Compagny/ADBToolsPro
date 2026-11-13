@@ -17,6 +17,9 @@ namespace ADBToolsNew.Core
         // --- Master : dossiers du terminal déjà choisis pour déposer des fichiers (« fichier|dossier », voir DevicePathMemory)
         public List<string> MasterDevicePaths { get; set; } = new List<string>();
 
+        // --- Outils avancés : « écran allumé quand branché » activé ici, valeur d'origine à remettre (« série|valeur »)
+        public List<string> StayOnRestore { get; set; } = new List<string>();
+
         // --- Général : démarrage et affichage
         /// <summary>Page ouverte au démarrage : Dashboard, Mirroring, Packages, Explorer, Tools, Diag, Radar, Library, Logs.</summary>
         public string StartPage { get; set; } = "Dashboard";
