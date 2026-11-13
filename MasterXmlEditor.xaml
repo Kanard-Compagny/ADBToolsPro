@@ -4,13 +4,13 @@
         xmlns:ae="http://icsharpcode.net/sharpdevelop/avalonedit"
         Title="XML du profil — ADB Tools" Width="1240" Height="780" MinWidth="760" MinHeight="420"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
-        WindowStyle="None" ResizeMode="CanResize"
-        Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
+        WindowStyle="None" AllowsTransparency="True" ResizeMode="CanResize"
+        Background="Transparent" Foreground="{DynamicResource Ink}"
         FontFamily="{DynamicResource FontUi}" Icon="app_icon.ico">
     <!-- Éditeur du XML d'un profil constructeur (StageNow…), fenêtre séparée qu'on garde à côté du Master :
          vérifié à chaque frappe, le Master suit tant que le XML est valide. Même barre de titre que DocumentWindow. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
+        <WindowChrome CaptionHeight="50" ResizeBorderThickness="10" GlassFrameThickness="0" CornerRadius="0"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
@@ -112,8 +112,16 @@
         </Style>
     </Window.Resources>
 
-    <Border x:Name="RootBorder" BorderBrush="{DynamicResource Line}" BorderThickness="1">
-        <Grid>
+    <!-- Cadre de la charte (comme la fenêtre principale) : coins arrondis et ombre douce, portée par un cadre vide
+         derrière le contenu pour garder un texte net ; plein cadre une fois agrandie (UpdateFrame). -->
+    <Grid Background="#01000000">
+    <Border x:Name="WindowShadow" Margin="12" CornerRadius="10" Background="{DynamicResource Bg}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="3" BlurRadius="18" Opacity="0.35" Color="Black"/>
+        </Border.Effect>
+    </Border>
+    <Border x:Name="RootBorder" Margin="12" CornerRadius="10" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" SizeChanged="RootBorder_SizeChanged">
+        <Grid x:Name="ContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="38"/>
                 <RowDefinition Height="Auto"/>
@@ -194,4 +202,5 @@
             </Border>
         </Grid>
     </Border>
+    </Grid>
 </Window>

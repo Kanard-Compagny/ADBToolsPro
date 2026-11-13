@@ -40,10 +40,11 @@ namespace ADBToolsNew
             string title = Loc.F("XML du profil · {0}", block.Name);
             TxtWindowTitle.Text = title;
             Title = title + Loc.T(" — ADB Tools");
+            MaxHeight = SystemParameters.MaximizedPrimaryScreenHeight;
             StateChanged += (s, e) =>
             {
                 BtnMax.Content = WindowState == WindowState.Maximized ? "" : "";
-                RootBorder.BorderThickness = new Thickness(WindowState == WindowState.Maximized ? 7 : 1);
+                UpdateFrame();
             };
 
             ApplyColors();
@@ -238,6 +239,29 @@ namespace ADBToolsNew
             if (removed.Count + added.Count == 0) Add("", Loc.T("Aucun changement."), "Muted");
             w.Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             w.Show();
+        }
+
+        /// <summary>Coins arrondis et ombre en fenêtre normale ; plein cadre, sans marge ni arrondi, une fois agrandie.</summary>
+        private void UpdateFrame()
+        {
+            bool max = WindowState == WindowState.Maximized;
+            var margin = new Thickness(max ? 0 : 12);
+            var radius = new CornerRadius(max ? 0 : 10);
+            RootBorder.Margin = WindowShadow.Margin = margin;
+            RootBorder.CornerRadius = WindowShadow.CornerRadius = radius;
+            RootBorder.BorderThickness = new Thickness(max ? 0 : 1);
+            WindowShadow.Visibility = max ? Visibility.Collapsed : Visibility.Visible;
+            UpdateClip();
+        }
+
+        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateClip();
+
+        /// <summary>Découpe le contenu suivant les coins (un Border n'arrondit que son fond, pas ce qu'il contient).</summary>
+        private void UpdateClip()
+        {
+            double r = WindowState == WindowState.Maximized ? 0 : 9;
+            double w = ContentGrid.ActualWidth, h = ContentGrid.ActualHeight;
+            ContentGrid.Clip = w > 0 && h > 0 ? new RectangleGeometry(new Rect(0, 0, w, h), r, r) : null;
         }
 
         private void BtnMin_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
