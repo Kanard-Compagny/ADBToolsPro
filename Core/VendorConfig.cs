@@ -80,6 +80,16 @@ namespace ADBToolsNew.Core
         public bool DownloadEncrypted;
     }
 
+    /// <summary>Résultat d'une fusion de profils.</summary>
+    public sealed class MxMergeResult
+    {
+        public string Xml = "";
+        public int Added;
+        public int Duplicates;
+        /// <summary>Gestionnaires de réglages présents dans les deux profils (la dernière valeur l'emporte).</summary>
+        public List<string> SameTypes = new List<string>();
+    }
+
     /// <summary>Résultat de la lecture d'un profil : étapes, ou erreur avec sa ligne.</summary>
     public sealed class MxProfile
     {
@@ -348,6 +358,53 @@ namespace ADBToolsNew.Core
         {
             using (var sha = SHA1.Create())
                 return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(s)), 0, 6).Replace("-", "").ToLowerInvariant();
+        }
+
+        /// <summary>Gestionnaires qu'on trouve normalement plusieurs fois (une étape par appli, fichier, réseau…).</summary>
+        private static readonly HashSet<string> MultiTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "AppMgr", "FileMgr", "Wi-Fi", "WifiMgr", "CertMgr", "Intent", "GprsMgr", "PersistMgr", "KeyMappingMgr", "AccessMgr" };
+
+        /// <summary>
+        /// Fusionne deux profils en un seul : les étapes du second sont ajoutées à la suite du premier (avec leurs
+        /// commentaires), les étapes identiques ne sont pas recopiées. Un même gestionnaire de réglages présent des deux
+        /// côtés avec des valeurs différentes est signalé : MX applique les étapes dans l'ordre, la dernière l'emporte.
+        /// </summary>
+        public static MxMergeResult Merge(string baseXml, string addXml)
+        {
+            var r = new MxMergeResult();
+            var a = XDocument.Parse(baseXml ?? "");
+            var b = XDocument.Parse(addXml ?? "");
+            XElement container = Container(a);
+            var existing = new HashSet<string>(container.Elements("characteristic").Select(e => Normalize(e.ToString(SaveOptions.DisableFormatting))));
+            var types = new HashSet<string>(container.Elements("characteristic").Select(e => (string)e.Attribute("type") ?? ""), StringComparer.OrdinalIgnoreCase);
+            foreach (var e in Container(b).Elements("characteristic").ToList())
+            {
+                string norm = Normalize(e.ToString(SaveOptions.DisableFormatting));
+                if (existing.Contains(norm)) { r.Duplicates++; continue; }
+                string type = (string)e.Attribute("type") ?? "";
+                if (types.Contains(type) && !MultiTypes.Contains(type) && !r.SameTypes.Contains(type)) r.SameTypes.Add(type);
+                // Commentaires juste avant l'étape (ex. « SettingID=… » de StageNow) : gardés avec elle.
+                var comments = new List<XComment>();
+                for (var n = e.PreviousNode; n is XComment c; n = n.PreviousNode) comments.Insert(0, new XComment(c.Value));
+                foreach (var c in comments) container.Add(c);
+                container.Add(new XElement(e));
+                existing.Add(norm);
+                types.Add(type);
+                r.Added++;
+            }
+            r.Xml = (a.Declaration != null ? a.Declaration + Environment.NewLine : "") + a.ToString();
+            return r;
+        }
+
+        /// <summary>Élément qui porte les étapes : la racine « wap-provisioningdoc » (créée autour d'un profil d'une seule étape).</summary>
+        private static XElement Container(XDocument d)
+        {
+            var root = d.Root;
+            if (root.Name.LocalName == "wap-provisioningdoc") return root;
+            if (root.Name.LocalName == "characteristic" && (string)root.Attribute("type") == "Profile") return root;
+            var wrap = new XElement("wap-provisioningdoc", new XElement(root));
+            root.ReplaceWith(wrap);
+            return wrap;
         }
 
         /// <summary>Le XML d'une étape en Base64, prêt pour l'appli d'aide (ApplyMx).</summary>

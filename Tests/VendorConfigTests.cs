@@ -129,6 +129,34 @@ namespace ADBToolsNew.Tests
         }
 
         [TestMethod]
+        public void MergeAddsNewStepsSkipsDuplicatesAndFlagsDoubleSettings()
+        {
+            string second = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<wap-provisioningdoc>
+  <characteristic type=""DisplayMgr"" version=""4.3"">
+    <parm name=""TimeoutInterval"" value=""600""/>
+  </characteristic>
+  <!--SettingID=9-->
+  <characteristic type=""DisplayMgr"" version=""13.5"">
+    <parm name=""TimeoutInterval"" value=""120""/>
+  </characteristic>
+  <characteristic type=""Clock"" version=""4.2"">
+    <parm name=""TimeZone"" value=""Europe/Paris""/>
+  </characteristic>
+</wap-provisioningdoc>
+<!--{""profile_name"":""Deux""}-->";
+            var r = StageNowReader.Merge(Profile, second);
+            Assert.AreEqual(2, r.Added);
+            Assert.AreEqual(1, r.Duplicates, "étape identique non recopiée");
+            CollectionAssert.AreEqual(new[] { "DisplayMgr" }, r.SameTypes);
+            var p = StageNowReader.Read(r.Xml);
+            Assert.IsTrue(p.Ok, p.Error);
+            Assert.AreEqual(8, p.Steps.Count);
+            Assert.AreEqual("Clock", p.Steps.Last().Type);
+            StringAssert.Contains(r.Xml, "SettingID=9", "commentaire de l'étape gardé");
+        }
+
+        [TestMethod]
         public void InvalidXmlGivesTheLine()
         {
             var p = StageNowReader.Read("<wap-provisioningdoc>\n  <characteristic type=\"Clock\">\n    <parm name=\"TimeZone\" value=\"Europe/Paris\">\n  </characteristic>\n</wap-provisioningdoc>");

@@ -213,6 +213,24 @@ namespace ADBToolsNew
             var xml = new Button { Content = Loc.T("Voir le XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0) };
             xml.Click += (s, a) => OpenVendorEditor(block, 0);
             buttons.Children.Add(xml);
+            var others = _master.Vendor.Where(x => x != block && x.Brand == block.Brand && x.Kind == block.Kind).ToList();
+            if (others.Count > 0 && p.Ok)
+            {
+                var mergeBtn = new Button { Content = Loc.T("Fusionner dans…"), ToolTip = Loc.T("Réunir ce profil avec un autre profil de la même marque (un seul XML)"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), IsEnabled = !_masterBusy };
+                mergeBtn.Click += (s, a) =>
+                {
+                    var menu = new ContextMenu { PlacementTarget = mergeBtn, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+                    foreach (var o in others)
+                    {
+                        var other = o;
+                        var item = new MenuItem { Header = Loc.F("Profil « {0} »", other.Name), IsEnabled = VendorProfile(other).Ok };
+                        item.Click += async (s2, a2) => await MergeVendorBlocksAsync(block, other);
+                        menu.Items.Add(item);
+                    }
+                    menu.IsOpen = true;
+                };
+                buttons.Children.Add(mergeBtn);
+            }
             var rm = new Button { Content = "✕", ToolTip = Loc.T("Retirer du Master"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Width = 30, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0), IsEnabled = !_masterBusy };
             rm.Click += async (s, a) =>
             {
@@ -232,57 +250,140 @@ namespace ADBToolsNew
         private async Task ImportStageNowAsync()
         {
             if (_master == null) return;
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Profil StageNow exporté (*.xml)|*.xml|Tous les fichiers (*.*)|*.*"), Title = Loc.T("Importer un profil StageNow") };
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Profil StageNow exporté (*.xml)|*.xml|Tous les fichiers (*.*)|*.*"), Title = Loc.T("Importer un ou plusieurs profils StageNow"), Multiselect = true };
             if (dlg.ShowDialog() != true) return;
-            string xml;
-            try { xml = File.ReadAllText(dlg.FileName); }
-            catch (Exception ex) { await ShowCustomDialogAsync(Loc.T("Profil StageNow"), ex.Message, "OK", null, false); return; }
-            var p = StageNowReader.Read(xml);
-            if (!p.Ok)
+            var loaded = new List<(string Path, string Xml, MxProfile P)>();
+            var bad = new List<string>();
+            foreach (var file in dlg.FileNames)
             {
-                await ShowCustomDialogAsync(Loc.T("Profil StageNow"), Loc.F("Ce fichier ne peut pas être lu (ligne {0}) : {1}", p.ErrorLine, p.Error), "OK", null, false);
+                try
+                {
+                    string xml = File.ReadAllText(file);
+                    var p = StageNowReader.Read(xml);
+                    if (p.Ok) loaded.Add((file, xml, p));
+                    else bad.Add(Loc.F("• {0} : ligne {1} : {2}", Path.GetFileName(file), p.ErrorLine, p.Error));
+                }
+                catch (Exception ex) { bad.Add("• " + Path.GetFileName(file) + " : " + ex.Message); }
+            }
+            if (loaded.Count == 0)
+            {
+                await ShowCustomDialogAsync(Loc.T("Profil StageNow"), Loc.T("Aucun fichier n'a pu être lu :") + "\n\n" + string.Join("\n", bad), "OK", null, false);
                 return;
             }
             SyncMasterFromUi();
-            var b = new MasterVendorBlock
-            {
-                Brand = VendorModules.Zebra,
-                Kind = "stagenow",
-                Name = p.Name.Length > 0 ? p.Name : Path.GetFileNameWithoutExtension(dlg.FileName),
-                SourceFile = Path.GetFileName(dlg.FileName),
-                ImportedAt = DateTime.Now,
-                Xml = xml,
-                OriginalXml = xml,
-            };
-            SyncVendorFiles(b);
-            // Fichiers posés à côté du XML (même nom que dans le profil) : joints d'office.
-            string dir = Path.GetDirectoryName(dlg.FileName);
+
+            // Fusion : dans le profil Zebra déjà présent, ou entre les fichiers choisis ensemble.
+            var existing = _master.Vendor.LastOrDefault(b => b.Brand == VendorModules.Zebra && b.Kind == "stagenow" && VendorProfile(b).Ok);
+            string names = string.Join(", ", loaded.Select(x => "« " + Path.GetFileNameWithoutExtension(x.Path) + " »"));
+            bool merge = false;
+            if (existing != null)
+                merge = await ShowCustomDialogAsync(Loc.T("Fusionner les profils ?"),
+                    Loc.F("Ce Master contient déjà le profil « {0} ».\n\nFusionner {1} avec lui (un seul XML, une seule liste d'étapes), ou l'ajouter à part ?", existing.Name, names),
+                    Loc.T("Fusionner"), Loc.T("Garder à part"), false);
+            else if (loaded.Count > 1)
+                merge = await ShowCustomDialogAsync(Loc.T("Fusionner les profils ?"),
+                    Loc.F("{0} profils choisis : {1}.\n\nLes fusionner en un seul (un seul XML, une seule liste d'étapes), ou les garder séparés ?", loaded.Count, names),
+                    Loc.T("Fusionner en un seul"), Loc.T("Garder séparés"), false);
+
+            MasterVendorBlock target = merge ? existing : null;
+            var touched = new List<MasterVendorBlock>();
+            var mergeNotes = new List<string>();
             int auto = 0;
-            foreach (var f in b.Files)
+            foreach (var item in loaded)
             {
-                string candidate = Path.Combine(dir, VendorFileName(f.DevicePath));
-                if (VendorFileName(f.DevicePath).Length > 0 && File.Exists(candidate)) { try { CopyVendorFile(f, candidate); auto++; } catch { } }
+                string name = item.P.Name.Length > 0 ? item.P.Name : Path.GetFileNameWithoutExtension(item.Path);
+                if (target != null)
+                {
+                    var r = StageNowReader.Merge(target.Xml, item.Xml);
+                    target.Xml = r.Xml;
+                    try { target.OriginalXml = StageNowReader.Merge(target.OriginalXml, item.Xml).Xml; } catch { target.OriginalXml = r.Xml; }
+                    target.Name += " + " + name;
+                    target.SourceFile += ", " + Path.GetFileName(item.Path);
+                    mergeNotes.Add(Loc.F("• « {0} » : {1} étape(s) ajoutée(s), {2} déjà présente(s)", name, r.Added, r.Duplicates));
+                    if (r.SameTypes.Count > 0)
+                        mergeNotes.Add(Loc.F("  ⚠️ Réglés des deux côtés : {0}. MX applique dans l'ordre : la dernière valeur l'emporte (à vérifier dans le XML).", string.Join(", ", r.SameTypes)));
+                }
+                else
+                {
+                    var b = new MasterVendorBlock
+                    {
+                        Brand = VendorModules.Zebra,
+                        Kind = "stagenow",
+                        Name = name,
+                        SourceFile = Path.GetFileName(item.Path),
+                        ImportedAt = DateTime.Now,
+                        Xml = item.Xml,
+                        OriginalXml = item.Xml,
+                    };
+                    _master.Vendor.Add(b);
+                    // Fusion entre fichiers choisis ensemble : le premier devient la base, les suivants s'y ajoutent.
+                    if (merge) target = b;
+                }
+                var dest = target ?? _master.Vendor.Last();
+                if (!touched.Contains(dest)) touched.Add(dest);
+                SyncVendorFiles(dest);
+                // Fichiers posés à côté du XML (même nom que dans le profil) : fournis d'office.
+                string dir = Path.GetDirectoryName(item.Path);
+                foreach (var f in dest.Files.Where(f => !f.Provided))
+                {
+                    string candidate = Path.Combine(dir, VendorFileName(f.DevicePath));
+                    if (VendorFileName(f.DevicePath).Length > 0 && File.Exists(candidate)) { try { CopyVendorFile(f, candidate); auto++; } catch { } }
+                }
             }
-            _master.Vendor.Add(b);
             _masterView = "vendor";
             RenderMasterContent();
 
+            var text = new List<string>();
+            foreach (var b in touched) text.Add(VendorImportSummary(b));
+            if (mergeNotes.Count > 0) text.Add(Loc.T("Fusion :") + "\n" + string.Join("\n", mergeNotes));
+            if (auto > 0) text.Add(Loc.F("{0} fichier(s) fourni(s) automatiquement (trouvés à côté du XML).", auto));
+            if (bad.Count > 0) text.Add(Loc.T("Non lus :") + "\n" + string.Join("\n", bad));
+            await ShowCustomDialogAsync(Loc.T("🏭 Profil StageNow importé"), string.Join("\n\n", text), "OK", null, false);
+        }
+
+        /// <summary>Résumé d'un bloc après import : étapes par thème, sensibles, non reconnues, fichiers.</summary>
+        private string VendorImportSummary(MasterVendorBlock b)
+        {
+            var p = VendorProfile(b);
+            if (!p.Ok) return Loc.F("« {0} » : XML invalide (ligne {1}) : {2}", b.Name, p.ErrorLine, p.Error);
             var lines = new List<string>();
             foreach (var g in p.Steps.Where(s => !s.Sensitive).GroupBy(s => s.Theme).OrderBy(g => Array.IndexOf(StageNowReader.ThemeOrder, g.Key)))
                 lines.Add(Loc.F("• {0} : {1} étape(s)", Loc.T(g.Key), g.Count()));
             int sens = p.Steps.Count(s => s.Sensitive), unknown = p.Steps.Count(s => !s.Recognized);
             if (sens > 0) lines.Add(Loc.F("• Étapes sensibles : {0}, décochées (confirmation demandée si vous les cochez)", sens));
             if (unknown > 0) lines.Add(Loc.F("• Non reconnues : {0} (gardées telles quelles, appliquées sans aperçu)", unknown));
-            if (b.Files.Count > 0)
-                lines.Add(Loc.F("• Fichiers du profil : {0}, dont {1} fourni(s) automatiquement (trouvés à côté du XML)", b.Files.Count, auto));
-            string tail = "";
+            if (b.Files.Count > 0) lines.Add(Loc.F("• Fichiers du profil : {0}, dont {1} fourni(s)", b.Files.Count, b.Files.Count(f => f.Provided)));
+            string text = Loc.F("« {0} » : {1} étape(s) lue(s){2}.\n\n{3}", b.Name, p.Steps.Count, p.MinVersion.Length > 0 ? Loc.F(", faite(s) pour MX {0}", p.MinVersion) : "", string.Join("\n", lines));
             if (b.Files.Any(f => f.Download && !f.Provided))
-                tail += "\n\n" + Loc.F("⚠️ {0} fichier(s) téléchargé(s) par le terminal depuis un lien (souvent chiffré par StageNow) : le terminal devra joindre ce serveur. Pour ne pas en dépendre, fournissez le fichier dans « 📎 Fichiers du profil » (✏️ : fichier du PC ou apk d'une appli de l'onglet Applications) : il sera déposé au même endroit et le reste du profil s'en servira.", b.Files.Count(f => f.Download && !f.Provided));
+                text += "\n\n" + Loc.F("⚠️ {0} fichier(s) téléchargé(s) par le terminal depuis un lien (souvent chiffré par StageNow) : le terminal devra joindre ce serveur. Pour ne pas en dépendre, fournissez le fichier dans « 📎 Fichiers du profil » (✏️ : fichier du PC ou apk d'une appli de l'onglet Applications) : il sera déposé au même endroit et le reste du profil s'en servira.", b.Files.Count(f => f.Download && !f.Provided));
             if (b.Files.Any(f => !f.Download && !f.Provided))
-                tail += "\n\n" + Loc.T("Joignez les fichiers manquants dans « 📎 Fichiers du profil » (✏️).");
-            await ShowCustomDialogAsync(Loc.T("🏭 Profil StageNow importé"),
-                Loc.F("« {0} » : {1} étape(s) lue(s){2}.\n\n{3}", b.Name, p.Steps.Count, p.MinVersion.Length > 0 ? Loc.F(", faite(s) pour MX {0}", p.MinVersion) : "", string.Join("\n", lines)) + tail,
-                "OK", null, false);
+                text += "\n\n" + Loc.T("Joignez les fichiers manquants dans « 📎 Fichiers du profil » (✏️).");
+            return text;
+        }
+
+        /// <summary>Fusionne un bloc dans un autre (même marque) : étapes, fichiers fournis et choix des cases.</summary>
+        private async Task MergeVendorBlocksAsync(MasterVendorBlock from, MasterVendorBlock into)
+        {
+            MxMergeResult r;
+            try { r = StageNowReader.Merge(into.Xml, from.Xml); }
+            catch (Exception ex) { await ShowCustomDialogAsync(Loc.T("Fusionner les profils ?"), ex.Message, "OK", null, false); return; }
+            into.Xml = r.Xml;
+            try { into.OriginalXml = StageNowReader.Merge(into.OriginalXml, from.OriginalXml).Xml; } catch { into.OriginalXml = r.Xml; }
+            into.Name += " + " + from.Name;
+            into.SourceFile += ", " + from.SourceFile;
+            foreach (var k in from.Unchecked) if (!into.Unchecked.Contains(k)) into.Unchecked.Add(k);
+            foreach (var k in from.CheckedSensitive) if (!into.CheckedSensitive.Contains(k)) into.CheckedSensitive.Add(k);
+            foreach (var f in from.Files.Where(f => f.Provided))
+                if (!into.Files.Any(x => x.DevicePath == f.DevicePath && x.Provided)) { into.Files.RemoveAll(x => x.DevicePath == f.DevicePath); into.Files.Add(f); }
+            if (_vendorEditors.TryGetValue(from, out var ed)) { try { ed.Close(); } catch { } _vendorEditors.Remove(from); }
+            if (_vendorEditors.TryGetValue(into, out var ed2)) { try { ed2.Close(); } catch { } _vendorEditors.Remove(into); }
+            _master.Vendor.Remove(from);
+            SyncVendorFiles(into);
+            RerenderMaster();
+            string msg = Loc.F("« {0} » : {1} étape(s) ajoutée(s), {2} déjà présente(s).", from.Name, r.Added, r.Duplicates);
+            if (r.SameTypes.Count > 0)
+                msg += "\n\n" + Loc.F("⚠️ Réglés des deux côtés : {0}. MX applique dans l'ordre : la dernière valeur l'emporte (à vérifier dans le XML).", string.Join(", ", r.SameTypes));
+            await ShowCustomDialogAsync(Loc.T("Profils fusionnés"), msg, "OK", null, false);
         }
 
         private string VendorFileSource(MasterVendorFile f)
