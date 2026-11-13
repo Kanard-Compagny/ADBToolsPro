@@ -42,6 +42,8 @@ namespace ADBToolsNew
             public string Manufacturer = "";
             public string Brand = "";
             public string MxVersion = "";
+            /// <summary>Réglages déposés qui ne s'appliquent qu'au redémarrage (DeviceConfig Honeywell) : redémarrage en fin de Master.</summary>
+            public bool RebootAtEnd;
             public string Outcome = "";
             public string Message = "";
             public readonly List<MasterResult> Results = new List<MasterResult>();
@@ -1789,6 +1791,7 @@ namespace ADBToolsNew
             t.TxtDetail.Visibility = Visibility.Collapsed;
             t.PlanPanel.Visibility = Visibility.Collapsed;
             t.HelperVersion = 0;
+            t.RebootAtEnd = false;
             if (t.AnalyzedMaster != m) await AnalyzeMasterTargetAsync(t);
             // Réglages constructeur à appliquer ici : la mini appli (version EMDK) est mise en place avant le Wi-Fi, pour
             // qu'un remplacement de l'ancienne version ne retire pas les réseaux enregistrés juste après.
@@ -2033,6 +2036,15 @@ namespace ADBToolsNew
 
                 // 10. Étapes constructeur sensibles (remise à zéro, débogage USB…), confirmées : tout à la fin.
                 await ApplyVendorAsync(t, m, true);
+
+                // 11. Réglages Honeywell déposés : ils ne s'appliquent qu'au redémarrage.
+                if (t.RebootAtEnd)
+                {
+                    MasterStatus(t, Loc.T("Redémarrage pour appliquer les réglages Honeywell…"));
+                    var rb = await _adbManager.ExecuteAsync($"-s {t.Serial} reboot", TimeSpan.FromSeconds(30));
+                    MasterAdd(t, Loc.T("Constructeur"), Loc.T("Redémarrage pour appliquer DeviceConfig.xml"), rb.IsSuccess ? "ok" : "ko",
+                        rb.IsSuccess ? Loc.T("le terminal redémarre : vérifier les réglages une fois revenu") : LastLines(rb.StandardError + rb.StandardOutput, 1));
+                }
 
                 int ko = t.Results.Count(r => r.Status == "ko"), todo = steps.Count;
                 t.Outcome = ko == 0 && todo == 0 ? "ok" : "warn";

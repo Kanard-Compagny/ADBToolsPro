@@ -141,6 +141,7 @@
     <Compile Include="Core\VendorConfig.cs" />
     <Compile Include="Core\TerminalToolsState.cs" />
     <Compile Include="Core\MxTemplates.cs" />
+    <Compile Include="Core\VendorFormats.cs" />
     <Compile Include="Core\DevicePathMemory.cs" />
     <Compile Include="MasterXmlEditor.xaml.cs">
       <DependentUpon>MasterXmlEditor.xaml</DependentUpon>

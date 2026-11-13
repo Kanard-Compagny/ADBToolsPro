@@ -34,13 +34,17 @@ namespace ADBToolsNew
         public event Action<string, string> FileAttached;
 
         public MasterVendorBlock Block => _block;
+        private bool _json;
 
         public MasterXmlEditor(MasterVendorBlock block)
         {
             InitializeComponent();
             Loc.TranslateTree(this);
             _block = block;
-            string title = Loc.F("XML du profil · {0}", block.Name);
+            _json = VendorKinds.IsJson(block.Kind);
+            string title = _json ? Loc.F("JSON du profil · {0}", block.Name) : Loc.F("XML du profil · {0}", block.Name);
+            // Catalogue de modèles : étapes MX (Zebra) seulement.
+            if (block.Kind != VendorKinds.StageNow) BtnAddStep.Visibility = Visibility.Collapsed;
             TxtWindowTitle.Text = title;
             Title = title + Loc.T(" — ADB Tools");
             MaxHeight = SystemParameters.MaximizedPrimaryScreenHeight;
@@ -71,7 +75,8 @@ namespace ADBToolsNew
         /// <summary>Couleurs de la coloration XML accordées au thème (vert pour les balises, orange pour les valeurs).</summary>
         private void ApplyColors()
         {
-            var def = HighlightingManager.Instance.GetDefinition("XML");
+            var def = _json ? (HighlightingManager.Instance.GetDefinition("Json") ?? HighlightingManager.Instance.GetDefinition("JavaScript"))
+                            : HighlightingManager.Instance.GetDefinition("XML");
             if (def == null) return;
             bool dark = ThemeManager.Current == AppTheme.Dark;
             void Set(string name, string darkHex, string lightHex)
@@ -87,6 +92,14 @@ namespace ADBToolsNew
             Set("XmlDeclaration", "#9AA3A9", "#5D666C");
             Set("CData", "#9CC3F0", "#1D5C9E");
             Set("Entity", "#FFB868", "#A35200");
+            // JSON (Scan2Deploy) : clés en vert, valeurs en orange.
+            Set("FieldName", "#73D9A9", "#1F7454");
+            Set("String", "#FFB868", "#A35200");
+            Set("Number", "#9CC3F0", "#1D5C9E");
+            Set("Digits", "#9CC3F0", "#1D5C9E");
+            Set("Bool", "#9CC3F0", "#1D5C9E");
+            Set("Null", "#9CC3F0", "#1D5C9E");
+            Set("JavaScriptLiterals", "#9CC3F0", "#1D5C9E");
             Editor.SyntaxHighlighting = null;
             Editor.SyntaxHighlighting = def;
             _marks.Modified = (Brush)FindResource("Accent");
@@ -98,13 +111,14 @@ namespace ADBToolsNew
         private void Reparse(bool fromTyping)
         {
             string text = Editor.Text ?? "";
-            var p = StageNowReader.Read(text, true);
+            var p = VendorKinds.Read(_block.Kind, text, true);
             if (!p.Ok)
             {
                 _marks.ErrorLine = Math.Max(1, p.ErrorLine);
                 DotState.SetResourceReference(Shape_Fill, "BadFg");
                 TxtState.SetResourceReference(TextBlock.ForegroundProperty, "BadFg");
-                TxtState.Text = Loc.F("XML invalide (ligne {0}) · le Master garde la dernière version correcte", p.ErrorLine);
+                TxtState.Text = _json ? Loc.F("JSON invalide (ligne {0}) · le Master garde la dernière version correcte", p.ErrorLine)
+                                      : Loc.F("XML invalide (ligne {0}) · le Master garde la dernière version correcte", p.ErrorLine);
                 TxtError.Text = Loc.F("Ligne {0} : {1}", p.ErrorLine, p.Error);
                 ErrorBar.Visibility = Visibility.Visible;
             }
@@ -114,7 +128,7 @@ namespace ADBToolsNew
                 ErrorBar.Visibility = Visibility.Collapsed;
                 DotState.SetResourceReference(Shape_Fill, "OkFg");
                 TxtState.SetResourceReference(TextBlock.ForegroundProperty, "OkFg");
-                TxtState.Text = Loc.T("XML valide · synchronisé avec le Master");
+                TxtState.Text = _json ? Loc.T("JSON valide · synchronisé avec le Master") : Loc.T("XML valide · synchronisé avec le Master");
                 _last = p;
                 if (fromTyping && text != _block.Xml)
                 {

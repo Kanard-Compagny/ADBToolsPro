@@ -148,13 +148,15 @@ namespace ADBToolsNew.Core
         public const string ThemeEhs = "Enterprise Home Screen";
         public const string ThemeVelocity = "Velocity";
         public const string ThemeDataWedge = "DataWedge";
+        /// <summary>Lecture des codes-barres des autres marques (Honeywell, Datalogic).</summary>
+        public const string ThemeScanner = "Lecture des codes";
         public const string ThemeApps = "Applications";
         public const string ThemeFiles = "Fichiers";
         public const string ThemeScreen = "Écran et énergie";
         public const string ThemeSystem = "Système";
         public const string ThemeOther = "Autres étapes";
 
-        public static readonly string[] ThemeOrder = { ThemeWifi, ThemeEhs, ThemeVelocity, ThemeDataWedge, ThemeApps, ThemeFiles, ThemeScreen, ThemeSystem, ThemeOther };
+        public static readonly string[] ThemeOrder = { ThemeWifi, ThemeEhs, ThemeVelocity, ThemeDataWedge, ThemeScanner, ThemeApps, ThemeFiles, ThemeScreen, ThemeSystem, ThemeOther };
 
         private static readonly Dictionary<string, string> KnownTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

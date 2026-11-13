@@ -24,10 +24,11 @@ namespace ADBToolsNew
         private MxProfile VendorProfile(MasterVendorBlock b)
         {
             string xml = b.Xml ?? "";
-            if (_vendorParseCache.TryGetValue(xml, out var p)) return p;
+            string key = (b.Kind ?? "") + "\u0001" + xml;
+            if (_vendorParseCache.TryGetValue(key, out var p)) return p;
             if (_vendorParseCache.Count > 20) _vendorParseCache.Clear();
-            p = StageNowReader.Read(xml, true); // un profil créé vide reste valide
-            _vendorParseCache[xml] = p;
+            p = VendorKinds.Read(b.Kind, xml, true); // un profil créé vide reste valide
+            _vendorParseCache[key] = p;
             return p;
         }
 
@@ -104,8 +105,8 @@ namespace ADBToolsNew
                 _vendorEditors.Remove(gone);
             }
             AddMasterSection(Loc.T("🏭 Réglages constructeur"),
-                Loc.T("Fichiers propres à une marque, appliqués seulement sur les terminaux de cette marque (ailleurs le bloc est ignoré, et le bilan le dit). Zebra : profil StageNow exporté pour MDM (StageNow ▸ le profil ▸ Export to MDM ▸ XML), appliqué par la mini appli ADB Tools Helper via EMDK."),
-                new List<MasterRow>(), async () => await ImportStageNowAsync(), Loc.T("＋ Importer un profil StageNow"),
+                Loc.T("Fichiers propres à une marque, appliqués seulement sur les terminaux de cette marque (ailleurs le bloc est ignoré, et le bilan le dit). Zebra : profil StageNow exporté pour MDM (StageNow ▸ le profil ▸ Export to MDM ▸ XML), appliqué par la mini appli ADB Tools Helper via EMDK. Datalogic : profil Scan2Deploy (.json), appliqué par l'agent Scan2Deploy du terminal. Honeywell : DeviceConfig.xml (EZConfig), déposé dans honeywell/persist et appliqué au redémarrage."),
+                new List<MasterRow>(), async () => await ImportStageNowAsync(), Loc.T("＋ Importer un profil constructeur"),
                 async () => await CreateEmptyVendorBlockAsync(), Loc.T("＋ Créer un profil Zebra vide"));
 
             foreach (var b in m.Vendor.ToList())
@@ -115,13 +116,19 @@ namespace ADBToolsNew
                 _masterViewHost.Children.Add(VendorBlockHeader(block, p));
                 if (!p.Ok)
                 {
-                    var err = MasterMutedText(Loc.F("XML invalide (ligne {0}) : {1}. Corrigez-le avec « Voir le XML » : le bloc n'est pas appliqué tant qu'il est invalide.", p.ErrorLine, p.Error), 12);
+                    var err = MasterMutedText(VendorKinds.IsJson(block.Kind)
+                        ? Loc.F("JSON invalide (ligne {0}) : {1}. Corrigez-le avec « Voir le JSON » : le bloc n'est pas appliqué tant qu'il est invalide.", p.ErrorLine, p.Error)
+                        : Loc.F("XML invalide (ligne {0}) : {1}. Corrigez-le avec « Voir le XML » : le bloc n'est pas appliqué tant qu'il est invalide.", p.ErrorLine, p.Error), 12);
                     err.SetResourceReference(TextBlock.ForegroundProperty, "BadFg");
                     _masterViewHost.Children.Add(err);
                     continue;
                 }
-                if (p.Steps.Count == 0)
+                if (p.Steps.Count == 0 && block.Kind == VendorKinds.StageNow)
                     _masterViewHost.Children.Add(MasterMutedText(Loc.T("Profil vide : « Ajouter une étape » ouvre le catalogue des modèles dans l'éditeur XML."), 12));
+                if (block.Kind == VendorKinds.Scan2Deploy)
+                    _masterViewHost.Children.Add(MasterMutedText(Loc.T("Appliqué en une fois par l'agent Scan2Deploy du terminal (Datalogic, Android 9 et plus), avec les seules étapes cochées. Le bilan reprend le compte rendu de l'agent."), 12));
+                if (block.Kind == VendorKinds.DeviceConfig)
+                    _masterViewHost.Children.Add(MasterMutedText(Loc.T("Déposé dans honeywell/persist avec les seules étapes cochées (le mode Provisioning doit être activé sur le terminal), puis appliqué par Honeywell au redémarrage : le terminal redémarre à la fin du Master."), 12));
                 foreach (var theme in StageNowReader.ThemeOrder)
                 {
                     var steps = p.Steps.Where(s => !s.Sensitive && s.Theme == theme).ToList();
@@ -200,7 +207,10 @@ namespace ADBToolsNew
 
             var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             bool created = string.IsNullOrEmpty(block.SourceFile);
-            var title = new TextBlock { Text = created ? Loc.F("Profil Zebra « {0} »", block.Name) : Loc.F("Profil StageNow « {0} »", block.Name), FontWeight = FontWeights.SemiBold, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis };
+            string titleText = block.Kind == VendorKinds.Scan2Deploy ? Loc.F("Profil Scan2Deploy « {0} »", block.Name)
+                : block.Kind == VendorKinds.DeviceConfig ? Loc.F("DeviceConfig Honeywell « {0} »", block.Name)
+                : created ? Loc.F("Profil Zebra « {0} »", block.Name) : Loc.F("Profil StageNow « {0} »", block.Name);
+            var title = new TextBlock { Text = titleText, FontWeight = FontWeights.SemiBold, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis };
             title.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
             names.Children.Add(title);
             var parts = new List<string> { created ? Loc.F("créé le {0:dd/MM/yyyy}", block.ImportedAt) : Loc.F("importé le {0:dd/MM/yyyy}", block.ImportedAt) };
@@ -209,22 +219,23 @@ namespace ADBToolsNew
                 if (p.MinVersion.Length > 0) parts.Add(Loc.F("MX {0} minimum", p.MinVersion));
                 parts.Add(Loc.F("{0} étape(s), {1} cochée(s)", p.Steps.Count, p.Steps.Count(block.IsChecked)));
             }
-            if (block.Xml != block.OriginalXml) parts.Add(Loc.T("XML modifié"));
+            if (block.Xml != block.OriginalXml) parts.Add(VendorKinds.IsJson(block.Kind) ? Loc.T("JSON modifié") : Loc.T("XML modifié"));
             names.Children.Add(MasterSub(string.Join(" · ", parts)));
             Grid.SetColumn(names, 2); g.Children.Add(names);
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            if (block.Brand == VendorModules.Zebra)
+            if (block.Kind == VendorKinds.StageNow)
             {
                 var addStep = new Button { Content = Loc.T("Ajouter une étape"), ToolTip = Loc.T("Catalogue de modèles d'étapes MX, dans l'éditeur XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0) };
                 addStep.SetResourceReference(Control.BorderBrushProperty, "Accent");
                 addStep.Click += (s, a) => OpenVendorEditor(block, 0, true);
                 buttons.Children.Add(addStep);
             }
-            var xml = new Button { Content = Loc.T("Voir le XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0) };
+            var xml = new Button { Content = VendorKinds.IsJson(block.Kind) ? Loc.T("Voir le JSON") : Loc.T("Voir le XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0) };
             xml.Click += (s, a) => OpenVendorEditor(block, 0);
             buttons.Children.Add(xml);
-            var others = _master.Vendor.Where(x => x != block && x.Brand == block.Brand && x.Kind == block.Kind).ToList();
+            // Fusion : profils StageNow seulement (les autres formats s'appliquent d'un bloc).
+            var others = block.Kind != VendorKinds.StageNow ? new List<MasterVendorBlock>() : _master.Vendor.Where(x => x != block && x.Brand == block.Brand && x.Kind == block.Kind).ToList();
             if (others.Count > 0 && p.Ok)
             {
                 var mergeBtn = new Button { Content = Loc.T("Fusionner dans…"), ToolTip = Loc.T("Réunir ce profil avec un autre profil de la même marque (un seul XML)"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), IsEnabled = !_masterBusy };
@@ -261,30 +272,65 @@ namespace ADBToolsNew
         private async Task ImportStageNowAsync()
         {
             if (_master == null) return;
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.T("Profil StageNow exporté (*.xml)|*.xml|Tous les fichiers (*.*)|*.*"), Title = Loc.T("Importer un ou plusieurs profils StageNow"), Multiselect = true };
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = Loc.T("Profils constructeur (StageNow .xml, Scan2Deploy .json, DeviceConfig.xml)|*.xml;*.json|Tous les fichiers (*.*)|*.*"),
+                Title = Loc.T("Importer un ou plusieurs profils constructeur"),
+                Multiselect = true,
+            };
             if (dlg.ShowDialog() != true) return;
             var loaded = new List<(string Path, string Xml, MxProfile P)>();
+            var others = new List<(string Path, string Text, string Kind, MxProfile P)>();
             var bad = new List<string>();
             foreach (var file in dlg.FileNames)
             {
                 try
                 {
                     string xml = File.ReadAllText(file);
-                    var p = StageNowReader.Read(xml);
-                    if (p.Ok) loaded.Add((file, xml, p));
-                    else bad.Add(Loc.F("• {0} : ligne {1} : {2}", Path.GetFileName(file), p.ErrorLine, p.Error));
+                    string kind = VendorKinds.Detect(xml);
+                    var p = VendorKinds.Read(kind, xml);
+                    if (!p.Ok) bad.Add(Loc.F("• {0} : ligne {1} : {2}", Path.GetFileName(file), p.ErrorLine, p.Error));
+                    else if (kind == VendorKinds.StageNow) loaded.Add((file, xml, p));
+                    else others.Add((file, xml, kind, p));
                 }
                 catch (Exception ex) { bad.Add("• " + Path.GetFileName(file) + " : " + ex.Message); }
             }
-            if (loaded.Count == 0)
+            if (loaded.Count == 0 && others.Count == 0)
             {
-                await ShowCustomDialogAsync(Loc.T("Profil StageNow"), Loc.T("Aucun fichier n'a pu être lu :") + "\n\n" + string.Join("\n", bad), "OK", null, false);
+                await ShowCustomDialogAsync(Loc.T("Profil constructeur"), Loc.T("Aucun fichier n'a pu être lu :") + "\n\n" + string.Join("\n", bad), "OK", null, false);
                 return;
             }
             SyncMasterFromUi();
 
+            // Scan2Deploy (Datalogic) et DeviceConfig (Honeywell) : un bloc par fichier, sans fusion.
+            var touched = new List<MasterVendorBlock>();
+            foreach (var item in others)
+            {
+                var b = new MasterVendorBlock
+                {
+                    Brand = VendorKinds.BrandOf(item.Kind),
+                    Kind = item.Kind,
+                    Name = item.P.Name.Length > 0 ? item.P.Name : Path.GetFileNameWithoutExtension(item.Path),
+                    SourceFile = Path.GetFileName(item.Path),
+                    ImportedAt = DateTime.Now,
+                    Xml = item.Text,
+                    OriginalXml = item.Text,
+                };
+                _master.Vendor.Add(b);
+                touched.Add(b);
+            }
+            if (loaded.Count == 0)
+            {
+                _masterView = "vendor";
+                RenderMasterContent();
+                var t0 = touched.Select(VendorImportSummary).ToList();
+                if (bad.Count > 0) t0.Add(Loc.T("Non lus :") + "\n" + string.Join("\n", bad));
+                await ShowCustomDialogAsync(Loc.T("🏭 Profil constructeur importé"), string.Join("\n\n", t0), "OK", null, false);
+                return;
+            }
+
             // Fusion : dans le profil Zebra déjà présent, ou entre les fichiers choisis ensemble.
-            var existing = _master.Vendor.LastOrDefault(b => b.Brand == VendorModules.Zebra && b.Kind == "stagenow" && VendorProfile(b).Ok);
+            var existing = _master.Vendor.LastOrDefault(b => b.Brand == VendorModules.Zebra && b.Kind == VendorKinds.StageNow && VendorProfile(b).Ok && !touched.Contains(b));
             string names = string.Join(", ", loaded.Select(x => "« " + Path.GetFileNameWithoutExtension(x.Path) + " »"));
             bool merge = false;
             if (existing != null)
@@ -297,7 +343,6 @@ namespace ADBToolsNew
                     Loc.T("Fusionner en un seul"), Loc.T("Garder séparés"), false);
 
             MasterVendorBlock target = merge ? existing : null;
-            var touched = new List<MasterVendorBlock>();
             var mergeNotes = new List<string>();
             int auto = 0;
             foreach (var item in loaded)
@@ -349,7 +394,7 @@ namespace ADBToolsNew
             if (mergeNotes.Count > 0) text.Add(Loc.T("Fusion :") + "\n" + string.Join("\n", mergeNotes));
             if (auto > 0) text.Add(Loc.F("{0} fichier(s) fourni(s) automatiquement (trouvés à côté du XML).", auto));
             if (bad.Count > 0) text.Add(Loc.T("Non lus :") + "\n" + string.Join("\n", bad));
-            await ShowCustomDialogAsync(Loc.T("🏭 Profil StageNow importé"), string.Join("\n\n", text), "OK", null, false);
+            await ShowCustomDialogAsync(others.Count > 0 ? Loc.T("🏭 Profil constructeur importé") : Loc.T("🏭 Profil StageNow importé"), string.Join("\n\n", text), "OK", null, false);
         }
 
         /// <summary>Résumé d'un bloc après import : étapes par thème, sensibles, non reconnues, fichiers.</summary>
@@ -358,6 +403,7 @@ namespace ADBToolsNew
             var p = VendorProfile(b);
             if (!p.Ok) return Loc.F("« {0} » : XML invalide (ligne {1}) : {2}", b.Name, p.ErrorLine, p.Error);
             var lines = new List<string>();
+            if (b.Kind != VendorKinds.StageNow) lines.Add(Loc.F("• Format : {0} ({1})", VendorKinds.FormatName(b.Kind), b.Brand));
             foreach (var g in p.Steps.Where(s => !s.Sensitive).GroupBy(s => s.Theme).OrderBy(g => Array.IndexOf(StageNowReader.ThemeOrder, g.Key)))
                 lines.Add(Loc.F("• {0} : {1} étape(s)", Loc.T(g.Key), g.Count()));
             int sens = p.Steps.Count(s => s.Sensitive), unknown = p.Steps.Count(s => !s.Recognized);
@@ -557,7 +603,7 @@ namespace ADBToolsNew
 
         /// <summary>Il y a des étapes constructeur à appliquer sur ce terminal (marque concernée) : l'appli d'aide est préparée tôt.</summary>
         private bool VendorAppliesTo(MasterTarget t, MasterProfile m) =>
-            m.Vendor.Any(b => b.Include && b.Brand == t.Brand && VendorProfile(b) is MxProfile p && p.Ok && p.Steps.Any(b.IsChecked))
+            m.Vendor.Any(b => b.Include && b.Kind == VendorKinds.StageNow && b.Brand == t.Brand && VendorProfile(b) is MxProfile p && p.Ok && p.Steps.Any(b.IsChecked))
             || (t.Brand == VendorModules.Zebra && m.Files.Any(f => f.Include && !f.IsFolder && IsProtectedZebraPath(f.DevicePath)));
 
         /// <summary>Dossier de Zebra fermé à ADB (/enterprise…) : on y dépose par MX (FileMgr), sans root.</summary>
@@ -603,6 +649,20 @@ namespace ADBToolsNew
                     continue;
                 }
                 var steps = p.Steps.Where(s => s.Sensitive == sensitive && b.IsChecked(s)).ToList();
+                // Formats appliqués d'un bloc (Datalogic, Honeywell) : envoyés une seule fois, au premier passage
+                // s'il n'y a pas d'étape sensible confirmée, sinon au passage des étapes sensibles (en dernier).
+                if (b.Kind != VendorKinds.StageNow)
+                {
+                    bool hasSensitive = p.Steps.Any(s => s.Sensitive && b.IsChecked(s)) && !_vendorSkipSensitive;
+                    if (sensitive != hasSensitive || !p.Steps.Any(b.IsChecked)) continue;
+                    if (t.Brand != b.Brand)
+                    {
+                        MasterAdd(t, cat, Loc.F("{0} étape(s)", p.Steps.Count(b.IsChecked)), "skip", Loc.F("réglages {0} ignorés sur ce terminal ({1})", b.Brand, t.Manufacturer.Length > 0 ? t.Manufacturer : Loc.T("autre marque")));
+                        continue;
+                    }
+                    await ApplyWholeVendorBlockAsync(t, b, p, cat);
+                    continue;
+                }
                 if (steps.Count == 0) continue;
                 if (t.Brand != b.Brand)
                 {
@@ -614,6 +674,7 @@ namespace ADBToolsNew
                     foreach (var s in steps) MasterAdd(t, cat, s.Label, "skip", Loc.T("étape sensible non confirmée"));
                     continue;
                 }
+
                 // Téléchargements remplacés par un fichier fourni : l'étape est sautée, le fichier est déposé à sa place.
                 var replaced = steps.Where(s => s.DownloadTarget.Length > 0 && (VendorFileFor(b, s.DownloadTarget)?.Provided ?? false)).ToList();
                 foreach (var s in replaced) MasterAdd(t, cat, s.Label, "skip", Loc.T("remplacée par le fichier fourni"));
@@ -672,6 +733,86 @@ namespace ADBToolsNew
                     AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🏭 {t.Serial} · {s.Label} : {status} {response}");
                 }
             }
+        }
+        /// <summary>
+        /// Datalogic (Scan2Deploy) et Honeywell (DeviceConfig) : le profil part en une fois, avec les seules étapes cochées
+        /// (et sans les sensibles si elles n'ont pas été confirmées). Chaque étape envoyée a sa ligne au bilan.
+        /// </summary>
+        private async Task ApplyWholeVendorBlockAsync(MasterTarget t, MasterVendorBlock b, MxProfile p, string cat)
+        {
+            bool Keep(MxStep s) => b.IsChecked(s) && !(s.Sensitive && _vendorSkipSensitive);
+            var sent = p.Steps.Where(Keep).ToList();
+            foreach (var s in p.Steps.Where(s => s.Sensitive && b.IsChecked(s) && _vendorSkipSensitive))
+                MasterAdd(t, cat, s.Label, "skip", Loc.T("étape sensible non confirmée"));
+            if (sent.Count == 0) return;
+            string content;
+            try { content = VendorKinds.BuildChecked(b.Kind, b.Xml, Keep); }
+            catch (Exception ex) { MasterAdd(t, cat, Loc.T("Profil"), "ko", ex.Message); return; }
+            void All(string status, string why) { foreach (var s in sent) MasterAdd(t, cat, s.Label, status, why); }
+
+            string local = Path.Combine(Path.GetTempPath(), "adbtools_vendor_" + Guid.NewGuid().ToString("N") + (VendorKinds.IsJson(b.Kind) ? ".json" : ".xml"));
+            try
+            {
+                File.WriteAllText(local, content, new System.Text.UTF8Encoding(false));
+                if (b.Kind == VendorKinds.Scan2Deploy)
+                {
+                    var agent = await _adbManager.ExecuteAsync($"-s {t.Serial} shell pm list packages {Scan2DeployReader.Agent}", TimeSpan.FromSeconds(20));
+                    if (!(agent.StandardOutput ?? "").Contains("package:" + Scan2DeployReader.Agent))
+                    {
+                        All("ko", Loc.T("agent Scan2Deploy absent de ce terminal (Datalogic Android 9 et plus)"));
+                        return;
+                    }
+                    MasterStatus(t, Loc.T("Constructeur : profil Scan2Deploy…"));
+                    string remote = "/sdcard/Download/adbtools_s2d.json";
+                    var push = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {remote}", TimeSpan.FromMinutes(2));
+                    if (!push.IsSuccess) { All("ko", LastLines(push.StandardError + push.StandardOutput, 1)); return; }
+                    string before = (await _adbManager.ExecuteAsync($"-s {t.Serial} shell cat {Scan2DeployReader.StatusFile} 2>/dev/null", TimeSpan.FromSeconds(15))).StandardOutput ?? "";
+                    var br = await _adbManager.ExecuteAsync($"-s {t.Serial} shell {AdbManager.QuoteLocalArg(Scan2DeployReader.ApplyCommand(remote))}", TimeSpan.FromSeconds(30));
+                    if (!br.IsSuccess) { All("ko", LastLines(br.StandardError + br.StandardOutput, 1)); return; }
+                    if (Scan2DeployReader.EndsWithRestart(content))
+                    {
+                        All("ok", Loc.T("envoyé à l'agent ; le terminal redémarre ou se réinitialise à la fin : pas de compte rendu"));
+                        return;
+                    }
+                    // Compte rendu : S2DStatus.log est réécrit à la fin de chaque session de l'agent.
+                    var limit = DateTime.Now.AddSeconds(Scan2DeployReader.HasDeployment(content) ? 300 : 90);
+                    (bool Success, string Timestamp, string Details)? status = null;
+                    while (DateTime.Now < limit)
+                    {
+                        await Task.Delay(2000);
+                        string now = (await _adbManager.ExecuteAsync($"-s {t.Serial} shell cat {Scan2DeployReader.StatusFile} 2>/dev/null", TimeSpan.FromSeconds(15))).StandardOutput ?? "";
+                        if (now.Trim().Length > 0 && now != before) { status = Scan2DeployReader.ParseStatus(now); if (status != null) break; }
+                    }
+                    await _adbManager.ExecuteAsync($"-s {t.Serial} shell rm -f {remote}", TimeSpan.FromSeconds(15));
+                    if (status == null) All("ko", Loc.T("pas de compte rendu de l'agent Scan2Deploy (S2DStatus.log) dans le délai : vérifier sur le terminal"));
+                    else if (status.Value.Success) All("ok", "");
+                    else
+                    {
+                        All("ko", Loc.F("l'agent signale une erreur : {0}", LastLines(status.Value.Details, 2)));
+                        AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🏭 {t.Serial} · Scan2Deploy :\n{status.Value.Details}");
+                    }
+                }
+                else if (b.Kind == VendorKinds.DeviceConfig)
+                {
+                    MasterStatus(t, Loc.T("Constructeur : DeviceConfig Honeywell…"));
+                    string dir = DeviceConfigReader.PersistDir, remote = dir + "/" + DeviceConfigReader.FileName;
+                    // Le dossier honeywell n'est accessible qu'en mode Provisioning.
+                    var probe = await _adbManager.ExecuteAsync($"-s {t.Serial} shell \"mkdir -p {dir} && touch {dir}/.adbtools && rm -f {dir}/.adbtools && echo OK\"", TimeSpan.FromSeconds(20));
+                    if (!(probe.StandardOutput ?? "").Contains("OK"))
+                    {
+                        All("ko", Loc.T("dossier honeywell/persist inaccessible : activez le mode Provisioning sur le terminal (Paramètres ▸ Honeywell Settings ▸ Provisioning mode), puis relancez"));
+                        return;
+                    }
+                    // Un DeviceConfig.xml déjà là est gardé à côté (.bak) avant d'être remplacé.
+                    await _adbManager.ExecuteAsync($"-s {t.Serial} shell \"[ -f {remote} ] && cp -f {remote} {remote}.bak\"", TimeSpan.FromSeconds(15));
+                    var push = await _adbManager.ExecuteAsync($"-s {t.Serial} push {AdbManager.QuoteLocalArg(local)} {remote}", TimeSpan.FromMinutes(2));
+                    if (!push.IsSuccess) { All("ko", LastLines(push.StandardError + push.StandardOutput, 1)); return; }
+                    All("ok", Loc.T("déposé ; appliqué au redémarrage, à la fin du Master"));
+                    t.RebootAtEnd = true;
+                }
+            }
+            catch (Exception ex) { All("ko", ex.Message); }
+            finally { try { File.Delete(local); } catch { } }
         }
     }
 }
