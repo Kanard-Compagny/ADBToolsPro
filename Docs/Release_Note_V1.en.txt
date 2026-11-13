@@ -1,8 +1,8 @@
 ﻿================================================================================
                         ADB TOOLS PRO - 2027 EDITION
-                              RELEASE NOTES V1.8.0
+                              RELEASE NOTES V1.8.1
 ================================================================================
-Version        : 1.8.0 (Datalogic and Honeywell manufacturer settings, Zebra step templates, Advanced tools redesigned)
+Version        : 1.8.1 (Scan2Deploy profiles from Scan2Deploy Studio fully read; Datalogic and Honeywell manufacturer settings, Zebra step templates, Advanced tools redesigned)
 Release date   : November 2026 (1.7.0: single diagnostics sheet, Diag app redesigned, troubleshooting, 1.6.0: Master, 1.5.0: OS update of several devices, 1.4.0: file analysis and field recorder, 1.3.0: log analysis and comparator, 1.2.0: Settings page and English, 1.1.1: automatic updates, 1.1.0: first public release)
 Developed by   : Mr.Kanard
 Platform       : Windows (.NET Framework / WPF)
@@ -23,6 +23,15 @@ the end of this document (section 9).
 ================================================================================
 2. WHAT'S NEW IN VERSION 1.8.0 (November 2026)
 ================================================================================
+1.8.1 FIXES
+  - Scan2Deploy profiles (Datalogic) read from Datalogic's latest schema
+    (1.13), like the ones exported by Scan2Deploy Studio: default launcher,
+    time zone, additional Wi-Fi networks, agent update and OEMConfig option
+    recognized; end action shown as "open the app ..."; script summarized by
+    command, system update (UPDATE) as a sensitive step; an archive already
+    on the device becomes a profile file to attach, placed before the profile
+    is sent to the agent.
+
 MASTER: MANUFACTURER SETTINGS FOR THREE BRANDS
   - "Import a manufacturer profile" recognizes the format from the file's
     content: StageNow profile (Zebra), Scan2Deploy .json profile (Datalogic)

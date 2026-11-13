@@ -1,3 +1,11 @@
+## Correctifs 1.8.1
+
+- **Profils Scan2Deploy (Datalogic)** lus d'après le schéma le plus récent de Datalogic (1.13), comme ceux exportés par Scan2Deploy Studio :
+  - reconnus : lanceur par défaut, fuseau horaire, réseaux Wi-Fi supplémentaires, mise à jour de l'agent, option OEMConfig ;
+  - action de fin « ouvrir l'appli … » au lieu de l'intent brut ; script résumé par commandes, mise à jour système (UPDATE) en étape sensible ;
+  - déploiement d'une archive déjà sur le terminal : l'archive devient un fichier du profil à joindre, déposée avant l'envoi à l'agent.
+- Master : « Rien pour l'instant » n'apparaît plus sous des profils constructeur existants.
+
 ## Nouveautés 1.8.0
 
 - **Master, réglages constructeur : trois marques.** Le bouton « Importer un profil constructeur » reconnaît le format au contenu du fichier.
@@ -18,6 +26,6 @@
 
 ## Installation
 1. Déjà en 1.1.1 ou plus : **Paramètres ▸ Mises à jour ▸ Installer** (ou dossier de diffusion de l'équipe).
-2. Sinon : téléchargez `ADBToolsPro-1.8.0.zip` ci-dessous et décompressez-le où vous voulez (aucune installation), puis lancez `ADBToolsNew.exe`.
+2. Sinon : téléchargez `ADBToolsPro-1.8.1.zip` ci-dessous et décompressez-le où vous voulez (aucune installation), puis lancez `ADBToolsNew.exe`.
 
 Prérequis : Windows 10 ou 11 avec .NET Framework 4.7.2 ou plus récent (déjà présent sur les Windows à jour).

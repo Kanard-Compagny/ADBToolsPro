@@ -1,8 +1,8 @@
 ﻿================================================================================
                         ADB TOOLS PRO - ÉDITION 2027
-                              RELEASE NOTES V1.8.0
+                              RELEASE NOTES V1.8.1
 ================================================================================
-Version        : 1.8.0 (réglages constructeur Datalogic et Honeywell, modèles d'étapes Zebra, Outils avancés refait)
+Version        : 1.8.1 (profils Scan2Deploy de Scan2Deploy Studio lus en entier ; réglages constructeur Datalogic et Honeywell, modèles d'étapes Zebra, Outils avancés refait)
 Date de sortie : Novembre 2026 (1.7.0 : fiche de diagnostic unique, appli Diag refaite, dépannage, 1.6.0 : Master, 1.5.0 : mise à jour OS de plusieurs terminaux, 1.4.0 : analyse de fichiers et enregistreur terrain, 1.3.0 : analyse des logs et comparateur, 1.2.0 : page Paramètres et anglais, 1.1.1 : mises à jour automatiques, 1.1.0 : première version publique)
 Développé par  : Mr.Kanard
 Plateforme     : Windows (.NET Framework / WPF)
@@ -27,6 +27,15 @@ matériel réel ; les limitations connues sont listées en fin de document
 ================================================================================
 2. NOUVEAUTÉS DE LA VERSION 1.8.0 (Novembre 2026)
 ================================================================================
+CORRECTIFS 1.8.1
+  - Profils Scan2Deploy (Datalogic) lus d'après le schéma le plus récent de
+    Datalogic (1.13), comme ceux exportés par Scan2Deploy Studio : lanceur par
+    défaut, fuseau horaire, réseaux Wi-Fi supplémentaires, mise à jour de
+    l'agent et option OEMConfig reconnus ; action de fin « ouvrir l'appli… » ;
+    script résumé par commandes, mise à jour système (UPDATE) en étape
+    sensible ; archive déjà sur le terminal à joindre, déposée avant l'envoi
+    à l'agent.
+
 MASTER : RÉGLAGES CONSTRUCTEUR POUR TROIS MARQUES
   - « Importer un profil constructeur » reconnaît le format au contenu du
     fichier : profil StageNow (Zebra), profil Scan2Deploy en .json
