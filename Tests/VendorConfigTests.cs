@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using ADBToolsNew.Core;
@@ -93,6 +93,37 @@ namespace ADBToolsNew.Tests
             var p = StageNowReader.Read(Profile);
             var files = p.Steps.SelectMany(s => s.DeviceFiles).ToList();
             CollectionAssert.AreEquivalent(new[] { "/sdcard/EHS.apk", "/sdcard/enterprisehomescreen.xml" }, files);
+        }
+
+        [TestMethod]
+        public void FileDownloadedByTheProfileIsNotToAttach()
+        {
+            var p = StageNowReader.Read(@"<?xml version=""1.0"" encoding=""utf-8""?>
+<wap-provisioningdoc>
+  <!--SettingID=242-->
+  <characteristic version=""11.3"" type=""FileMgr"">
+    <parm name=""FileAction"" value=""1"" />
+    <characteristic type=""file-details"">
+      <parm name=""TargetAccessMethod"" value=""2"" />
+      <parm name=""TargetPathAndFileName"" value=""/sdcard/appli.apk"" />
+      <parm name=""SourceAccessMethod"" value=""1"" />
+      <parm name=""SourceURI"" value=""&amp;#1272&amp;#127chiffre=="" />
+    </characteristic>
+  </characteristic>
+  <characteristic version=""13.5"" type=""AppMgr"">
+    <parm name=""Action"" value=""Install"" />
+    <parm name=""APK"" value=""/sdcard/appli.apk"" />
+  </characteristic>
+  <characteristic version=""13.5"" type=""AppMgr"">
+    <parm name=""Action"" value=""SetDefaultLauncher"" />
+    <parm name=""Package"" value=""com.exemple.appli"" />
+  </characteristic>
+</wap-provisioningdoc>
+<!--{""profile_name"":""Config""}-->");
+            Assert.IsTrue(p.Ok, p.Error);
+            Assert.AreEqual(3, p.Steps.Count);
+            Assert.AreEqual(0, p.Steps.Sum(s => s.DeviceFiles.Count), "apk téléchargée par l'étape FileMgr : rien à joindre");
+            StringAssert.Contains(p.Steps[2].Label, "com.exemple.appli");
         }
 
         [TestMethod]

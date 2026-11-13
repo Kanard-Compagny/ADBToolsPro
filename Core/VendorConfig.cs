@@ -177,9 +177,18 @@ namespace ADBToolsNew.Core
                 return p;
             }
             var seen = new Dictionary<string, int>();
+            // Fichiers que le profil dépose lui-même (FileMgr, téléchargés depuis une URL ou copiés) : pas à joindre
+            // pour les étapes suivantes qui les lisent (ex. l'apk téléchargée puis installée).
+            var produced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var e in items)
             {
                 var s = Describe(e);
+                s.DeviceFiles.RemoveAll(f => produced.Contains(f));
+                if (s.Type == "FileMgr")
+                {
+                    string target = Parm(e, "TargetPathAndFileName");
+                    if (target.Length > 0) produced.Add(target);
+                }
                 // Clé stable : type + empreinte du contenu (+ rang si deux étapes identiques).
                 string baseKey = s.Type + ":" + Hash(Normalize(s.Xml));
                 seen.TryGetValue(baseKey, out int n);
@@ -236,6 +245,7 @@ namespace ADBToolsNew.Core
                             case "uninstall": s.Label = Loc.F("Désinstaller {0}", target); break;
                             case "enableapplication": s.Label = Loc.F("Activer l'appli {0}", target); break;
                             case "disableapplication": s.Label = Loc.F("Désactiver l'appli {0}", target); break;
+                            case "setdefaultlauncher": s.Label = Loc.F("Lanceur par défaut : {0}", target); break;
                             case "clearapplicationuserdata":
                                 s.Label = Loc.F("Effacer les données de {0}", target);
                                 s.Sensitive = true; s.SensitiveReason = Loc.T("efface les données de l'appli");
