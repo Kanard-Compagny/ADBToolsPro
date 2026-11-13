@@ -3,13 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ADB Tools" Width="840" Height="720" MinWidth="520" MinHeight="400"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        WindowStyle="None" ResizeMode="CanResize"
-        Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}"
+        WindowStyle="None" AllowsTransparency="True" ResizeMode="CanResize"
+        Background="Transparent" Foreground="{DynamicResource Ink}"
         FontFamily="{DynamicResource FontUi}" Icon="app_icon.ico">
     <!-- Fenêtre de lecture (notes de version, licence, composants tiers, aide), même présentation que
          les fenêtres de Scanalyse : barre de titre vert foncé, contenu mis en forme. -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
+        <WindowChrome CaptionHeight="50" ResizeBorderThickness="10" GlassFrameThickness="0" CornerRadius="0"/>
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
@@ -53,10 +53,48 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Boutons du contenu (confirmations) : contour neutre, ou orange pour l'action principale (charte). -->
+        <Style x:Key="DocButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DocPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource DocButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource Action}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Action}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAction}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
     </Window.Resources>
 
-    <Border x:Name="RootBorder" BorderBrush="{DynamicResource Line}" BorderThickness="1">
-        <Grid>
+    <!-- Cadre de la charte (comme la fenêtre principale) : coins arrondis et ombre douce, portée par un cadre vide
+         derrière le contenu pour garder un texte net ; plein cadre une fois agrandie (UpdateFrame). -->
+    <Grid Background="#01000000">
+    <Border x:Name="WindowShadow" Margin="12" CornerRadius="10" Background="{DynamicResource Bg}">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="3" BlurRadius="18" Opacity="0.35" Color="Black"/>
+        </Border.Effect>
+    </Border>
+    <Border x:Name="RootBorder" Margin="12" CornerRadius="10" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" SizeChanged="RootBorder_SizeChanged">
+        <Grid x:Name="ContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="38"/>
                 <RowDefinition Height="*"/>
@@ -74,9 +112,10 @@
                 </StackPanel>
             </Grid>
 
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer x:Name="ContentScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="ContentHost" Margin="36,26,36,30"/>
             </ScrollViewer>
         </Grid>
     </Border>
+    </Grid>
 </Window>

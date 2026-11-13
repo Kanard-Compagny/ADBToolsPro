@@ -206,7 +206,7 @@ namespace ADBToolsNew
 
         private void BtnRevert_Click(object sender, RoutedEventArgs e)
         {
-            if (MessageBox.Show(this, Loc.T("Remettre le XML importé, sans vos modifications ?"), Loc.T("Revenir à l'original"), MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            if (!DocumentWindow.Confirm(this, "Revenir à l'original", "Remettre le XML importé, sans vos modifications ?", "Revenir à l'original", "Annuler")) return;
             Editor.Text = _block.OriginalXml ?? "";
             _timer.Stop();
             Reparse(true);
@@ -219,15 +219,7 @@ namespace ADBToolsNew
             var now = (Editor.Text ?? "").Replace("\r", "").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
             var removed = orig.Where(o => !now.Contains(o)).ToList();
             var added = now.Where(n => !orig.Contains(n)).ToList();
-            var w = new Window
-            {
-                Title = Loc.T("Changements par rapport à l'original"),
-                Owner = this,
-                Width = 820, Height = 520,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            };
-            w.SetResourceReference(BackgroundProperty, "Bg");
-            var panel = new StackPanel { Margin = new Thickness(16) };
+            var panel = new StackPanel();
             void Add(string prefix, string line, string brush)
             {
                 var t = new TextBlock { Text = prefix + " " + line, FontFamily = new FontFamily("Consolas"), FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 2) };
@@ -237,71 +229,4 @@ namespace ADBToolsNew
             foreach (var r in removed) Add("−", r, "BadFg");
             foreach (var a in added) Add("+", a, "OkFg");
             if (removed.Count + added.Count == 0) Add("", Loc.T("Aucun changement."), "Muted");
-            w.Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            w.Show();
-        }
-
-        /// <summary>Coins arrondis et ombre en fenêtre normale ; plein cadre, sans marge ni arrondi, une fois agrandie.</summary>
-        private void UpdateFrame()
-        {
-            bool max = WindowState == WindowState.Maximized;
-            var margin = new Thickness(max ? 0 : 12);
-            var radius = new CornerRadius(max ? 0 : 10);
-            RootBorder.Margin = WindowShadow.Margin = margin;
-            RootBorder.CornerRadius = WindowShadow.CornerRadius = radius;
-            RootBorder.BorderThickness = new Thickness(max ? 0 : 1);
-            WindowShadow.Visibility = max ? Visibility.Collapsed : Visibility.Visible;
-            UpdateClip();
-        }
-
-        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateClip();
-
-        /// <summary>Découpe le contenu suivant les coins (un Border n'arrondit que son fond, pas ce qu'il contient).</summary>
-        private void UpdateClip()
-        {
-            double r = WindowState == WindowState.Maximized ? 0 : 9;
-            double w = ContentGrid.ActualWidth, h = ContentGrid.ActualHeight;
-            ContentGrid.Clip = w > 0 && h > 0 ? new RectangleGeometry(new Rect(0, 0, w, h), r, r) : null;
-        }
-
-        private void BtnMin_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMax_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-
-        /// <summary>Repères dans la marge du texte : ligne modifiée (vert), étape sensible (orange), ligne en erreur (soulignée).</summary>
-        private sealed class LineMarks : IBackgroundRenderer
-        {
-            public HashSet<int> ModifiedLines = new HashSet<int>();
-            public HashSet<int> SensitiveLines = new HashSet<int>();
-            public int ErrorLine;
-            public Brush Modified = Brushes.SeaGreen, Sensitive = Brushes.Orange, Error = Brushes.IndianRed;
-
-            public KnownLayer Layer => KnownLayer.Background;
-
-            public void Draw(TextView textView, DrawingContext dc)
-            {
-                if (!textView.VisualLinesValid) return;
-                foreach (var vl in textView.VisualLines)
-                {
-                    int n = vl.FirstDocumentLine.LineNumber;
-                    double top = vl.VisualTop - textView.VerticalOffset, h = vl.Height;
-                    if (SensitiveLines.Contains(n)) dc.DrawRectangle(Sensitive, null, new Rect(0, top, 4, h));
-                    else if (ModifiedLines.Contains(n)) dc.DrawRectangle(Modified, null, new Rect(0, top, 4, h));
-                    if (n == ErrorLine)
-                    {
-                        double y = top + h - 1.5, w = Math.Max(40, vl.TextLines.Max(tl => tl.WidthIncludingTrailingWhitespace) - textView.HorizontalOffset);
-                        var pen = new Pen(Error, 1.4);
-                        var g = new StreamGeometry();
-                        using (var ctx = g.Open())
-                        {
-                            ctx.BeginFigure(new Point(6, y), false, false);
-                            for (double x = 6; x < w; x += 4) ctx.LineTo(new Point(x + 2, ((int)(x / 4) % 2 == 0) ? y - 2 : y + 1), true, false);
-                        }
-                        g.Freeze();
-                        dc.DrawGeometry(null, pen, g);
-                    }
-                }
-            }
-        }
-    }
-}
+            DocumentWindow.ShowContent(this, "Changements par rapport à l'original", panel, 840, 560);

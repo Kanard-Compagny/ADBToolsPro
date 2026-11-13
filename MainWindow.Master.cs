@@ -2077,19 +2077,8 @@ namespace ADBToolsNew
             root.Children.Add(wrap);
             var warn = MasterMutedText(Loc.T("Le QR code contient le mot de passe : ne laissez pas cette fenêtre ouverte sans surveillance."), 11.5);
             root.Children.Add(warn);
-            var win = new Window
-            {
-                Title = Loc.T("QR codes Wi-Fi à scanner"),
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                SizeToContent = SizeToContent.WidthAndHeight,
-                MaxHeight = SystemParameters.WorkArea.Height - 40,
-                MaxWidth = SystemParameters.WorkArea.Width - 40,
-                ResizeMode = ResizeMode.CanResizeWithGrip,
-                Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
-            };
-            win.SetResourceReference(Window.BackgroundProperty, "Bg");
-            win.Show();
+            // Fenêtre détachée de la charte (même cadre que les documents et l'éditeur XML).
+            DocumentWindow.ShowContent(this, "QR codes Wi-Fi à scanner", root);
         }
 
         /// <summary>

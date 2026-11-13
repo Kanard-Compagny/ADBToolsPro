@@ -24,12 +24,78 @@ namespace ADBToolsNew
         {
             InitializeComponent();
             Core.Loc.TranslateTree(this); // interface en anglais si choisi (Paramètres ▸ Général ▸ Langue)
+            MaxHeight = SystemParameters.MaximizedPrimaryScreenHeight;
             StateChanged += (s, e) =>
             {
-                BtnDocMaximize.Content = WindowState == WindowState.Maximized ? "" : "";
-                // Fenêtre agrandie : Windows déborde de quelques pixels sur les bords, on les compense.
-                RootBorder.BorderThickness = new Thickness(WindowState == WindowState.Maximized ? 7 : 1);
+                BtnDocMaximize.Content = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
+                UpdateFrame();
             };
+        }
+
+        /// <summary>Coins arrondis et ombre en fenêtre normale ; plein cadre, sans marge ni arrondi, une fois agrandie.</summary>
+        private void UpdateFrame()
+        {
+            bool max = WindowState == WindowState.Maximized;
+            var margin = new Thickness(max ? 0 : 12);
+            var radius = new CornerRadius(max ? 0 : 10);
+            RootBorder.Margin = WindowShadow.Margin = margin;
+            RootBorder.CornerRadius = WindowShadow.CornerRadius = radius;
+            RootBorder.BorderThickness = new Thickness(max ? 0 : 1);
+            WindowShadow.Visibility = max ? Visibility.Collapsed : Visibility.Visible;
+            UpdateClip();
+        }
+
+        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateClip();
+
+        /// <summary>Découpe le contenu suivant les coins (un Border n'arrondit que son fond, pas ce qu'il contient).</summary>
+        private void UpdateClip()
+        {
+            double r = WindowState == WindowState.Maximized ? 0 : 9;
+            double w = ContentGrid.ActualWidth, h = ContentGrid.ActualHeight;
+            ContentGrid.Clip = w > 0 && h > 0 ? new System.Windows.Media.RectangleGeometry(new Rect(0, 0, w, h), r, r) : null;
+        }
+
+        /// <summary>
+        /// Fenêtre détachée de la charte avec un contenu quelconque (QR codes, changements d'un XML…). La taille suit le
+        /// contenu si width et height sont nuls, sans dépasser l'écran.
+        /// </summary>
+        public static DocumentWindow ShowContent(Window owner, string windowTitle, UIElement content, double width = 0, double height = 0)
+        {
+            var w = Create(owner, windowTitle, null, null);
+            w.ShowInTaskbar = owner == null;
+            w.ContentHost.Children.Add(content);
+            if (width > 0) w.Width = width;
+            if (height > 0) w.Height = height;
+            if (width <= 0 && height <= 0)
+            {
+                w.SizeToContent = SizeToContent.WidthAndHeight;
+                w.MaxWidth = SystemParameters.WorkArea.Width - 40;
+                w.MaxHeight = SystemParameters.WorkArea.Height - 40;
+            }
+            w.Show();
+            return w;
+        }
+
+        /// <summary>Question oui / non dans une fenêtre de la charte (fenêtres détachées, qui n'ont pas les dialogues intégrés de la fenêtre principale).</summary>
+        public static bool Confirm(Window owner, string windowTitle, string message, string okText, string cancelText)
+        {
+            var w = Create(owner, windowTitle, null, null);
+            w.Width = 520;
+            w.SizeToContent = SizeToContent.Height;
+            w.MinHeight = 0;
+            w.ResizeMode = ResizeMode.NoResize;
+            w.BtnDocMaximize.Visibility = Visibility.Collapsed;
+            w.ContentHost.Margin = new Thickness(28, 22, 28, 22);
+            w.ContentHost.Children.Add(Paragraph(Loc.T(message), "Ink", new Thickness(0, 0, 0, 18)));
+            var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var cancel = new Button { Content = Loc.T(cancelText), Style = (Style)w.FindResource("DocButtonStyle"), IsCancel = true };
+            var ok = new Button { Content = Loc.T(okText), Style = (Style)w.FindResource("DocPrimaryButtonStyle"), IsDefault = true };
+            cancel.Click += (s, e) => w.DialogResult = false;
+            ok.Click += (s, e) => w.DialogResult = true;
+            row.Children.Add(cancel);
+            row.Children.Add(ok);
+            w.ContentHost.Children.Add(row);
+            return w.ShowDialog() == true;
         }
 
         private void BtnDocMaximize_Click(object sender, RoutedEventArgs e)
