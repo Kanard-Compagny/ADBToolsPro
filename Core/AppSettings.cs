@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
@@ -12,6 +13,9 @@ namespace ADBToolsNew.Core
     {
         // --- Général : langue de l'interface ("fr" ou "en"), appliquée au redémarrage
         public string Language { get; set; } = "fr";
+
+        // --- Master : dossiers du terminal déjà choisis pour déposer des fichiers (« fichier|dossier », voir DevicePathMemory)
+        public List<string> MasterDevicePaths { get; set; } = new List<string>();
 
         // --- Général : démarrage et affichage
         /// <summary>Page ouverte au démarrage : Dashboard, Mirroring, Packages, Explorer, Tools, Diag, Radar, Library, Logs.</summary>

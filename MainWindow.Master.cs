@@ -612,6 +612,18 @@ namespace ADBToolsNew
         }
 
         /// <summary>Saisie d'une valeur (null si annulé).</summary>
+        /// <summary>Dossiers du terminal déjà utilisés, proposés sous le champ du prochain dialogue (✕ pour en oublier un).</summary>
+        private void OfferRecentDevicePaths() =>
+            SetNextDialogSuggestions(DevicePathMemory.Recent(AppSettings.Current.MasterDevicePaths),
+                p => { DevicePathMemory.Forget(AppSettings.Current.MasterDevicePaths, p); AppSettings.Save(); });
+
+        /// <summary>Retient le dossier choisi pour ce fichier : reproposé la prochaine fois (même fichier ou même extension).</summary>
+        private void RememberDevicePath(string fileName, string devicePath)
+        {
+            DevicePathMemory.Remember(AppSettings.Current.MasterDevicePaths, fileName, devicePath);
+            AppSettings.Save();
+        }
+
         private async Task<string> MasterPromptAsync(string title, string message, string value, string confirm = null)
         {
             if (!await ShowCustomDialogAsync(title, message, confirm ?? Loc.T("Valider"), Loc.T("Annuler"), false, true, value ?? "")) return null;
@@ -773,9 +785,11 @@ namespace ADBToolsNew
                             Get = () => f.Include, Set = v => { f.Include = v; RefreshMasterPending(); },
                             Edit = async () =>
                             {
+                                OfferRecentDevicePaths();
                                 string d = await MasterPromptAsync(Loc.T("📄 Destination sur le terminal"), Loc.T("Dossier du terminal où déposer ce fichier (vous pouvez taper n'importe quel chemin).\n\nZebra : configuration EHS → /enterprise/usr/ ; configuration DataWedge → /enterprise/device/settings/datawedge/autoimport/. Ces dossiers protégés sont remplis par MX (mini appli ADB Tools Helper), sans root."), f.DevicePath);
                                 if (d == null || d.Trim().Length == 0) return;
                                 f.DevicePath = d.Trim().EndsWith("/") ? d.Trim() : d.Trim() + "/";
+                                RememberDevicePath(f.Local, f.DevicePath);
                                 RerenderMaster();
                             },
                             Remove = () => { m.Files.Remove(f); RerenderMaster(); },
@@ -1577,7 +1591,10 @@ namespace ADBToolsNew
             // Configuration DataWedge (Zebra) : le dossier d'import automatique est la bonne destination.
             bool dw = Path.GetExtension(dlg.FileName).Equals(".db", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(dlg.FileName).ToLowerInvariant().Contains("dw");
             bool ehs = Path.GetFileName(dlg.FileName).Equals("enterprisehomescreen.xml", StringComparison.OrdinalIgnoreCase);
-            string suggested = dw ? "/enterprise/device/settings/datawedge/autoimport/" : ehs ? "/enterprise/usr/" : "/sdcard/Download/";
+            // Dossier déjà utilisé pour ce fichier (ou cette extension) en priorité, sinon les cas connus.
+            string remembered = DevicePathMemory.SuggestFor(AppSettings.Current.MasterDevicePaths, dlg.FileName);
+            string suggested = remembered.Length > 0 ? remembered : dw ? "/enterprise/device/settings/datawedge/autoimport/" : ehs ? "/enterprise/usr/" : "/sdcard/Download/";
+            OfferRecentDevicePaths();
             if (!await ShowCustomDialogAsync(Loc.T("📄 Destination sur le terminal"),
                     Loc.T("Dossier du terminal où déposer ce fichier (vous pouvez taper n'importe quel chemin).\n\nZebra : configuration EHS → /enterprise/usr/ ; configuration DataWedge → /enterprise/device/settings/datawedge/autoimport/. Ces dossiers protégés sont remplis par MX (mini appli ADB Tools Helper), sans root."),
                     Loc.T("Ajouter"), Loc.T("Annuler"), false, true, suggested)) return;
@@ -1589,6 +1606,7 @@ namespace ADBToolsNew
             Directory.CreateDirectory(Path.Combine(_masterDir, "files", idx.ToString()));
             File.Copy(dlg.FileName, Path.Combine(_masterDir, rel.Replace('/', Path.DirectorySeparatorChar)), true);
             _master.Files.Add(new MasterFile { Local = rel, DevicePath = dest.EndsWith("/") ? dest : dest + "/" });
+            RememberDevicePath(dlg.FileName, dest);
             RenderMasterContent();
         }
 

@@ -139,6 +139,7 @@
     <Compile Include="MainWindow.Master.cs" />
     <Compile Include="MainWindow.Vendor.cs" />
     <Compile Include="Core\VendorConfig.cs" />
+    <Compile Include="Core\DevicePathMemory.cs" />
     <Compile Include="MasterXmlEditor.xaml.cs">
       <DependentUpon>MasterXmlEditor.xaml</DependentUpon>
     </Compile>

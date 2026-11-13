@@ -4643,6 +4643,11 @@
                         <TextBlock x:Name="DialogMessage" Text="Voulez-vous vraiment continuer ?" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,25"/>
 
                         <TextBox x:Name="TxtDialogInput" Visibility="Collapsed" Height="32" Margin="0,0,0,20" VerticalContentAlignment="Center" Padding="10,0"/>
+                        <!-- Propositions sous le champ (ex. dossiers du terminal déjà utilisés) : un clic remplit le champ. -->
+                        <StackPanel x:Name="DialogSuggestionsPanel" Visibility="Collapsed" Margin="0,-12,0,20">
+                            <TextBlock x:Name="TxtDialogSuggestionsTitle" Text="Déjà utilisés" Foreground="{DynamicResource Muted}" FontSize="11.5" Margin="0,0,0,6"/>
+                            <WrapPanel x:Name="DialogSuggestions"/>
+                        </StackPanel>
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button x:Name="BtnDialogCancel" Content="Annuler" Click="BtnDialogCancel_Click" Style="{StaticResource OutlineButtonStyle}" MinWidth="100" Height="32" Padding="16,0" Margin="0,0,10,0"/>
