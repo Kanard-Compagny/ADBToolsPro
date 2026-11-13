@@ -540,11 +540,10 @@ namespace ADBToolsNew
             string raw = string.Join("\n", output);
             var br = MasterProfile.ParseBroadcastResult(raw);
             var (status, response) = StageNowReader.ParseHelperData(br.Data);
-            if (br.Code == 1) return (true, "");
+            if (StageNowReader.IsMxSuccess(br.Code, status, response)) return (true, "");
             if (status == "NO_EMDK") return (false, Loc.T("EMDK absent sur ce terminal : les réglages Zebra ne peuvent pas passer par la mini appli"));
             if (br.Code == 0) return (false, Loc.T("pas de réponse de la mini appli") + (raw.Length > 0 ? " — " + LastLines(raw, 1) : ""));
-            string sum = StageNowReader.ErrorSummary(response);
-            return (false, sum.Length > 0 ? sum : status);
+            return (false, StageNowReader.RefusalText(status, response));
         }
 
         /// <summary>Applique les étapes cochées des blocs (ordinaires, ou sensibles en dernier), une par une, avec la réponse du terminal.</summary>
@@ -615,7 +614,7 @@ namespace ADBToolsNew
                     string raw = string.Join("\n", output);
                     var br = MasterProfile.ParseBroadcastResult(raw);
                     var (status, response) = StageNowReader.ParseHelperData(br.Data);
-                    if (br.Code == 1) { MasterAdd(t, cat, s.Label, "ok"); continue; }
+                    if (StageNowReader.IsMxSuccess(br.Code, status, response)) { MasterAdd(t, cat, s.Label, "ok"); continue; }
                     if (status == "NO_EMDK")
                     {
                         noEmdk = true;
@@ -624,9 +623,9 @@ namespace ADBToolsNew
                     }
                     string why = br.Code == 0
                         ? Loc.T("pas de réponse de la mini appli") + (sensitive ? " " + Loc.T("(normal si l'étape a coupé le débogage USB ou redémarré le terminal)") : "") + (raw.Length > 0 ? " — " + LastLines(raw, 1) : "")
-                        : StageNowReader.ErrorSummary(response) is string sum && sum.Length > 0 ? sum : status;
+                        : StageNowReader.RefusalText(status, response);
                     MasterAdd(t, cat, s.Label, "ko", why);
-                    if (br.Code != 1) AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🏭 {t.Serial} · {s.Label} : {status} {response}");
+                    AppendConsole($"\n[{DateTime.Now:HH:mm:ss}] 🏭 {t.Serial} · {s.Label} : {status} {response}");
                 }
             }
         }

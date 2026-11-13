@@ -181,7 +181,12 @@ namespace ADBToolsNew.Tests
             var (status, detail) = StageNowReader.ParseHelperData(data);
             Assert.AreEqual("SUCCESS", status);
             Assert.AreEqual(response, detail);
-            Assert.AreEqual("Fuseau inconnu", StageNowReader.ErrorSummary(detail));
+            Assert.AreEqual("Clock : Fuseau inconnu", StageNowReader.ErrorSummary(detail));
+            Assert.IsFalse(StageNowReader.IsMxSuccess(2, "CHECK_XML", detail));
+            string ok = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><wap-provisioningdoc><characteristic type=\"status\"><parm name=\"code\" value=\"6\"/><parm name=\"description\" value=\"Review the XML for details\"/></characteristic><characteristic type=\"DisplayMgr\"><parm name=\"TimeoutInterval\" value=\"300\"/></characteristic></wap-provisioningdoc>";
+            Assert.IsTrue(StageNowReader.IsMxSuccess(2, "CHECK_XML", ok), "« Review the XML » sans erreur = appliqué");
+            Assert.AreEqual("", StageNowReader.ErrorSummary(ok));
+            StringAssert.Contains(StageNowReader.RefusalText("EXCEPTION", "Feature is not supported"), "Feature is not supported");
             Assert.AreEqual(1, MasterProfile.ParseBroadcastResult("Broadcast completed: result=1, data=\"" + data + "\"").Code);
         }
 

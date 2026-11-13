@@ -424,10 +424,37 @@ namespace ADBToolsNew.Core
         /// <summary>Message d'erreur lisible tiré de la réponse MX (characteristic-error / parm-error desc="…").</summary>
         public static string ErrorSummary(string response)
         {
-            var list = Regex.Matches(response ?? "", @"<(?:characteristic|parm)-error[^>]*?desc=""([^""]*)""").Cast<Match>().Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value)).Distinct().ToList();
-            if (list.Count > 0) return string.Join(" · ", list.Take(3));
-            string flat = Regex.Replace(response ?? "", @"\s+", " ").Trim();
-            return flat.Length > 200 ? flat.Substring(0, 200) + "…" : flat;
+            var list = new List<string>();
+            foreach (Match m in Regex.Matches(response ?? "", @"<(characteristic|parm)-error\b([^>]*)>"))
+            {
+                string attrs = m.Groups[2].Value;
+                string Attr(string n) { var a = Regex.Match(attrs, n + @"=""([^""]*)"""); return a.Success ? System.Net.WebUtility.HtmlDecode(a.Groups[1].Value) : ""; }
+                string desc = Attr("desc"), what = Attr("name").Length > 0 ? Attr("name") : Attr("type");
+                list.Add(desc.Length > 0 ? (what.Length > 0 ? what + " : " + desc : desc) : Loc.F("{0} refusé", what));
+            }
+            return string.Join(" · ", list.Distinct().Take(3));
+        }
+
+        /// <summary>
+        /// Réponse de la mini appli → étape acceptée ? EMDK répond souvent « CHECK_XML » (code 6, « Review the XML for
+        /// details ») : c'est un succès tant que la réponse ne contient aucune erreur (characteristic-error / parm-error).
+        /// </summary>
+        public static bool IsMxSuccess(int code, string status, string response)
+        {
+            if (code == 1) return true;
+            if (code != 2) return false;
+            if (status != "SUCCESS" && status != "CHECK_XML") return false;
+            return !Regex.IsMatch(response ?? "", @"<(characteristic|parm)-error\b");
+        }
+
+        /// <summary>Motif d'un refus, en clair (erreurs MX, sinon le statut d'EMDK).</summary>
+        public static string RefusalText(string status, string response)
+        {
+            string sum = ErrorSummary(response);
+            if (sum.Length > 0) return sum;
+            if (status == "EXCEPTION" || status == "FEATURE_NOT_SUPPORTED")
+                return Loc.F("refusé par EMDK : {0} (réglage non pris en charge par cette version ou par cette méthode)", (response ?? "").Trim().Length > 0 ? response.Trim() : status);
+            return Loc.F("refusé par le terminal ({0})", status);
         }
     }
 }
