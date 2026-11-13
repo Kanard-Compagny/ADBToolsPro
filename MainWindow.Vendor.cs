@@ -1,4 +1,4 @@
-using ADBToolsNew.Core;
+﻿using ADBToolsNew.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -41,7 +41,18 @@ namespace ADBToolsNew
         private static string VendorFileName(string devicePath) => (devicePath ?? "").Replace('\\', '/').Split('/').LastOrDefault() ?? "";
 
         private bool VendorFileMissing(MasterVendorBlock b, string devicePath) =>
-            string.IsNullOrEmpty(b.Files.FirstOrDefault(f => f.DevicePath == devicePath)?.Local);
+            !(b.Files.FirstOrDefault(f => f.DevicePath == devicePath)?.Provided ?? false);
+
+        private MasterVendorFile VendorFileFor(MasterVendorBlock b, string devicePath) => b.Files.FirstOrDefault(f => f.DevicePath == devicePath);
+
+        /// <summary>Fichiers que le profil fait télécharger depuis un lien, ni fournis ni laissés au terminal en connaissance de cause.</summary>
+        private int VendorLinkFiles() => _master == null ? 0 : _master.Vendor.Where(b => b.Include).Sum(b =>
+        {
+            var p = VendorProfile(b);
+            if (!p.Ok) return 0;
+            return p.Steps.Where(s => s.DownloadTarget.Length > 0 && b.IsChecked(s)).Select(s => VendorFileFor(b, s.DownloadTarget))
+                .Count(f => f != null && !f.Provided && !f.KeepDownload);
+        });
 
         /// <summary>Fichiers lus par des étapes cochées et non joints, tous blocs confondus.</summary>
         private int VendorMissingFiles() => _master == null ? 0 : _master.Vendor.Where(b => b.Include).Sum(b =>
@@ -58,10 +69,16 @@ namespace ADBToolsNew
         {
             var p = VendorProfile(b);
             if (!p.Ok) return;
-            var paths = p.Steps.SelectMany(s => s.DeviceFiles).Distinct().ToList();
-            b.Files.RemoveAll(f => !paths.Contains(f.DevicePath) && string.IsNullOrEmpty(f.Local));
+            var reads = p.Steps.SelectMany(s => s.DeviceFiles).Distinct().ToList();
+            var downloads = p.Steps.Where(s => s.DownloadTarget.Length > 0).Select(s => s.DownloadTarget).Distinct().ToList();
+            var paths = reads.Concat(downloads).Distinct().ToList();
+            b.Files.RemoveAll(f => !paths.Contains(f.DevicePath) && !f.Provided);
             foreach (var path in paths)
-                if (!b.Files.Any(f => f.DevicePath == path)) b.Files.Add(new MasterVendorFile { DevicePath = path });
+            {
+                var f = VendorFileFor(b, path);
+                if (f == null) b.Files.Add(f = new MasterVendorFile { DevicePath = path });
+                f.Download = downloads.Contains(path);
+            }
         }
 
         private void CopyVendorFile(MasterVendorFile f, string source)
@@ -71,6 +88,8 @@ namespace ADBToolsNew
             Directory.CreateDirectory(Path.GetDirectoryName(dest));
             File.Copy(source, dest, true);
             f.Local = rel;
+            f.AppPackage = "";
+            f.KeepDownload = false;
         }
 
         // ------------------------------------------------------------------ Onglet « Constructeur »
@@ -112,17 +131,19 @@ namespace ADBToolsNew
                         Loc.T("Décochées au départ. Cochées, elles demandent une confirmation au moment d'appliquer et passent en dernier, après tout le reste du Master."),
                         sensitive.Select(s => VendorStepRow(block, s)).ToList(), null, null);
                 if (block.Files.Count > 0)
-                    AddMasterSection(Loc.T("📎 Fichiers lus par le profil"),
-                        Loc.T("Le profil lit ces fichiers sur le terminal : joignez-les, ADB Tools les y dépose avant d'appliquer (inutile s'ils y sont déjà)."),
+                    AddMasterSection(Loc.T("📎 Fichiers du profil"),
+                        Loc.T("Fichiers que le profil lit ou fait télécharger sur le terminal. Fournissez-les (✏️ : fichier du PC ou apk d'une appli de l'onglet Applications) : ADB Tools les dépose au bon endroit avant d'appliquer, et l'étape de téléchargement correspondante est alors sautée. Le reste du profil s'en sert comme prévu."),
                         block.Files.Select(f => new MasterRow
                         {
                             Label = VendorFileName(f.DevicePath),
-                            Sub = "→ " + f.DevicePath + (string.IsNullOrEmpty(f.Local) ? "" : " · " + Loc.T("joint")),
+                            Sub = "→ " + f.DevicePath + " · " + VendorFileSource(f),
                             Locked = true,
-                            Get = () => !string.IsNullOrEmpty(f.Local), Set = v => { },
-                            Warn = () => string.IsNullOrEmpty(f.Local) ? Loc.T("à joindre") : "",
-                            Edit = () => { AttachVendorFile(block, f); return Task.CompletedTask; },
-                            Remove = string.IsNullOrEmpty(f.Local) ? (Action)null : () => { f.Local = ""; RenderMasterView(); },
+                            Get = () => f.Provided, Set = v => { },
+                            Warn = () => f.Provided ? "" : f.Download
+                                ? (f.KeepDownload ? "" : Loc.T("lien : le terminal doit joindre le serveur, ou fournissez le fichier"))
+                                : Loc.T("à joindre"),
+                            Edit = () => { ShowVendorFileMenu(block, f); return Task.CompletedTask; },
+                            Remove = f.Provided ? () => { f.Local = ""; f.AppPackage = ""; RenderMasterView(); } : (Action)null,
                         }).ToList(), null, null);
             }
         }
@@ -130,12 +151,19 @@ namespace ADBToolsNew
         private MasterRow VendorStepRow(MasterVendorBlock block, MxStep s) => new MasterRow
         {
             Label = s.Label,
-            Sub = s.Type + " · " + Loc.F("ligne {0}", s.Line) + (s.Recognized ? "" : " · " + Loc.T("non reconnue : appliquée telle quelle")),
+            Sub = s.Type + " · " + Loc.F("ligne {0}", s.Line) + (s.Recognized ? "" : " · " + Loc.T("non reconnue : appliquée telle quelle"))
+                + (s.DownloadTarget.Length > 0 && (VendorFileFor(block, s.DownloadTarget)?.Provided ?? false) ? " · " + Loc.T("remplacée par le fichier fourni (sautée)") : ""),
             Get = () => block.IsChecked(s),
             Set = v => { block.SetChecked(s, v); RefreshMasterPending(); UpdateMasterApplyButton(); },
             Warn = () =>
             {
                 if (s.Sensitive) return s.SensitiveReason;
+                if (s.DownloadTarget.Length > 0)
+                {
+                    var f = VendorFileFor(block, s.DownloadTarget);
+                    if (f != null && !f.Provided && !f.KeepDownload)
+                        return s.DownloadEncrypted ? Loc.T("téléchargé depuis un lien chiffré : voir 📎 Fichiers du profil") : Loc.T("téléchargé depuis un lien : voir 📎 Fichiers du profil");
+                }
                 var missing = s.DeviceFiles.Where(path => VendorFileMissing(block, path)).Select(VendorFileName).ToList();
                 if (missing.Count > 0) return Loc.F("fichier à joindre : {0}", string.Join(", ", missing));
                 return s.Warning;
@@ -246,11 +274,73 @@ namespace ADBToolsNew
             if (sens > 0) lines.Add(Loc.F("• Étapes sensibles : {0}, décochées (confirmation demandée si vous les cochez)", sens));
             if (unknown > 0) lines.Add(Loc.F("• Non reconnues : {0} (gardées telles quelles, appliquées sans aperçu)", unknown));
             if (b.Files.Count > 0)
-                lines.Add(Loc.F("• Fichiers lus par le profil : {0}, dont {1} joint(s) automatiquement (trouvés à côté du XML)", b.Files.Count, auto));
+                lines.Add(Loc.F("• Fichiers du profil : {0}, dont {1} fourni(s) automatiquement (trouvés à côté du XML)", b.Files.Count, auto));
+            string tail = "";
+            if (b.Files.Any(f => f.Download && !f.Provided))
+                tail += "\n\n" + Loc.F("⚠️ {0} fichier(s) téléchargé(s) par le terminal depuis un lien (souvent chiffré par StageNow) : le terminal devra joindre ce serveur. Pour ne pas en dépendre, fournissez le fichier dans « 📎 Fichiers du profil » (✏️ : fichier du PC ou apk d'une appli de l'onglet Applications) : il sera déposé au même endroit et le reste du profil s'en servira.", b.Files.Count(f => f.Download && !f.Provided));
+            if (b.Files.Any(f => !f.Download && !f.Provided))
+                tail += "\n\n" + Loc.T("Joignez les fichiers manquants dans « 📎 Fichiers du profil » (✏️).");
             await ShowCustomDialogAsync(Loc.T("🏭 Profil StageNow importé"),
-                Loc.F("« {0} » : {1} étape(s) lue(s){2}.\n\n{3}", b.Name, p.Steps.Count, p.MinVersion.Length > 0 ? Loc.F(", faite(s) pour MX {0}", p.MinVersion) : "", string.Join("\n", lines))
-                + (b.Files.Count > auto ? "\n\n" + Loc.T("Joignez les fichiers manquants dans « Fichiers lus par le profil » (✏️).") : ""),
+                Loc.F("« {0} » : {1} étape(s) lue(s){2}.\n\n{3}", b.Name, p.Steps.Count, p.MinVersion.Length > 0 ? Loc.F(", faite(s) pour MX {0}", p.MinVersion) : "", string.Join("\n", lines)) + tail,
                 "OK", null, false);
+        }
+
+        private string VendorFileSource(MasterVendorFile f)
+        {
+            if (!string.IsNullOrEmpty(f.AppPackage)) return Loc.F("fourni par l'appli {0} (onglet Applications)", f.AppPackage);
+            if (!string.IsNullOrEmpty(f.Local)) return Loc.F("fourni : {0}", Path.GetFileName(f.Local));
+            if (f.Download) return f.KeepDownload ? Loc.T("téléchargé par le terminal (choisi)") : Loc.T("téléchargé par le terminal depuis un lien");
+            return Loc.T("lu sur le terminal");
+        }
+
+        /// <summary>Choix de la source d'un fichier du profil : fichier du PC, apk d'une appli du Master, ou téléchargement par le terminal.</summary>
+        private void ShowVendorFileMenu(MasterVendorBlock b, MasterVendorFile f)
+        {
+            var menu = new ContextMenu { Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint };
+            var pc = new MenuItem { Header = Loc.T("📂 Fichier du PC…") };
+            pc.Click += (s, a) => AttachVendorFile(b, f);
+            menu.Items.Add(pc);
+
+            // Applis du Master à une seule apk (les applis en plusieurs morceaux ne se déposent pas en un fichier) ;
+            // celles dont le nom ressemble au fichier en premier.
+            string name = Path.GetFileNameWithoutExtension(VendorFileName(f.DevicePath)).ToLowerInvariant();
+            var tokens = name.Split(new[] { '_', '-', '.', ' ' }, StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 4).ToList();
+            var apps = _master.Apps.Where(x => x.Files.Count == 1)
+                .OrderByDescending(x => tokens.Count(t => x.Package.ToLowerInvariant().Contains(t)))
+                .ThenBy(x => x.Package).ToList();
+            var fromApp = new MenuItem { Header = Loc.T("📦 Apk d'une appli du Master") };
+            if (apps.Count == 0 || !VendorFileName(f.DevicePath).EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+            {
+                fromApp.IsEnabled = false;
+                fromApp.Header = Loc.T("📦 Apk d'une appli du Master (aucune utilisable ici)");
+            }
+            foreach (var app in apps)
+            {
+                var item = new MenuItem { Header = string.IsNullOrEmpty(app.VersionName) ? app.Package : $"{app.Package} ({app.VersionName})", IsChecked = f.AppPackage == app.Package };
+                item.Click += (s, a) =>
+                {
+                    f.AppPackage = app.Package;
+                    f.Local = "";
+                    f.KeepDownload = false;
+                    RenderMasterView();
+                };
+                fromApp.Items.Add(item);
+            }
+            menu.Items.Add(fromApp);
+
+            if (f.Download)
+            {
+                var keep = new MenuItem { Header = Loc.T("🌐 Laisser le terminal le télécharger"), IsChecked = !f.Provided && f.KeepDownload };
+                keep.Click += (s, a) =>
+                {
+                    f.Local = "";
+                    f.AppPackage = "";
+                    f.KeepDownload = true;
+                    RenderMasterView();
+                };
+                menu.Items.Add(keep);
+            }
+            menu.IsOpen = true;
         }
 
         private void AttachVendorFile(MasterVendorBlock b, MasterVendorFile f)
@@ -348,13 +438,28 @@ namespace ADBToolsNew
                     foreach (var s in steps) MasterAdd(t, cat, s.Label, "skip", Loc.T("étape sensible non confirmée"));
                     continue;
                 }
+                // Téléchargements remplacés par un fichier fourni : l'étape est sautée, le fichier est déposé à sa place.
+                var replaced = steps.Where(s => s.DownloadTarget.Length > 0 && (VendorFileFor(b, s.DownloadTarget)?.Provided ?? false)).ToList();
+                foreach (var s in replaced) MasterAdd(t, cat, s.Label, "skip", Loc.T("remplacée par le fichier fourni"));
+                steps = steps.Except(replaced).ToList();
                 if (!sensitive)
                 {
-                    foreach (var path in steps.SelectMany(s => s.DeviceFiles).Distinct())
+                    foreach (var path in steps.SelectMany(s => s.DeviceFiles).Concat(replaced.Select(s => s.DownloadTarget)).Distinct())
                     {
-                        var f = b.Files.FirstOrDefault(x => x.DevicePath == path);
-                        if (string.IsNullOrEmpty(f?.Local)) continue;
-                        string local = Path.Combine(_masterDir, f.Local.Replace('/', Path.DirectorySeparatorChar));
+                        var f = VendorFileFor(b, path);
+                        if (f == null || !f.Provided) continue;
+                        string local;
+                        if (!string.IsNullOrEmpty(f.AppPackage))
+                        {
+                            var app = m.Apps.FirstOrDefault(x => x.Package == f.AppPackage && x.Files.Count == 1);
+                            if (app == null)
+                            {
+                                MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), "ko", Loc.F("appli {0} absente de l'onglet Applications", f.AppPackage));
+                                continue;
+                            }
+                            local = Path.Combine(_masterDir, app.Files[0].Replace('/', Path.DirectorySeparatorChar));
+                        }
+                        else local = Path.Combine(_masterDir, f.Local.Replace('/', Path.DirectorySeparatorChar));
                         string dir = path.Substring(0, Math.Max(1, path.LastIndexOf('/')));
                         MasterStatus(t, Loc.F("Fichier : {0}…", VendorFileName(path)));
                         await _adbManager.ExecuteAsync($"-s {t.Serial} shell mkdir -p {MasterProfile.ShellQuote(dir)}", TimeSpan.FromSeconds(15));
@@ -362,6 +467,7 @@ namespace ADBToolsNew
                         MasterAdd(t, cat, Loc.F("Fichier {0} → {1}", VendorFileName(path), path), res.IsSuccess ? "ok" : "ko", res.IsSuccess ? "" : LastLines(res.StandardError + res.StandardOutput, 1));
                     }
                 }
+                if (steps.Count == 0) continue;
                 if (!await EnsureMasterHelperAsync(t, MasterHelperApp.MxMinVersion))
                 {
                     foreach (var s in steps) MasterAdd(t, cat, s.Label, "ko", Loc.T("mini appli ADB Tools Helper non installée"));

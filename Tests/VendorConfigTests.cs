@@ -124,6 +124,8 @@ namespace ADBToolsNew.Tests
             Assert.AreEqual(3, p.Steps.Count);
             Assert.AreEqual(0, p.Steps.Sum(s => s.DeviceFiles.Count), "apk téléchargée par l'étape FileMgr : rien à joindre");
             StringAssert.Contains(p.Steps[2].Label, "com.exemple.appli");
+            Assert.AreEqual("/sdcard/appli.apk", p.Steps[0].DownloadTarget, "téléchargement repéré : le fichier peut être fourni à la place");
+            Assert.IsTrue(p.Steps[0].DownloadEncrypted);
         }
 
         [TestMethod]

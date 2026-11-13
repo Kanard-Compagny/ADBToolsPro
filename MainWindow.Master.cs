@@ -526,6 +526,8 @@ namespace ADBToolsNew
             if (steps > 0) list.Add(Loc.F("{0} étape(s) à faire à la main sur chaque terminal", steps));
             int vendorFiles = VendorMissingFiles();
             if (vendorFiles > 0) list.Add(Loc.F("{0} fichier(s) du profil constructeur à joindre", vendorFiles));
+            int vendorLinks = VendorLinkFiles();
+            if (vendorLinks > 0) list.Add(Loc.F("{0} fichier(s) que le profil constructeur télécharge depuis un lien (à fournir, ou à laisser télécharger)", vendorLinks));
             if (VendorHasInvalidXml()) list.Add(Loc.T("XML constructeur invalide"));
             return list;
         }
@@ -574,7 +576,7 @@ namespace ADBToolsNew
                 case "wifi": return Loc.F("📶 Wi-Fi · {0}", m.WifiNetworks.Count(x => x.Include)) + (MasterMissingPasswords() > 0 ? " ⚠" : "");
                 case "home": return Loc.T("🏠 Lanceur et MDM");
                 case "files": return Loc.F("📁 Fichiers · {0}", m.Files.Count(x => x.Include));
-                case "vendor": return Loc.F("🏭 Constructeur · {0}", VendorCheckedCount()) + (VendorMissingFiles() > 0 || VendorHasInvalidXml() ? " ⚠" : "");
+                case "vendor": return Loc.F("🏭 Constructeur · {0}", VendorCheckedCount()) + (VendorMissingFiles() > 0 || VendorLinkFiles() > 0 || VendorHasInvalidXml() ? " ⚠" : "");
                 default: return Loc.F("⌨️ Commandes · {0}", m.Commands.Count);
             }
         }
@@ -587,7 +589,7 @@ namespace ADBToolsNew
             {
                 case "wifi": return MasterMissingPasswords() > 0;
                 case "apps": return _master.Apps.Any(a => a.Files.Count == 0);
-                case "vendor": return VendorMissingFiles() > 0 || VendorHasInvalidXml();
+                case "vendor": return VendorMissingFiles() > 0 || VendorLinkFiles() > 0 || VendorHasInvalidXml();
                 default: return false;
             }
         }

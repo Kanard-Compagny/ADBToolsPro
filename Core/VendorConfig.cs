@@ -49,6 +49,14 @@ namespace ADBToolsNew.Core
         public string DevicePath { get; set; } = "";
         /// <summary>Fichier dans le Master (chemin relatif au dossier du Master), vide tant qu'il n'est pas joint.</summary>
         public string Local { get; set; } = "";
+        /// <summary>Fichier que le profil fait télécharger au terminal depuis un lien (l'étape est sautée s'il est fourni).</summary>
+        public bool Download { get; set; }
+        /// <summary>Fourni par l'apk d'une appli du Master (onglet Applications) plutôt que par un fichier joint.</summary>
+        public string AppPackage { get; set; } = "";
+        /// <summary>Téléchargement laissé au terminal, en connaissance de cause (plus d'avertissement).</summary>
+        public bool KeepDownload { get; set; }
+
+        public bool Provided => !string.IsNullOrEmpty(Local) || !string.IsNullOrEmpty(AppPackage);
     }
 
     /// <summary>Une étape d'un profil MX : un élément « characteristic » de premier niveau (un gestionnaire MX).</summary>
@@ -66,6 +74,10 @@ namespace ADBToolsNew.Core
         public string Warning = "";
         public string Key = "";
         public List<string> DeviceFiles = new List<string>();
+        /// <summary>Fichier que l'étape fait télécharger au terminal depuis un lien (FileMgr + SourceURI) : chemin d'arrivée.</summary>
+        public string DownloadTarget = "";
+        /// <summary>Lien chiffré par StageNow (illisible ici) : on ne sait pas où le terminal va le chercher.</summary>
+        public bool DownloadEncrypted;
     }
 
     /// <summary>Résultat de la lecture d'un profil : étapes, ou erreur avec sa ligne.</summary>
@@ -262,6 +274,13 @@ namespace ADBToolsNew.Core
                         string name = FileName(targetPath.Length > 0 ? targetPath : src);
                         string dir = targetPath.Length > name.Length ? targetPath.Substring(0, targetPath.Length - name.Length) : "";
                         s.Label = name.Length > 0 ? (dir.Length > 0 ? Loc.F("Déposer {0} → {1}", name, dir) : Loc.F("Déposer {0}", name)) : Loc.T("Gestion des fichiers");
+                        string uri = Parm(e, "SourceURI");
+                        if (uri.Length > 0 && targetPath.Length > 0)
+                        {
+                            s.DownloadTarget = targetPath;
+                            s.DownloadEncrypted = !uri.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !uri.StartsWith("ftp", StringComparison.OrdinalIgnoreCase);
+                            s.Label = dir.Length > 0 ? Loc.F("Télécharger {0} → {1}", name, dir) : Loc.F("Télécharger {0}", name);
+                        }
                         s.Theme = ehs ? ThemeEhs : velocity ? ThemeVelocity : dw ? ThemeDataWedge : ThemeFiles;
                         if (ehs && name.Equals("enterprisehomescreen.xml", StringComparison.OrdinalIgnoreCase)) s.Label = Loc.T("Déposer la configuration EHS");
                         break;
