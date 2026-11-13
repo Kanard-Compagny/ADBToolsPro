@@ -172,7 +172,10 @@ namespace ADBToolsNew.Core
         };
 
         /// <summary>Lit un profil ; en cas de XML invalide, Error et ErrorLine disent où.</summary>
-        public static MxProfile Read(string xml)
+        public static MxProfile Read(string xml) => Read(xml, false);
+
+        /// <summary>Lit un profil ; <paramref name="allowEmpty"/> : un profil sans étape (créé vide) n'est pas une erreur.</summary>
+        public static MxProfile Read(string xml, bool allowEmpty)
         {
             var p = new MxProfile();
             XDocument doc;
@@ -219,7 +222,7 @@ namespace ADBToolsNew.Core
                 p.Steps.Add(s);
                 if (s.Version.Length > 0 && (p.MinVersion.Length == 0 || VendorModules.CompareVersions(s.Version, p.MinVersion) > 0)) p.MinVersion = s.Version;
             }
-            if (p.Steps.Count == 0) { p.Error = Loc.T("Aucune étape MX (<characteristic>) dans ce fichier."); p.ErrorLine = 1; }
+            if (p.Steps.Count == 0 && !allowEmpty) { p.Error = Loc.T("Aucune étape MX (<characteristic>) dans ce fichier."); p.ErrorLine = 1; }
             return p;
         }
 

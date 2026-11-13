@@ -80,6 +80,79 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Action principale de la fenêtre (orange), pastilles de choix et champs des modèles d'étapes. -->
+        <Style x:Key="XmlPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource XmlToolButtonStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource OnAction}"/>
+            <Setter Property="Background" Value="{DynamicResource Action}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Action}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="XmlPillStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="14" Padding="11,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Muted}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brand}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brand}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnBrand}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Bg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource Focus}"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Background" Value="{DynamicResource Bg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource Focus}"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <!-- Ligne du catalogue : un modèle, et à droite s'il est déjà dans le profil. -->
+        <Style x:Key="XmlCatalogItemStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrandSoft}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- Défilement de la charte sans le carré gris du coin (barres : style commun de Themes/Controls.xaml). -->
         <Style TargetType="ScrollViewer">
             <Setter Property="Template">
@@ -146,7 +219,9 @@
             <Border Grid.Row="1" Background="{DynamicResource ToolbarBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,9">
                 <DockPanel>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <Button x:Name="BtnFind" Content="🔍 Rechercher (Ctrl+F)" Click="BtnFind_Click" Style="{StaticResource XmlToolButtonStyle}" Margin="0"/>
+                        <Button x:Name="BtnAddStep" Content="Ajouter une étape" Click="BtnAddStep_Click" Style="{StaticResource XmlPrimaryButtonStyle}" Margin="0"
+                                ToolTip="Catalogue de modèles d'étapes MX : on remplit quelques champs, l'étape s'ajoute au profil"/>
+                        <Button x:Name="BtnFind" Content="🔍 Rechercher (Ctrl+F)" Click="BtnFind_Click" Style="{StaticResource XmlToolButtonStyle}"/>
                         <Button x:Name="BtnChanges" Content="Voir les changements" Click="BtnChanges_Click" Style="{StaticResource XmlToolButtonStyle}"/>
                         <Button x:Name="BtnRevert" Content="Revenir à l'original" Click="BtnRevert_Click" Style="{StaticResource XmlToolButtonStyle}"/>
                     </StackPanel>
@@ -164,13 +239,14 @@
             <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="330"/>
+                    <ColumnDefinition Width="390"/>
                 </Grid.ColumnDefinitions>
                 <ae:TextEditor x:Name="Editor" Grid.Column="0" FontFamily="Consolas" FontSize="13" ShowLineNumbers="True"
                                Background="{DynamicResource Bg}" Foreground="{DynamicResource Ink}" LineNumbersForeground="{DynamicResource Muted}"
                                HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Padding="6,6,0,0"/>
                 <Border Grid.Column="1" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0" Padding="14,12">
-                    <DockPanel>
+                    <Grid>
+                    <DockPanel x:Name="StepsPanel">
                         <TextBlock DockPanel.Dock="Top" Text="Étapes lues" FontWeight="SemiBold" FontSize="14"/>
                         <TextBlock DockPanel.Dock="Top" Text="Cliquez une étape pour aller à sa ligne. Le Master suit en direct." Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,8"/>
                         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
@@ -187,6 +263,41 @@
                             <StackPanel x:Name="StepsHost"/>
                         </ScrollViewer>
                     </DockPanel>
+
+                    <!-- Catalogue des modèles d'étapes (« Ajouter une étape »). -->
+                    <DockPanel x:Name="CatalogPanel" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top">
+                            <Button Content="Étapes lues" Click="BtnShowSteps_Click" Style="{StaticResource XmlToolButtonStyle}" Height="26" DockPanel.Dock="Right"/>
+                            <TextBlock Text="Ajouter une étape" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Choisissez un modèle : quelques champs à remplir, et l'étape s'ajoute au profil. À droite, ce que le profil contient déjà." Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <TextBox x:Name="TxtCatalogSearch" TextChanged="TxtCatalogSearch_TextChanged"/>
+                            <TextBlock x:Name="TxtCatalogHint" Text="Rechercher : wi-fi, veille, apk…" Foreground="{DynamicResource Muted}" Margin="9,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="CatalogHost"/>
+                        </ScrollViewer>
+                    </DockPanel>
+
+                    <!-- Formulaire d'un modèle choisi. -->
+                    <DockPanel x:Name="FormPanel" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top">
+                            <Button Content="‹ Catalogue" Click="BtnBackToCatalog_Click" Style="{StaticResource XmlToolButtonStyle}" Height="26" Margin="0,0,10,0" DockPanel.Dock="Left"/>
+                            <TextBlock x:Name="TxtFormTitle" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <TextBlock x:Name="TxtFormError" Foreground="{DynamicResource BadFg}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnInsertStep" Content="Insérer l'étape" Click="BtnInsertStep_Click" Style="{StaticResource XmlPrimaryButtonStyle}" Height="34" Margin="0"/>
+                                <Button Content="Annuler" Click="BtnShowSteps_Click" Style="{StaticResource XmlToolButtonStyle}" Height="34"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                            <StackPanel x:Name="FormHost"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                    </Grid>
                 </Border>
             </Grid>
 

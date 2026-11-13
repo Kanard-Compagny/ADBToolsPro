@@ -30,6 +30,9 @@ namespace ADBToolsNew
         /// <summary>Le XML du bloc a changé et il est valide : le Master doit se redessiner.</summary>
         public event Action Changed;
 
+        /// <summary>Un modèle d'étape a joint un fichier du PC : (chemin lu sur le terminal, fichier du PC).</summary>
+        public event Action<string, string> FileAttached;
+
         public MasterVendorBlock Block => _block;
 
         public MasterXmlEditor(MasterVendorBlock block)
@@ -95,7 +98,7 @@ namespace ADBToolsNew
         private void Reparse(bool fromTyping)
         {
             string text = Editor.Text ?? "";
-            var p = StageNowReader.Read(text);
+            var p = StageNowReader.Read(text, true);
             if (!p.Ok)
             {
                 _marks.ErrorLine = Math.Max(1, p.ErrorLine);
@@ -139,6 +142,12 @@ namespace ADBToolsNew
         private void RenderSteps(MxProfile p)
         {
             StepsHost.Children.Clear();
+            if (p.Steps.Count == 0)
+            {
+                var empty = new TextBlock { Text = Loc.T("Profil vide : « Ajouter une étape » ouvre le catalogue des modèles."), TextWrapping = TextWrapping.Wrap, FontSize = 12.5 };
+                empty.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+                StepsHost.Children.Add(empty);
+            }
             foreach (var s in p.Steps)
             {
                 var step = s;
@@ -198,6 +207,312 @@ namespace ADBToolsNew
         {
             var c = Editor.TextArea.Caret;
             TxtCaret.Text = Loc.F("Ligne {0}, col. {1}", c.Line, c.Column);
+        }
+
+        // ------------------------------------------------------------------ Modèles d'étapes (« Ajouter une étape »)
+
+        private MxTemplate _template;
+        private Dictionary<string, string> _values = new Dictionary<string, string>();
+        /// <summary>Fichiers du PC choisis dans le formulaire : clé du champ → fichier local.</summary>
+        private readonly Dictionary<string, string> _pendingFiles = new Dictionary<string, string>();
+        private bool _insertAtCaret;
+        private TextBox _preview;
+
+        private void ShowPanel(FrameworkElement panel)
+        {
+            StepsPanel.Visibility = panel == StepsPanel ? Visibility.Visible : Visibility.Collapsed;
+            CatalogPanel.Visibility = panel == CatalogPanel ? Visibility.Visible : Visibility.Collapsed;
+            FormPanel.Visibility = panel == FormPanel ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>Ouvre le catalogue des modèles (bouton de la barre, ou « Ajouter une étape » du Master).</summary>
+        public void ShowCatalog()
+        {
+            ShowPanel(CatalogPanel);
+            RenderCatalog();
+            TxtCatalogSearch.Focus();
+        }
+
+        private void BtnAddStep_Click(object sender, RoutedEventArgs e) => ShowCatalog();
+        private void BtnShowSteps_Click(object sender, RoutedEventArgs e) => ShowPanel(StepsPanel);
+        private void BtnBackToCatalog_Click(object sender, RoutedEventArgs e) => ShowCatalog();
+
+        private void TxtCatalogSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TxtCatalogHint.Visibility = string.IsNullOrEmpty(TxtCatalogSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
+            if (CatalogPanel.Visibility == Visibility.Visible) RenderCatalog();
+        }
+
+        private static string Fold(string s)
+        {
+            var d = (s ?? "").ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+            return new string(d.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
+        }
+
+        private TextBlock Muted(string text, double size = 12)
+        {
+            var t = new TextBlock { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap };
+            t.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            return t;
+        }
+
+        private void RenderCatalog()
+        {
+            CatalogHost.Children.Clear();
+            var profile = StageNowReader.Read(Editor.Text ?? "", true);
+            string q = Fold(TxtCatalogSearch.Text).Trim();
+            int shown = 0;
+            foreach (var group in MxTemplates.Groups)
+            {
+                var items = MxTemplates.All.Where(t => t.Group == group && (q.Length == 0
+                    || Fold(Loc.T(t.Label) + " " + Loc.T(t.Description) + " " + Loc.T(t.Group) + " " + t.Id).Contains(q))).ToList();
+                if (items.Count == 0) continue;
+                var head = new TextBlock { Text = Loc.T(group), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, shown == 0 ? 0 : 10, 0, 4) };
+                head.SetResourceReference(TextBlock.ForegroundProperty, "BrandText");
+                CatalogHost.Children.Add(head);
+                foreach (var t in items)
+                {
+                    var tpl = t;
+                    int count = profile.Ok ? MxTemplates.CountIn(tpl, profile) : 0;
+                    var g = new Grid();
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    var name = new TextBlock { Text = Loc.T(tpl.Label), FontSize = 13, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+                    name.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+                    g.Children.Add(name);
+                    var right = Muted(count > 0 ? Loc.F("déjà {0}", count) : Loc.F("MX {0}+", tpl.MinMx), 11.5);
+                    right.VerticalAlignment = VerticalAlignment.Center;
+                    right.Margin = new Thickness(8, 0, 0, 0);
+                    if (count > 0) right.SetResourceReference(TextBlock.ForegroundProperty, "BrandText");
+                    Grid.SetColumn(right, 1);
+                    g.Children.Add(right);
+                    var b = new Button { Content = g, Style = (Style)FindResource("XmlCatalogItemStyle"), ToolTip = Loc.T(tpl.Description).Length > 0 ? Loc.T(tpl.Description) : null };
+                    b.Click += (s, e) => OpenTemplate(tpl);
+                    CatalogHost.Children.Add(b);
+                    shown++;
+                }
+            }
+            if (shown == 0) CatalogHost.Children.Add(Muted(Loc.T("Aucun modèle ne correspond."), 12.5));
+            var note = Muted(Loc.T("Les étapes qui effacent ou réinitialisent le terminal ne sont pas proposées ici : elles restent possibles à la main dans le XML, avec la confirmation APPLIQUER."), 11.5);
+            note.Margin = new Thickness(0, 14, 0, 0);
+            CatalogHost.Children.Add(note);
+        }
+
+        private void OpenTemplate(MxTemplate t)
+        {
+            _template = t;
+            _values = t.Defaults();
+            _pendingFiles.Clear();
+            _insertAtCaret = false;
+            TxtFormTitle.Text = Loc.T(t.Label);
+            TxtFormError.Visibility = Visibility.Collapsed;
+            ShowPanel(FormPanel);
+            RenderForm();
+        }
+
+        private void RenderForm()
+        {
+            FormHost.Children.Clear();
+            var t = _template;
+            if (t == null) return;
+            var intro = Muted((Loc.T(t.Description) + " " + Loc.F("MX {0} et plus.", t.MinMx)).Trim(), 12);
+            intro.Margin = new Thickness(0, 6, 0, 10);
+            FormHost.Children.Add(intro);
+
+            foreach (var f in t.Fields.Where(f => f.IsVisible(_values)))
+            {
+                var field = f;
+                var label = Muted(Loc.T(field.Label), 12);
+                label.Margin = new Thickness(0, 0, 0, 4);
+                FormHost.Children.Add(label);
+                _values.TryGetValue(field.Key, out string current);
+                switch (field.Kind)
+                {
+                    case MxFieldKind.Choice:
+                    {
+                        var wrap = new WrapPanel();
+                        string group = "tpl_" + field.Key + "_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+                        foreach (var (value, text) in field.Options)
+                        {
+                            var v = value;
+                            var rb = new RadioButton { Content = Loc.T(text), GroupName = group, IsChecked = v == current, Style = (Style)FindResource("XmlPillStyle") };
+                            rb.Checked += (s, e) =>
+                            {
+                                _values[field.Key] = v;
+                                // Un choix peut montrer ou cacher d'autres champs (mot de passe d'un réseau ouvert…).
+                                if (t.Fields.Any(x => x.VisibleWhen != null)) Dispatcher.BeginInvoke(new Action(RenderForm));
+                                else UpdatePreview();
+                            };
+                            wrap.Children.Add(rb);
+                        }
+                        FormHost.Children.Add(wrap);
+                        break;
+                    }
+                    case MxFieldKind.Password:
+                    {
+                        var pb = new PasswordBox { Password = current ?? "" };
+                        pb.PasswordChanged += (s, e) => { _values[field.Key] = pb.Password; UpdatePreview(); };
+                        FormHost.Children.Add(pb);
+                        break;
+                    }
+                    case MxFieldKind.DeviceFile:
+                    {
+                        var dock = new DockPanel();
+                        var pick = new Button { Content = Loc.T("Choisir sur le PC…"), Style = (Style)FindResource("XmlToolButtonStyle"), Margin = new Thickness(6, 0, 0, 0) };
+                        DockPanel.SetDock(pick, Dock.Right);
+                        var tb = new TextBox { Text = current ?? "", ToolTip = Loc.T("Chemin du fichier sur le terminal") };
+                        var attached = Muted(_pendingFiles.TryGetValue(field.Key, out string l0) ? Loc.F("Joint au Master : {0}", System.IO.Path.GetFileName(l0)) : (field.Hint.Length > 0 ? Loc.F("ex. : {0}", field.Hint) : ""), 11.5);
+                        attached.Margin = new Thickness(0, 3, 0, 0);
+                        tb.TextChanged += (s, e) =>
+                        {
+                            _values[field.Key] = tb.Text;
+                            // Chemin changé à la main : le fichier du PC n'est plus celui qui sera lu.
+                            if (_pendingFiles.TryGetValue(field.Key, out string local) && tb.Text.Trim() != MxTemplates.Staging + System.IO.Path.GetFileName(local))
+                            {
+                                _pendingFiles.Remove(field.Key);
+                                attached.Text = Loc.T("Fichier à joindre ensuite dans « Fichiers du profil » du Master.");
+                            }
+                            UpdatePreview();
+                        };
+                        pick.Click += (s, e) =>
+                        {
+                            string ext = field.FileFilter.Length > 0 ? field.FileFilter : "*.*";
+                            var dlg = new Microsoft.Win32.OpenFileDialog { Title = Loc.T(field.Label), Filter = Loc.F("Fichier ({0})|{0}|Tous les fichiers (*.*)|*.*", ext) };
+                            if (dlg.ShowDialog(this) != true) return;
+                            string path = MxTemplates.Staging + System.IO.Path.GetFileName(dlg.FileName);
+                            _pendingFiles[field.Key] = dlg.FileName;
+                            tb.Text = path;
+                            _pendingFiles[field.Key] = dlg.FileName;
+                            attached.Text = Loc.F("Joint au Master : {0}", System.IO.Path.GetFileName(dlg.FileName));
+                        };
+                        dock.Children.Add(pick);
+                        dock.Children.Add(tb);
+                        FormHost.Children.Add(dock);
+                        FormHost.Children.Add(attached);
+                        break;
+                    }
+                    default:
+                    {
+                        var tb = new TextBox { Text = current ?? "", ToolTip = field.Hint.Length > 0 ? Loc.F("ex. : {0}", field.Hint) : null };
+                        tb.TextChanged += (s, e) => { _values[field.Key] = tb.Text; UpdatePreview(); };
+                        FormHost.Children.Add(tb);
+                        if (field.Kind == MxFieldKind.Folder)
+                        {
+                            // Dossiers déjà utilisés dans les Masters, puis les dossiers usuels des Zebra.
+                            var chips = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                            var folders = DevicePathMemory.Recent(AppSettings.Current.MasterDevicePaths, 6)
+                                .Concat(new[] { "/enterprise/usr/", "/enterprise/usr/persist/", MxTemplates.Staging })
+                                .Distinct(StringComparer.Ordinal).Take(8);
+                            foreach (var folder in folders)
+                            {
+                                var path = folder;
+                                var chip = new Button { Content = path, Style = (Style)FindResource("XmlToolButtonStyle"), Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 6, 6), FontSize = 11.5 };
+                                chip.Click += (s, e) => tb.Text = path;
+                                chips.Children.Add(chip);
+                            }
+                            FormHost.Children.Add(chips);
+                        }
+                        else if (field.Hint.Length > 0)
+                        {
+                            var hint = Muted(Loc.F("ex. : {0}", field.Hint), 11.5);
+                            hint.Margin = new Thickness(0, 3, 0, 0);
+                            FormHost.Children.Add(hint);
+                        }
+                        break;
+                    }
+                }
+                FormHost.Children.Add(new Border { Height = 10 });
+            }
+
+            if (t.Warning.Length > 0)
+            {
+                var warn = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 10) };
+                warn.SetResourceReference(Border.BackgroundProperty, "WarnBg");
+                var wt = new TextBlock { Text = Loc.T(t.Warning), TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+                wt.SetResourceReference(TextBlock.ForegroundProperty, "WarnFg");
+                warn.Child = wt;
+                FormHost.Children.Add(warn);
+            }
+
+            var where = Muted(Loc.T("Où insérer"), 12);
+            where.Margin = new Thickness(0, 0, 0, 4);
+            FormHost.Children.Add(where);
+            if (t.MustBeLast) FormHost.Children.Add(Muted(Loc.T("Toujours en dernier : rien ne s'exécute après un redémarrage."), 12));
+            else
+            {
+                var pos = new WrapPanel();
+                var end = new RadioButton { Content = Loc.T("À la fin du profil"), GroupName = "tpl_where", IsChecked = !_insertAtCaret, Style = (Style)FindResource("XmlPillStyle") };
+                end.Checked += (s, e) => _insertAtCaret = false;
+                var caret = new RadioButton { Content = Loc.F("Après l'étape du curseur (ligne {0})", Editor.TextArea.Caret.Line), GroupName = "tpl_where", IsChecked = _insertAtCaret, Style = (Style)FindResource("XmlPillStyle") };
+                caret.Checked += (s, e) => _insertAtCaret = true;
+                pos.Children.Add(end);
+                pos.Children.Add(caret);
+                FormHost.Children.Add(pos);
+            }
+
+            var pv = Muted(Loc.T("XML ajouté"), 12);
+            pv.Margin = new Thickness(0, 10, 0, 4);
+            FormHost.Children.Add(pv);
+            _preview = new TextBox { IsReadOnly = true, FontFamily = new FontFamily("Consolas"), FontSize = 11.5, Height = double.NaN, MinHeight = 60, MaxHeight = 260,
+                TextWrapping = TextWrapping.NoWrap, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalContentAlignment = VerticalAlignment.Top, Padding = new Thickness(6, 4, 6, 4) };
+            FormHost.Children.Add(_preview);
+            UpdatePreview();
+        }
+
+        private void UpdatePreview()
+        {
+            if (_preview == null || _template == null) return;
+            try
+            {
+                string xml = MxTemplates.BuildXml(_template, _values);
+                // Mot de passe masqué à l'écran (il est bien écrit dans le XML inséré).
+                _preview.Text = System.Text.RegularExpressions.Regex.Replace(xml, "(name=\"Passphrase[^\"]*\" value=\")[^\"]*", m => m.Groups[1].Value + "••••••••");
+            }
+            catch (Exception ex) { _preview.Text = ex.Message; }
+            TxtFormError.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnInsertStep_Click(object sender, RoutedEventArgs e)
+        {
+            var t = _template;
+            if (t == null) return;
+            string err = MxTemplates.Validate(t, _values);
+            if (err != null) { TxtFormError.Text = err; TxtFormError.Visibility = Visibility.Visible; return; }
+            MxTemplates.InsertResult r;
+            try { r = MxTemplates.Insert(Editor.Text ?? "", MxTemplates.BuildXml(t, _values), _insertAtCaret ? Editor.TextArea.Caret.Line : 0, t.MustBeLast); }
+            catch
+            {
+                TxtFormError.Text = Loc.T("Le XML actuel est invalide : corrigez-le (barre rouge) avant d'ajouter une étape.");
+                TxtFormError.Visibility = Visibility.Visible;
+                return;
+            }
+
+            // Une seule opération : un Ctrl+Z la retire.
+            Editor.Document.Replace(0, Editor.Document.TextLength, r.Xml);
+            _timer.Stop();
+            Reparse(true);
+
+            foreach (var kv in _pendingFiles)
+            {
+                if (!_values.TryGetValue(kv.Key, out string devicePath) || devicePath.Trim().Length == 0) continue;
+                FileAttached?.Invoke(devicePath.Trim(), kv.Value);
+            }
+            if (t.Fields.Any(f => f.Kind == MxFieldKind.Folder))
+            {
+                string folder = t.Fields.Where(f => f.Kind == MxFieldKind.Folder).Select(f => _values.TryGetValue(f.Key, out string v) ? v : "").FirstOrDefault() ?? "";
+                string file = _pendingFiles.Values.FirstOrDefault() ?? (_values.TryGetValue("source", out string src) ? src : "");
+                if (folder.Trim().Length > 0) { DevicePathMemory.Remember(AppSettings.Current.MasterDevicePaths, file, folder); AppSettings.Save(); }
+            }
+            _pendingFiles.Clear();
+
+            ShowPanel(StepsPanel);
+            var first = Editor.Document.GetLineByNumber(Math.Min(r.FirstLine, Editor.Document.LineCount));
+            var last = Editor.Document.GetLineByNumber(Math.Min(r.FirstLine + r.LineCount - 1, Editor.Document.LineCount));
+            Editor.TextArea.Caret.Offset = first.Offset;
+            Editor.Select(first.Offset, last.EndOffset - first.Offset);
+            Editor.ScrollToLine(r.FirstLine);
+            Editor.Focus();
         }
 
         // ------------------------------------------------------------------ Barre d'outils

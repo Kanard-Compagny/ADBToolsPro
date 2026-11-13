@@ -26,7 +26,7 @@ namespace ADBToolsNew
             string xml = b.Xml ?? "";
             if (_vendorParseCache.TryGetValue(xml, out var p)) return p;
             if (_vendorParseCache.Count > 20) _vendorParseCache.Clear();
-            p = StageNowReader.Read(xml);
+            p = StageNowReader.Read(xml, true); // un profil créé vide reste valide
             _vendorParseCache[xml] = p;
             return p;
         }
@@ -105,7 +105,8 @@ namespace ADBToolsNew
             }
             AddMasterSection(Loc.T("🏭 Réglages constructeur"),
                 Loc.T("Fichiers propres à une marque, appliqués seulement sur les terminaux de cette marque (ailleurs le bloc est ignoré, et le bilan le dit). Zebra : profil StageNow exporté pour MDM (StageNow ▸ le profil ▸ Export to MDM ▸ XML), appliqué par la mini appli ADB Tools Helper via EMDK."),
-                new List<MasterRow>(), async () => await ImportStageNowAsync(), Loc.T("＋ Importer un profil StageNow"));
+                new List<MasterRow>(), async () => await ImportStageNowAsync(), Loc.T("＋ Importer un profil StageNow"),
+                async () => await CreateEmptyVendorBlockAsync(), Loc.T("＋ Créer un profil Zebra vide"));
 
             foreach (var b in m.Vendor.ToList())
             {
@@ -119,6 +120,8 @@ namespace ADBToolsNew
                     _masterViewHost.Children.Add(err);
                     continue;
                 }
+                if (p.Steps.Count == 0)
+                    _masterViewHost.Children.Add(MasterMutedText(Loc.T("Profil vide : « Ajouter une étape » ouvre le catalogue des modèles dans l'éditeur XML."), 12));
                 foreach (var theme in StageNowReader.ThemeOrder)
                 {
                     var steps = p.Steps.Where(s => !s.Sensitive && s.Theme == theme).ToList();
@@ -196,10 +199,11 @@ namespace ADBToolsNew
             Grid.SetColumn(badge, 1); g.Children.Add(badge);
 
             var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var title = new TextBlock { Text = Loc.F("Profil StageNow « {0} »", block.Name), FontWeight = FontWeights.SemiBold, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis };
+            bool created = string.IsNullOrEmpty(block.SourceFile);
+            var title = new TextBlock { Text = created ? Loc.F("Profil Zebra « {0} »", block.Name) : Loc.F("Profil StageNow « {0} »", block.Name), FontWeight = FontWeights.SemiBold, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis };
             title.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
             names.Children.Add(title);
-            var parts = new List<string> { Loc.F("importé le {0:dd/MM/yyyy}", block.ImportedAt) };
+            var parts = new List<string> { created ? Loc.F("créé le {0:dd/MM/yyyy}", block.ImportedAt) : Loc.F("importé le {0:dd/MM/yyyy}", block.ImportedAt) };
             if (p.Ok)
             {
                 if (p.MinVersion.Length > 0) parts.Add(Loc.F("MX {0} minimum", p.MinVersion));
@@ -210,6 +214,13 @@ namespace ADBToolsNew
             Grid.SetColumn(names, 2); g.Children.Add(names);
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            if (block.Brand == VendorModules.Zebra)
+            {
+                var addStep = new Button { Content = Loc.T("Ajouter une étape"), ToolTip = Loc.T("Catalogue de modèles d'étapes MX, dans l'éditeur XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0) };
+                addStep.SetResourceReference(Control.BorderBrushProperty, "Accent");
+                addStep.Click += (s, a) => OpenVendorEditor(block, 0, true);
+                buttons.Children.Add(addStep);
+            }
             var xml = new Button { Content = Loc.T("Voir le XML"), Style = (Style)FindResource("OutlineButtonStyle"), Height = 28, Padding = new Thickness(10, 0, 10, 0) };
             xml.Click += (s, a) => OpenVendorEditor(block, 0);
             buttons.Children.Add(xml);
@@ -455,12 +466,13 @@ namespace ADBToolsNew
         }
 
         /// <summary>Ouvre (ou ramène) l'éditeur du XML d'un bloc, à une ligne donnée.</summary>
-        private void OpenVendorEditor(MasterVendorBlock block, int line)
+        private void OpenVendorEditor(MasterVendorBlock block, int line, bool catalog = false)
         {
             if (!_vendorEditors.TryGetValue(block, out var ed))
             {
                 ed = new MasterXmlEditor(block) { Owner = this };
                 ed.Changed += () => Dispatcher.BeginInvoke(new Action(() => OnVendorXmlChanged(block)));
+                ed.FileAttached += (devicePath, local) => AttachTemplateFile(block, devicePath, local);
                 ed.Closed += (s, a) => _vendorEditors.Remove(block);
                 _vendorEditors[block] = ed;
                 ed.Show();
@@ -471,6 +483,38 @@ namespace ADBToolsNew
                 ed.Activate();
             }
             if (line > 0) ed.GoToLine(line);
+            if (catalog) ed.ShowCatalog();
+        }
+
+        /// <summary>« Créer un profil Zebra vide » : un bloc sans étape, ouvert dans l'éditeur sur le catalogue des modèles.</summary>
+        private async Task CreateEmptyVendorBlockAsync()
+        {
+            string name = await MasterPromptAsync(Loc.T("Nouveau profil Zebra"), Loc.T("Nom du profil, pour s'y retrouver dans le Master :"), Loc.T("Nouveau profil"), Loc.T("Créer"));
+            if (name == null) return;
+            name = name.Trim().Length > 0 ? name.Trim() : Loc.T("Nouveau profil");
+            string xml = MxTemplates.EmptyProfile();
+            var b = new MasterVendorBlock { Brand = VendorModules.Zebra, Kind = "stagenow", Name = name, SourceFile = "", ImportedAt = DateTime.Now, Xml = xml, OriginalXml = xml };
+            _master.Vendor.Add(b);
+            RerenderMaster();
+            OpenVendorEditor(b, 0, true);
+        }
+
+        /// <summary>Fichier du PC choisi dans un modèle d'étape : joint au bloc pour le chemin que l'étape lit sur le terminal.</summary>
+        private void AttachTemplateFile(MasterVendorBlock block, string devicePath, string local)
+        {
+            if (_master == null || !_master.Vendor.Contains(block)) return;
+            try
+            {
+                SyncVendorFiles(block);
+                var f = VendorFileFor(block, devicePath);
+                if (f == null) block.Files.Add(f = new MasterVendorFile { DevicePath = devicePath });
+                CopyVendorFile(f, local);
+                OnVendorXmlChanged(block);
+            }
+            catch (Exception ex)
+            {
+                _ = ShowCustomDialogAsync(Loc.T("Fichier du profil"), Loc.F("Le fichier n'a pas pu être joint : {0}", ex.Message), "OK", null, false);
+            }
         }
 
         /// <summary>XML modifié (et valide) dans l'éditeur : fichiers et affichage du Master mis à jour, sans perdre la position.</summary>
